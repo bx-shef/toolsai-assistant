@@ -13,18 +13,17 @@ interface ModelGatewayInterface
 	/** Модель не подключена (заглушка shef.toolsai): ответ не нужен и не стоит денег. */
 	public function isStub(): bool;
 
-	/** Месячная квота shef.toolsai исчерпана. */
-	public function isQuotaExceeded(): bool;
-
 	/** Название модели для подписи в окне. */
 	public function modelName(): string;
 
 	/**
-	 * Ответ модели. Расход записан в журнал shef.toolsai при любом исходе.
+	 * Ответ модели. Квота проверяется и расход пишется в журнал shef.toolsai
+	 * внутри; исчерпана квота — ChatException::QUOTA.
 	 *
 	 * @param list<array{role: string, content: string}> $messages
 	 * @return array{text: string, finishReason: string}
-	 * @throws ChatException модель не ответила — текст для сотрудника
+	 * @param int $userId кто спросил — в лог shef.toolsai при сбое
+	 * @throws ChatException квота, модель не ответила — текст для сотрудника
 	 */
-	public function complete(array $messages): array;
+	public function complete(array $messages, int $userId = 0): array;
 }

@@ -2,20 +2,20 @@
 
 namespace Shef\ToolsAiAssistant\Chat\Gateway;
 
-use Shef\ToolsAi\Analysis\RecordHistory;
+use Shef\ToolsAi\Public\Service\RecordService;
 
 /**
- * История записи CRM — RecordHistory::get() shef.toolsai (1.45.0+): та же
- * лента, что получает анализ сделок. Права: запись должна быть видна
- * сотруднику в CRM (checkReadPermissions внутри). Сама квоту не тратит.
+ * История записи CRM — публичный API shef.toolsai 1.50.0
+ * (Public\Service\RecordService::get()): лента касаний, запись должна быть
+ * видна сотруднику в CRM. Квоту не тратит.
  */
 final class ToolsAiRecordSource implements RecordSourceInterface
 {
 	/** История записи с правами CRM сотрудника; не видна или нет — null. */
 	public function get(int $entityTypeId, int $id, int $userId): ?array
 	{
-		$record = RecordHistory::get($entityTypeId, $id, $userId);
+		$record = RecordService::get($entityTypeId, $id, $userId);
 
-		return $record === null ? null : ['title' => $record['title'], 'text' => $record['text']];
+		return $record === null ? null : ['title' => (string)$record['title'], 'text' => (string)$record['text']];
 	}
 }

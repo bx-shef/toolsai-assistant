@@ -16,8 +16,9 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * Сценарий чата: что показать в окне, смена роли, ответ.
  *
  * Порядок ответа: право на чат → роль (проверка права роли на КАЖДОМ ответе,
- * RoleSelector) → заглушка/квота → запись CRM с правами сотрудника → текст
- * роли из реестра → статьи базы знаний → модель с журналом расхода →
+ * RoleSelector) → заглушка → частота → запись CRM с правами сотрудника → текст
+ * роли из реестра → статьи базы знаний → модель (квота и журнал расхода —
+ * внутри LlmService shef.toolsai) →
  * запомнить роль для этого чата.
  *
  * Зависимости — интерфейсы Gateway: в портале их реализуют классы на
@@ -118,10 +119,6 @@ final class AnswerService
 		{
 			throw new ChatException('Слишком много вопросов подряд — подождите минуту', ChatException::RATE);
 		}
-		if($this->model->isQuotaExceeded())
-		{
-			throw new ChatException('Месячная квота ИИ исчерпана — обратитесь к администратору портала', ChatException::QUOTA);
-		}
 
 		$recordText = null;
 		if($request->record !== null)
@@ -138,7 +135,7 @@ final class AnswerService
 		// Отметка — до вызова модели: сбой модели тоже считается, иначе повторы в цикле обходили бы лимит
 		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
-		$answer = $this->model->complete(ContextBuilder::messages($composed['system'], $recordText, $articles, $request->history));
+		$answer = $this->model->complete(ContextBuilder::messages($composed['system'], $recordText, $articles, $request->history), $userId);
 		$this->choices->save($userId, $key, $role);
 
 		return [

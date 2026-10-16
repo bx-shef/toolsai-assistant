@@ -2,95 +2,63 @@
 
 namespace Shef\ToolsAiAssistant\Chat\Gateway;
 
-use Shef\ToolsAi\Config;
-use Shef\ToolsAi\Container as ToolsAiContainer;
-use Shef\ToolsAi\Main\Constants as ToolsAiConstants;
-use Shef\ToolsAi\Provider\Llm\LlmProviderInterface;
-use Shef\ToolsAi\Provider\ProviderException;
-use Shef\ToolsAi\Quota\Ledger;
-use Shef\ToolsAi\Quota\Status;
+use Shef\ToolsAi\Public\Service\LlmService;
 use Shef\ToolsAiAssistant\Chat\ChatException;
-use Shef\ToolsAiAssistant\Container;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Вызов модели через публичный путь shef.toolsai — навык
- * shef-new-ai-provider, раздел «Вызвать LLM из своего модуля»:
+ * Вызов модели — публичный API shef.toolsai 1.50.0
+ * (Public\Service\LlmService, глава docs/guide/32-public-api.md shef.toolsai):
+ * модель направления «Чат ИИ-помощника», квота до вызова, журнал расхода
+ * (категория assistant) — внутри complete(). Исключений сервис не бросает:
+ * отказ — код LlmService::ERROR_*, его переводим в ChatException.
  *
- *   модель   — Container::getLlm(Config::DIRECTION_ASSISTANT): направление
- *              «Чат ИИ-помощника» настроек провайдера (как было у чата в
- *              shef.toolsai); провайдер-заглушка — EchoLlm;
- *   квота    — Container::getMeter()->getMonthly()->isExceeded() до вызова;
- *   расход   — Quota\Ledger: start() до вызова и finish() со статусом
- *              Status::SUCCESS / Status::ERROR после — категория «assistant»,
- *              код движка Main\Constants::getEngineCode('assistant').
- *
- * Ответ — одним куском (complete()): контроллер отвечает JSON. Поток
- * (OpenAi\Llm::completeStream()) в интерфейс LLM shef.toolsai не входит.
+ * Ответ — одним куском (complete()): контроллер отвечает JSON. stream() у
+ * сервиса есть — понадобится, когда окно перейдёт на поток.
  */
 final class ToolsAiModelGateway implements ModelGatewayInterface
 {
-	private ?LlmProviderInterface $llm = null;
+	/** Код отказа LlmService => [код ChatException, текст для сотрудника]. */
+	public const ERRORS = [
+		LlmService::ERROR_QUOTA => [ChatException::QUOTA, 'Месячная квота ИИ исчерпана — обратитесь к администратору портала'],
+		LlmService::ERROR_NO_MODEL => [ChatException::MODEL, 'Модель не подключена — обратитесь к администратору портала'],
+		LlmService::ERROR_EMPTY => [ChatException::MODEL, 'Модель ответила пустым текстом — попробуйте переформулировать вопрос'],
+		LlmService::ERROR_PROVIDER => [ChatException::MODEL, 'Модель не ответила — попробуйте позже; подробности в журнале shef.toolsai'],
+	];
 
-	/** Выбран ли в shef.toolsai провайдер-заглушка (EchoLlm). */
+	private ?string $model = null;
+
+	public function __construct(private readonly LlmService $llm = new LlmService())
+	{
+	}
+
+	/** Модель не подключена (заглушка или нет лицензии shef.toolsai). */
 	public function isStub(): bool
 	{
-		return $this->llm()->getCode() === ToolsAiConstants::PROVIDER_ECHO;
+		return $this->modelCode() === '';
 	}
 
-	/** Исчерпана ли месячная квота shef.toolsai. */
-	public function isQuotaExceeded(): bool
-	{
-		return ToolsAiContainer::getMeter()->getMonthly()->isExceeded();
-	}
-
-	/** Название модели направления «Чат ИИ-помощника» для подписи под окном. */
+	/** Название модели для подписи под окном. */
 	public function modelName(): string
 	{
-		if($this->isStub())
-		{
-			return 'заглушка (модель не подключена)';
-		}
-		$model = ToolsAiContainer::getConfig()->getAssistantEndpoint()->model;
-
-		return $model !== '' ? $model : 'ИИ-модель';
+		return $this->isStub() ? 'заглушка (модель не подключена)' : $this->modelCode();
 	}
 
-	/** Ответ модели с записью в журнал расхода: SUCCESS, или ERROR с оплаченным расходом; пустой текст — отказ. */
-	public function complete(array $messages): array
+	/** Ответ модели; отказ сервиса — ChatException с текстом для сотрудника. */
+	public function complete(array $messages, int $userId = 0): array
 	{
-		$llm = $this->llm();
-		$ledger = new Ledger();
-		$ledgerId = $ledger->start(ToolsAiConstants::getEngineCode(Constants::LEDGER_CATEGORY), Constants::LEDGER_CATEGORY, $llm->getCode(), null, 0);
-		try
+		$response = $this->llm->complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId > 0 ? $userId : null);
+		if(!$response->isSuccess())
 		{
-			$result = $llm->complete($messages);
-		}
-		catch(ProviderException $exception)
-		{
-			$ledgerId !== null && $ledger->finish($ledgerId, Status::ERROR, $exception->spentUnits, $exception->spentMicro, mb_substr($exception->getMessage(), 0, 500));
-			Container::getLogger(self::class)?->error($exception);
-			throw new ChatException('Модель не ответила — попробуйте позже; подробности в журнале модуля', ChatException::MODEL, $exception);
-		}
-		catch(\Throwable $throwable)
-		{
-			$ledgerId !== null && $ledger->finish($ledgerId, Status::ERROR, 0, 0, mb_substr($throwable->getMessage(), 0, 500));
-			Container::getLogger(self::class)?->error($throwable);
-			throw new ChatException('Не удалось получить ответ', ChatException::MODEL, $throwable);
+			[$code, $message] = self::ERRORS[$response->getErrorCode()] ?? [ChatException::MODEL, 'Не удалось получить ответ'];
+			throw new ChatException($message, $code);
 		}
 
-		$empty = trim($result->text) === '';
-		$ledgerId !== null && $ledger->finish($ledgerId, $empty ? Status::ERROR : Status::SUCCESS, $result->getTokens(), $result->costMicro, $empty ? 'Пустой ответ модели' : null);
-		if($empty)
-		{
-			throw new ChatException('Модель ответила пустым текстом — попробуйте переформулировать вопрос', ChatException::MODEL);
-		}
-
-		return ['text' => $result->text, 'finishReason' => $result->finishReason !== '' ? $result->finishReason : 'stop'];
+		return ['text' => $response->getText(), 'finishReason' => $response->getFinishReason() !== '' ? $response->getFinishReason() : 'stop'];
 	}
 
-	private function llm(): LlmProviderInterface
+	private function modelCode(): string
 	{
-		return $this->llm ??= ToolsAiContainer::getLlm(Config::DIRECTION_ASSISTANT);
+		return $this->model ??= $this->llm->model(LlmService::CATEGORY_ASSISTANT);
 	}
 }

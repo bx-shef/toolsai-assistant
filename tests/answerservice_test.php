@@ -94,18 +94,18 @@ final class FakeModel implements ModelGatewayInterface
 		return $this->stub;
 	}
 
-	public function isQuotaExceeded(): bool
-	{
-		return $this->exceeded;
-	}
-
 	public function modelName(): string
 	{
 		return 'gpt-test';
 	}
 
-	public function complete(array $messages): array
+	public function complete(array $messages, int $userId = 0): array
 	{
+		if($this->exceeded)
+		{
+			// Квоту проверяет LlmService shef.toolsai до вызова провайдера
+			throw new ChatException('Месячная квота ИИ исчерпана', ChatException::QUOTA);
+		}
 		$this->calls[] = $messages;
 		if($this->fail !== null)
 		{

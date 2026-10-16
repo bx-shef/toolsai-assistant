@@ -46,9 +46,8 @@ $service = new AnswerService(
 	new class implements ModelGatewayInterface
 	{
 		public function isStub(): bool { return false; }
-		public function isQuotaExceeded(): bool { return false; }
 		public function modelName(): string { return 'm'; }
-		public function complete(array $messages): array { return ['text' => 'Ответ', 'finishReason' => 'stop']; }
+		public function complete(array $messages, int $userId = 0): array { return ['text' => 'Ответ', 'finishReason' => 'stop']; }
 	},
 	new class implements ChoiceStoreInterface { public function get(int $userId, string $chatKey): ?string { return null; } public function save(int $userId, string $chatKey, string $roleCode): void {} },
 	new class implements RateStoreInterface { public function get(int $userId): array { return []; } public function put(int $userId, array $stamps): void {} },

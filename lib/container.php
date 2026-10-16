@@ -43,8 +43,7 @@ final class Container
 	/**
 	 * Логгер проблем shef.problems — как у shef.toolsai: сбой ложится в журнал
 	 * событий Битрикс24 с типом «Продажи и CRM» и ответственным из настроек
-	 * shef.problems, без файла каталога логов (Log\Handlers::withoutFiles()
- * shef.toolsai). Без shef.problems — null: чат важнее лога.
+	 * shef.problems. Без shef.problems — null: чат важнее лога.
 	 */
 	public static function getLogger(string $className): ?LoggerInterface
 	{
@@ -62,12 +61,6 @@ final class Container
 				className: $className,
 				assigned: \Shef\Problems\Main\Constants::getSaleUserId(),
 			);
-			// Только журнал событий Битрикс24, без файла каталога логов — как у shef.toolsai
-			if(class_exists(\Shef\ToolsAi\Log\Handlers::class))
-			{
-				$logger->setHandlers(\Shef\ToolsAi\Log\Handlers::withoutFiles($logger->getHandlers()));
-			}
-
 			return $logger;
 		}
 		catch(\Throwable)

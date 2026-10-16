@@ -13,46 +13,37 @@
 shef.toolsai от этого модуля не зависит: связь — событием реестра промптов
 ([04-events.md](04-events.md)) и JS-глобалом `window.ShefAiChat`.
 
-## Что берётся у shef.toolsai (только публичное)
+## Что берётся у shef.toolsai — только публичный API 1.50.0
+
+Пространство имён `Shef\ToolsAi\Public\…` — его shef.toolsai обещает не менять в
+пределах 1.x (глава 32 его документации, «Публичный API и модули-соседи»).
+Внутренние классы (`Container`, `Quota\Ledger`, `Prompt\Registry`…) модуль не трогает.
 
 | класс и метод | зачем | где у нас |
 |---|---|---|
-| событие `shef.toolsai:OnPromptRegistryBuild` | регистрация шести ролей | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler` |
-| `Prompt\RegistryService::registry()->roles(?array $allowed)` | роли для переключателя и страницы прав | `Chat\Gateway\ToolsAiPromptSource` |
-| `Prompt\RegistryService::compose($role, $place, $entityTypeId, $allowed)` | текст роли (+ её навык) | там же |
-| `Prompt\RegistryService::forget()` | перечитать реестр после установки | `install/index.php` |
-| `Prompt\Definition` (`PLACE_LIST`, `PLACE_DOCS`, поля `code/title/text/parent/examples/description`) | разбор ответа реестра | `ToolsAiPromptSource` |
-| `Analysis\RecordHistory::get($entityTypeId, $id, $userId)` | история записи с правами CRM | `Chat\Gateway\ToolsAiRecordSource` |
-| `Container::getLlm(Config::DIRECTION_ASSISTANT)` | модель направления «Чат ИИ-помощника» | `Chat\Gateway\ToolsAiModelGateway` |
-| `LlmProviderInterface::complete()`, `getCode()`; `LlmResult` (`text`, `finishReason`, `costMicro`, `getTokens()`) | вызов модели | там же |
-| `Main\Constants::PROVIDER_ECHO`, `getEngineCode()` | заглушка; код движка в журнале | там же |
-| `Container::getMeter()->getMonthly()->isExceeded()` (`Quota\Balance`) | квота до вызова | там же |
-| `Quota\Ledger::start()` / `finish()`, `Quota\Status::SUCCESS/ERROR` | журнал расхода | там же |
-| `Provider\ProviderException` (`spentUnits`, `spentMicro`) | оплаченный, но негодный ответ — в журнал | там же |
-| `Container::getConfig()->getAssistantEndpoint()->model` | название модели под окном | там же |
-| `Log\Handlers::withoutFiles()` | лог без файлов, как у shef.toolsai | `Container::getLogger()` |
+| событие `shef.toolsai:OnPromptRegistryBuild` (`RegistryService::EVENT_BUILD`) | регистрация шести ролей | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler` |
+| событие `shef.toolsai:OnViewRowActionsBuild` (`Public\Event\ViewRowActionsBuildEvent`) | «✦ Спросить ИИ» в меню строки вида «ИИ» | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler` |
+| `Public\Service\PromptService::roles(?array $allowed)` | роли для переключателя и страницы прав | `Chat\Gateway\ToolsAiPromptSource` |
+| `PromptService::compose($role, PromptService::PLACE_ASSISTANT, $entityTypeId, $allowed)` | текст роли (+ её навык) | там же |
+| `PromptService::forget()` | перечитать реестр после установки | `install/index.php` |
+| `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM | `Chat\Gateway\ToolsAiRecordSource` |
+| `Public\Service\LlmService::complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId)` | модель «Чат ИИ-помощника»; квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |
+| `LlmService::model(CATEGORY_ASSISTANT)` (`''` — заглушка) | подпись под окном; заглушка — подсказка без вызова | там же |
+| `LlmResponse` (`isSuccess()`, `getText()`, `getFinishReason()`, `getErrorCode()`), коды `ERROR_QUOTA`, `ERROR_NO_MODEL`, `ERROR_EMPTY`, `ERROR_PROVIDER` | ответ и отказы → `ChatException` (`quota`, `model`) | там же |
 
-Порядок вызова модели — навык `shef-new-ai-provider`, раздел «Вызвать LLM из
-своего модуля».
+Что эти классы и методы существуют — `tests/toolsaiapi_test.php` (по исходникам
+shef.toolsai, если они рядом; иначе — сверка списка с этой таблицей).
 
-## Чего в публичном API shef.toolsai не хватает
+## Права чата из shef.toolsai
 
-1. **Фасада «вызвать LLM с учётом расхода»** — сейчас каждый модуль повторяет
-   `Ledger::start()` → `complete()` → `finish()` и разбор `ProviderException`.
-   Нужен `Public\Service\LlmService::complete(string $category, array $messages): LlmResult`
-   с квотой и журналом внутри.
-2. **Стабильного публичного namespace**: всё выше — внутренние классы shef.toolsai
-   (`Container`, `Quota\Ledger`, `Prompt\RegistryService`), их переименование сломает
-   модуль молча. Нужен `Shef\ToolsAi\Public\…` с обещанием совместимости.
-3. **Места «чат помощника» в реестре** (`Definition::PLACES`): есть только
-   `docs/list/card`. Навыки shef.toolsai без роли (`docs`, `record`) подходят к любой
-   роли, поэтому модуль их отфильтровывает сам (берёт навык только с `parent` = роль).
-4. **Категории `assistant` в подписях страницы расхода** shef.toolsai: строки чата
-   видны там под сырым кодом категории.
-5. **Действия строки в виде «ИИ»**: вид «ИИ» (`view/page.php`) после выноса чата не
-   выводит «✦ Спросить ИИ». Нужно событие вида (например,
-   `shef.toolsai:OnViewRowActionsBuild`) или вызов `Public\Service\ChatPanel` из вида
-   при установленном модуле ([06-api.md](06-api.md)). Кнопку «✦ ИИ: чат» и панель на
-   `/shef/toolsai/view/` модуль добавляет сам.
-6. **Потокового метода в `LlmProviderInterface`** (`completeStream()` есть только у
-   `OpenAi\Llm`): поэтому ответ — одним куском.
+Права shef.toolsai «Чат ИИ-помощника: спрашивать» (`assistant.use`) и «…: справа в
+виде «ИИ»» (`assistant.panel`) в 1.50.0 убраны. При установке модуль один раз
+переносит их (`Access\LegacyRights`): тем, кому они были выданы (коды из таблиц прав
+shef.toolsai), создаётся роль доступа «Чат (перенос из shef.toolsai)» — «Пользоваться
+чатом» и роль «Помощник менеджера». Таблиц нет или прав не было — роль не создаётся;
+выдать чат — на странице прав ([02-rights.md](02-rights.md)).
+
+## Чего ещё не хватает
+
+1. **Поток в окне чата**: `LlmService::stream()` есть, но контроллер отвечает
+   JSON — для потока нужен свой ответ (SSE) и окно с разбором потока.

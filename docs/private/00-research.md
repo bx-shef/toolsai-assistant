@@ -19,16 +19,15 @@
 | фильтры контроллера | framework-docs `pages/framework/controllers.md` | атрибуты есть в main 26.700, но модуль ставится на main от 22.600 — `configureActions()` |
 | коды доступа сотрудника | `main/classes/general/access.php:369` (`CAccess::GetUserCodesArray`) | DR<id> всех отделов выше по дереву уже в списке |
 
-## shef.toolsai (main, 1.49.0)
+## shef.toolsai (ветка claude/split-modules, 1.50.0, PR bx-shef/toolsai#211)
 
 | что | где |
 |---|---|
-| событие реестра и ответ модулей | `lib/prompt/registryservice.php:67` (`new Event` + `send()`), `defaults()` |
-| правила кода промпта | `lib/prompt/definition.php`, `fromArray()` |
-| роли и сборка | `lib/prompt/registry.php:60` (`roles()`), `:99` (`compose()`) |
-| история записи | `lib/analysis/recordhistory.php:24` |
-| модель направления | `lib/container.php:187` (`getLlm()`) |
-| квота | `lib/container.php:54` (`getMeter()`), `lib/quota/balance.php` (`isExceeded()`) |
-| журнал расхода | `lib/quota/ledger.php:24` (`start()`), `:94` (`finish()`) |
-| прежний чат (перенос) | `lib/assistant/sidepanel.php`, `lib/kb/chatstream.php`, `endpoint/kb.php`, `site/app/components/HdChatOverlay.vue` |
-| прежние права чата | `lib/access/actions.php` (`assistant.use`, `assistant.panel`), `lib/access/rightspage.php` |
+| публичный API, обещание совместимости | `docs/guide/32-public-api.md` |
+| вызов модели с квотой и журналом | `lib/public/service/llmservice.php` (`complete()`, `model()`, `ERROR_*`), `lib/public/service/llmresponse.php` |
+| реестр промптов | `lib/public/service/promptservice.php` (`roles()`, `compose()`, `PLACE_ASSISTANT`, `forget()`) |
+| история записи | `lib/public/service/recordservice.php` (`get()`) |
+| действия строки вида «ИИ» | `lib/public/event/viewrowactionsbuildevent.php` |
+| событие реестра | `lib/prompt/registryservice.php` (`EVENT_BUILD`, `defaults()`) |
+| прежний чат (перенос, 1.49.0) | `lib/assistant/sidepanel.php`, `lib/kb/chatstream.php`, `endpoint/kb.php`, `site/app/components/HdChatOverlay.vue` |
+| прежние права чата (1.49.0) | `lib/access/actions.php` (`assistant.use`, `assistant.panel`), таблицы `shef_toolsai_access_permission`, `shef_toolsai_access_code` |

@@ -60,6 +60,17 @@ return [
 					'sort' => 100,
 				],
 			],
+			// «✦ Спросить ИИ» в меню строки вида «ИИ» shef.toolsai (1.50.0+)
+			[
+				'isCompatible' => false,
+				'from' => ['module' => 'shef.toolsai', 'event' => 'OnViewRowActionsBuild'],
+				'to' => [
+					'module' => 'shef.toolsaiassistant',
+					'class' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAi\\EventHandler\\OnViewRowActionsBuildEventHandler',
+					'function' => 'handle',
+					'sort' => 100,
+				],
+			],
 			// Панель чата справа: расширение и кнопка — тем, кому открыт чат
 			[
 				'isCompatible' => true,

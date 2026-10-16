@@ -13,6 +13,9 @@
 - Окно чата — JS-расширение; контроллер ответа; шесть ролей в реестре промптов.
 - Права на `ui.accessrights.v2`: чат и роли; выбор роли на сотрудника и чат.
 - Статьи shef.toolsaikb — мягко.
+- Публичный API shef.toolsai 1.50.0 (`LlmService`, `PromptService`, `RecordService`),
+  «✦ Спросить ИИ» в виде «ИИ» событием `OnViewRowActionsBuild`, перенос прав чата
+  shef.toolsai.
 
 ## Порядок выкладки (обязательно)
 
@@ -28,13 +31,10 @@
 
 ## Открытые вопросы
 
-- «✦ Спросить ИИ» в виде «ИИ» shef.toolsai — нужна точка расширения в виде
-  ([guide/03-dependencies.md](../guide/03-dependencies.md), п. 5).
-- Фасад вызова LLM с журналом расхода в shef.toolsai (п. 1 там же).
 - Проверка на стенде: страница прав (ID прав с двоеточием в `ui.accessrights.v2`),
   кнопка в ui.toolbar на страницах CRM, `CloseSession` с длинным ответом модели.
-- Перевод шлюзов на публичный API shef.toolsai (`Shef\ToolsAi\Public\…`: LlmService,
-  фасады реестра и RecordHistory, PLACE_ASSISTANT, OnViewRowActionsBuild) — после
-  выпуска в ветке toolsai `claude/split-modules`.
-- Ответ потоком — после потокового метода в интерфейсе LLM shef.toolsai.
+- Ответ потоком — `LlmService::stream()` shef.toolsai есть; нужен SSE-ответ
+  контроллера и разбор потока в окне.
+- Шлюзы переведены на публичный API shef.toolsai 1.50.0 (PR bx-shef/toolsai#211):
+  мержить этот PR — после него.
 - Оценка ответов («полезно / не помогло») — решение владельца, куда слать.

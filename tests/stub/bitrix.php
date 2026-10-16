@@ -376,6 +376,11 @@ namespace Bitrix\Main
 			) {}
 
 			public function send(): void {}
+
+			public function getParameter(string $key): mixed
+			{
+				return $this->parameters[$key] ?? null;
+			}
 		}
 
 		class EventResult

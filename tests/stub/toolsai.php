@@ -1,131 +1,61 @@
 <?php
 
 /**
- * Подмена публичных классов shef.toolsai, которые зовёт Chat\Gateway\ToolsAiModelGateway.
+ * Подмена публичного API shef.toolsai 1.50.0 (Shef\ToolsAi\Public\Service\…),
+ * которое зовёт Chat\Gateway\ToolsAiModelGateway.
  *
- * Сигнатуры — как в shef.toolsai 1.49.0 (lib/container.php, lib/quota/ledger.php,
- * lib/provider/llm/*, lib/provider/providerexception.php). Что они есть на самом
- * деле — сверяет tests/toolsaiapi_test.php. Логики нет: модель отвечает тем,
- * что задал тест, журнал запоминает вызовы.
+ * Сигнатуры — как в shef.toolsai (lib/public/service/llmservice.php,
+ * llmresponse.php); что они есть на самом деле — сверяет
+ * tests/toolsaiapi_test.php. Логики нет: ответ задаёт тест, вызовы
+ * запоминаются.
  */
 
-namespace Shef\ToolsAi
+namespace Shef\ToolsAi\Public\Service
 {
-	class Config
+	final class LlmResponse extends \Bitrix\Main\Result
 	{
-		public const DIRECTION_ASSISTANT = 'assistant';
-	}
+		public function __construct(private readonly string $text = '', private readonly string $finishReason = '', private readonly int $costMicro = 0, private readonly int $tokens = 0) {}
 
-	class Container
-	{
-		public static ?Provider\Llm\LlmProviderInterface $llm = null;
-		public static bool $exceeded = false;
-		public static array $directions = [];
-
-		public static function getLlm(string $direction = 'text'): Provider\Llm\LlmProviderInterface
+		public static function failed(string $code, string $message): self
 		{
-			static::$directions[] = $direction;
+			$response = new self();
+			$response->addError(new \Bitrix\Main\Error($message, $code));
 
-			return static::$llm;
+			return $response;
 		}
 
-		public static function getMeter(): object
-		{
-			return new class
-			{
-				public function getMonthly(): object
-				{
-					return new class
-					{
-						public function isExceeded(): bool { return Container::$exceeded; }
-					};
-				}
-			};
-		}
-
-		public static function getConfig(): object
-		{
-			return new class
-			{
-				public function getAssistantEndpoint(): object { return (object)['model' => 'gpt-test']; }
-			};
-		}
-	}
-}
-
-namespace Shef\ToolsAi\Main
-{
-	class Constants
-	{
-		public const PROVIDER_ECHO = 'echo';
-
-		public static function getEngineCode(string $category): string
-		{
-			return 'sheftoolsai_'.$category;
-		}
-	}
-}
-
-namespace Shef\ToolsAi\Quota
-{
-	class Status
-	{
-		public const SUCCESS = 'SUCCESS';
-		public const ERROR = 'ERROR';
+		public function getText(): string { return $this->text; }
+		public function getFinishReason(): string { return $this->finishReason; }
+		public function getCostMicro(): int { return $this->costMicro; }
+		public function getTokens(): int { return $this->tokens; }
+		public function getErrorCode(): string { return (string)($this->getErrors()[0]?->getCode() ?? ''); }
 	}
 
-	final class Ledger
+	class LlmService
 	{
-		public static array $started = [];
-		public static array $finished = [];
+		public const CATEGORY_ASSISTANT = 'assistant';
+		public const ERROR_CATEGORY = 'bad_category';
+		public const ERROR_MESSAGES = 'bad_messages';
+		public const ERROR_NO_MODEL = 'no_model';
+		public const ERROR_QUOTA = 'quota_exceeded';
+		public const ERROR_PROVIDER = 'provider_error';
+		public const ERROR_EMPTY = 'empty_answer';
+		public const ERROR_INTERNAL = 'internal_error';
 
-		public function start(string $engineCode, string $category, string $providerCode, ?string $jobHash, int $estimateMicro = 0): ?int
+		public static ?LlmResponse $next = null;
+		public static string $model = 'gpt-test';
+		public static array $calls = [];
+
+		public function model(string $category): string
 		{
-			static::$started[] = [$engineCode, $category, $providerCode];
-
-			return count(static::$started);
+			return static::$model;
 		}
 
-		public function finish(int $id, string $status, int $units = 0, int $costMicro = 0, ?string $error = null): void
+		public function complete(string $category, array $messages, ?int $userId = null): LlmResponse
 		{
-			static::$finished[] = [$id, $status, $units, $costMicro, $error];
-		}
-	}
-}
+			static::$calls[] = [$category, count($messages), $userId];
 
-namespace Shef\ToolsAi\Provider
-{
-	class ProviderException extends \RuntimeException
-	{
-		public function __construct(string $message, public readonly string $errorCode = 'provider_error', ?\Throwable $previous = null, public readonly int $spentUnits = 0, public readonly int $spentMicro = 0)
-		{
-			parent::__construct($message, 0, $previous);
-		}
-	}
-}
-
-namespace Shef\ToolsAi\Provider\Llm
-{
-	interface LlmProviderInterface
-	{
-		public function getCode(): string;
-		public function complete(array $messages): LlmResult;
-	}
-
-	final class LlmResult
-	{
-		public function __construct(
-			public readonly string $text,
-			public readonly ?array $json = null,
-			public readonly int $tokensIn = 0,
-			public readonly int $tokensOut = 0,
-			public readonly int $costMicro = 0,
-			public readonly string $finishReason = '',
-		) {}
-
-		public function getTokens(): int
-		{
-			return $this->tokensIn + $this->tokensOut;
+			return static::$next;
 		}
 	}
 }

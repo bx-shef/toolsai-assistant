@@ -113,6 +113,8 @@ class shef_toolsaiassistant extends CModule
 		\Shef\ToolsAiAssistant\Access\RoleStore::install();
 		\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::install();
 		\Shef\ToolsAiAssistant\Access\RoleStore::seed();
+		// Права чата shef.toolsai до 1.50.0 (assistant.use / assistant.panel) — в своё право
+		\Shef\ToolsAiAssistant\Access\LegacyRights::migrate();
 
 		return true;
 	}
@@ -168,9 +170,9 @@ class shef_toolsaiassistant extends CModule
 		}
 
 		// Реестр промптов shef.toolsai мог уже собраться в этом хите — перечитать с нашими ролями
-		if(\Bitrix\Main\Loader::includeModule('shef.toolsai') && class_exists(\Shef\ToolsAi\Prompt\RegistryService::class))
+		if(\Bitrix\Main\Loader::includeModule('shef.toolsai') && class_exists(\Shef\ToolsAi\Public\Service\PromptService::class))
 		{
-			\Shef\ToolsAi\Prompt\RegistryService::forget();
+			\Shef\ToolsAi\Public\Service\PromptService::forget();
 		}
 
 		return true;

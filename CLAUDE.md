@@ -32,7 +32,8 @@
 | обработчик реестра промптов | `lib/internals/integration/toolsai/eventhandler/` |
 | панель на страницах CRM | `lib/internals/integration/main/eventhandler/onprologeventhandler.php` |
 | сценарий ответа (права → роль → квота → запись → kb → модель) | `lib/chat/answerservice.php` |
-| вызов модели, квота, журнал расхода | `lib/chat/gateway/toolsaimodelgateway.php` |
+| вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
+| «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/answer`) |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
@@ -43,9 +44,11 @@
 - **Право роли проверяет сервер на каждом ответе** (`Chat\RoleSelector`): присланная
   роль, не открытая сотруднику, — отказ, а не тихая подмена. Запомненная, но
   закрытая потом роль — не берётся.
-- **Навыки реестра без роли** (`shef.toolsai:docs`, `shef.toolsai:record`) к ролям
-  помощника не подмешиваем: `ToolsAiPromptSource::compose()` берёт навык, только если
-  его `parent` — код этой роли.
+- **От shef.toolsai — только `Shef\ToolsAi\Public\…`** (1.50.0): `LlmService`,
+  `PromptService` (место `PLACE_ASSISTANT`), `RecordService`, событие
+  `OnViewRowActionsBuild`. Внутренние классы shef.toolsai не трогаем.
+- **Права чата shef.toolsai до 1.50.0** переносятся при установке один раз
+  (`Access\LegacyRights`).
 - **Ответ — одним JSON**, не потоком: `Bitrix\Main\Engine\Controller`; сессия
   отпускается до вызова модели (`ActionFilter\CloseSession`).
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)

@@ -3,7 +3,8 @@
 /**
  * Что модуль берёт у shef.toolsai — существует ли оно.
  *
- * Список — таблица docs/guide/03-dependencies.md. Есть рядом исходники
+ * Список — таблица docs/guide/03-dependencies.md: публичный API
+ * Shef\\ToolsAi\\Public\\… (1.50.0) и событие реестра промптов. Есть рядом исходники
  * shef.toolsai (переменная TOOLSAI_DIR, ../toolsai или /home/user/toolsai) —
  * сверяем с ними: класс в своём файле и метод в нём. Нет (CI этого
  * репозитория) — сверяем, что список и документация не разошлись: каждый
@@ -16,36 +17,29 @@ require_once $root.'/tests/assert.php';
 
 /** [файл от корня shef.toolsai, класс, метод или константа] */
 const TOOLSAI_API = [
-	['lib/prompt/registryservice.php', 'RegistryService', 'function registry('],
-	['lib/prompt/registryservice.php', 'RegistryService', 'function compose('],
-	['lib/prompt/registryservice.php', 'RegistryService', 'function forget('],
+	['lib/public/service/llmservice.php', 'LlmService', 'function complete(string $category, array $messages, ?int $userId = null): LlmResponse'],
+	['lib/public/service/llmservice.php', 'LlmService', 'function model(string $category): string'],
+	['lib/public/service/llmservice.php', 'LlmService', "CATEGORY_ASSISTANT = 'assistant'"],
+	['lib/public/service/llmservice.php', 'LlmService', "ERROR_QUOTA = 'quota_exceeded'"],
+	['lib/public/service/llmservice.php', 'LlmService', "ERROR_NO_MODEL = 'no_model'"],
+	['lib/public/service/llmservice.php', 'LlmService', "ERROR_PROVIDER = 'provider_error'"],
+	['lib/public/service/llmservice.php', 'LlmService', "ERROR_EMPTY = 'empty_answer'"],
+	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getText(): string'],
+	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getFinishReason(): string'],
+	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getErrorCode(): string'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function roles(?array $allowed = null): array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function compose(string $roleCode, string $place, int $entityTypeId = 0, ?array $allowed = null): array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function forget(): void'],
+	['lib/public/service/promptservice.php', 'PromptService', 'PLACE_ASSISTANT'],
+	['lib/public/service/recordservice.php', 'RecordService', 'function get(int $entityTypeId, int $id, int $userId): ?array'],
+	['lib/public/event/viewrowactionsbuildevent.php', 'ViewRowActionsBuildEvent', "TYPE = 'OnViewRowActionsBuild'"],
 	['lib/prompt/registryservice.php', 'RegistryService', "EVENT_BUILD = 'OnPromptRegistryBuild'"],
-	['lib/prompt/registry.php', 'Registry', 'function roles('],
-	['lib/prompt/definition.php', 'Definition', 'PLACE_LIST'],
-	['lib/prompt/definition.php', 'Definition', 'PLACE_DOCS'],
-	['lib/analysis/recordhistory.php', 'RecordHistory', 'function get(int $entityTypeId, int $id, int $userId'],
-	['lib/container.php', 'Container', 'function getLlm('],
-	['lib/container.php', 'Container', 'function getMeter('],
-	['lib/container.php', 'Container', 'function getConfig('],
-	['lib/config.php', 'Config', 'DIRECTION_ASSISTANT'],
-	['lib/config.php', 'Config', 'function getAssistantEndpoint('],
-	['lib/provider/llm/llmproviderinterface.php', 'LlmProviderInterface', 'function complete(array $messages)'],
-	['lib/provider/llm/llmresult.php', 'LlmResult', 'function getTokens('],
-	['lib/main/constants.php', 'Constants', 'PROVIDER_ECHO'],
-	['lib/main/constants.php', 'Constants', 'function getEngineCode('],
-	['lib/quota/balance.php', 'Balance', 'function isExceeded('],
-	['lib/quota/ledger.php', 'Ledger', 'function start(string $engineCode, string $category, string $providerCode, ?string $jobHash'],
-	['lib/quota/ledger.php', 'Ledger', 'function finish(int $id, string $status'],
-	['lib/quota/status.php', 'Status', 'SUCCESS'],
-	['lib/quota/status.php', 'Status', 'ERROR'],
-	['lib/provider/providerexception.php', 'ProviderException', 'spentMicro'],
-	['lib/log/handlers.php', 'Handlers', 'function withoutFiles('],
 ];
 
 $toolsai = null;
 foreach([getenv('TOOLSAI_DIR') ?: '', dirname($root).'/toolsai', '/home/user/toolsai'] as $dir)
 {
-	if($dir !== '' && is_file($dir.'/lib/prompt/registryservice.php'))
+	if($dir !== '' && is_file($dir.'/lib/public/service/llmservice.php'))
 	{
 		$toolsai = $dir;
 		break;
