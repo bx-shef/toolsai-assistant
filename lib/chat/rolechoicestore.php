@@ -37,6 +37,12 @@ final class RoleChoiceStore implements ChoiceStoreInterface
 
 	public function save(int $userId, string $chatKey, string $roleCode): void
 	{
+		$this->write($userId, $chatKey, $roleCode, true);
+	}
+
+	/** $retry — один повтор после гонки вставки; второй сбой — наружу, без бесконечной рекурсии. */
+	private function write(int $userId, string $chatKey, string $roleCode, bool $retry): void
+	{
 		if($userId <= 0)
 		{
 			return;
@@ -59,10 +65,14 @@ final class RoleChoiceStore implements ChoiceStoreInterface
 		{
 			RoleChoiceTable::add(['USER_ID' => $userId, 'CHAT_KEY' => $chatKey, 'ROLE_CODE' => $roleCode, 'CHANGED_AT' => new DateTime()]);
 		}
-		catch(\Bitrix\Main\DB\SqlQueryException)
+		catch(\Bitrix\Main\DB\SqlQueryException $exception)
 		{
 			// Две вкладки выбрали роль одновременно: строку уже вставила другая — уникальный индекс
-			$this->save($userId, $chatKey, $roleCode);
+			if(!$retry)
+			{
+				throw $exception;
+			}
+			$this->write($userId, $chatKey, $roleCode, false);
 		}
 	}
 }
