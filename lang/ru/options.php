@@ -1,0 +1,14 @@
+<?php
+$MESS['shef.toolsaiassistant_TAB_PANEL_NAME'] = 'Панель';
+$MESS['shef.toolsaiassistant_TAB_PANEL_TITLE'] = 'Чат ИИ-помощника панелью справа';
+$MESS['shef.toolsaiassistant_TAB_PANEL_RIGHTS'] = 'Кто пользуется чатом и какие роли помощника кому открыты — на странице <a href="#URL#">«Права доступа»</a>. Тексты ролей — в «Библиотеке промптов» shef.toolsai; модель, квота и расход — в настройках shef.toolsai (направление «Чат ИИ-помощника»).';
+$MESS['shef.toolsaiassistant_TAB_PANEL_enabled'] = 'Показывать кнопку «✦ ИИ: чат» и панель';
+$MESS['shef.toolsaiassistant_TAB_PANEL_enabled_descr'] = 'Выключено — модуль сам кнопку и панель не добавляет; страницы, которые встраивают чат через Public\Service\ChatPanel, — по-прежнему могут.';
+$MESS['shef.toolsaiassistant_TAB_PANEL_paths'] = 'Где показывать чат';
+$MESS['shef.toolsaiassistant_TAB_PANEL_paths_descr'] = 'Начала адресов страниц, по одному в строке: /crm/ — вся CRM, /shef/toolsai/view/ — вид «ИИ». Пусто — эти два.';
+$MESS['shef.toolsaiassistant_TAB_CHAT_NAME'] = 'Ответы';
+$MESS['shef.toolsaiassistant_TAB_CHAT_TITLE'] = 'Что помощник получает вместе с вопросом';
+$MESS['shef.toolsaiassistant_TAB_CHAT_history'] = 'Сообщений переписки в запросе';
+$MESS['shef.toolsaiassistant_TAB_CHAT_history_descr'] = 'Последние N сообщений чата уходят модели вместе с вопросом (2–30, по умолчанию 10). Больше — помнит дольше, но каждый ответ дороже.';
+$MESS['shef.toolsaiassistant_TAB_CHAT_kblimit'] = 'Статей базы знаний в ответе';
+$MESS['shef.toolsaiassistant_TAB_CHAT_kblimit_descr'] = 'Сколько статей shef.toolsaikb подбирать под вопрос (0–10, по умолчанию 5; 0 — не искать). Без модуля shef.toolsaikb не действует.';
