@@ -8,6 +8,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\KbSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiModelGateway;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiRecordSource;
+use Shef\ToolsAiAssistant\Chat\Gateway\UserOptionRateStore;
 use Shef\ToolsAiAssistant\Chat\RoleChoiceStore;
 use Shef\ToolsAiAssistant\Main\Constants;
 
@@ -17,17 +18,26 @@ use Shef\ToolsAiAssistant\Main\Constants;
  */
 final class Container
 {
-	/** Сценарий чата с настройками портала. */
+	private static ?AnswerService $answerService = null;
+
+	/** Сценарий чата с настройками портала (или подменённый тестом). */
 	public static function getAnswerService(): AnswerService
 	{
-		return new AnswerService(
+		return self::$answerService ?? new AnswerService(
 			new ToolsAiPromptSource(),
 			new ToolsAiRecordSource(),
 			new KbSource(),
 			new ToolsAiModelGateway(),
 			new RoleChoiceStore(),
+			new UserOptionRateStore(),
 			Config::current(),
 		);
+	}
+
+	/** Подменить сценарий (тесты контроллера); null — вернуть настоящий. */
+	public static function setAnswerService(?AnswerService $service): void
+	{
+		self::$answerService = $service;
 	}
 
 	/**

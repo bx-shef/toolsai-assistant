@@ -32,16 +32,19 @@ final class ToolsAiModelGateway implements ModelGatewayInterface
 {
 	private ?LlmProviderInterface $llm = null;
 
+	/** Выбран ли в shef.toolsai провайдер-заглушка (EchoLlm). */
 	public function isStub(): bool
 	{
 		return $this->llm()->getCode() === ToolsAiConstants::PROVIDER_ECHO;
 	}
 
+	/** Исчерпана ли месячная квота shef.toolsai. */
 	public function isQuotaExceeded(): bool
 	{
 		return ToolsAiContainer::getMeter()->getMonthly()->isExceeded();
 	}
 
+	/** Название модели направления «Чат ИИ-помощника» для подписи под окном. */
 	public function modelName(): string
 	{
 		if($this->isStub())
@@ -53,6 +56,7 @@ final class ToolsAiModelGateway implements ModelGatewayInterface
 		return $model !== '' ? $model : 'ИИ-модель';
 	}
 
+	/** Ответ модели с записью в журнал расхода: SUCCESS, или ERROR с оплаченным расходом; пустой текст — отказ. */
 	public function complete(array $messages): array
 	{
 		$llm = $this->llm();

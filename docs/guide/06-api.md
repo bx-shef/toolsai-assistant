@@ -43,6 +43,6 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 | `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` |
 
 Коды ошибок (`errors[0].code`): `access`, `role`, `no_roles`, `empty_question`,
-`quota`, `record`, `model`, `internal`. Текст ошибки можно показывать сотруднику.
+`quota`, `rate`, `record`, `model`, `internal`. Текст ошибки можно показывать сотруднику.
 
 `shef:toolsaiassistant.access.save` — сохранение страницы прав (только администратор).

@@ -20,11 +20,13 @@ class RoleChoiceTable extends DataManager
 	/** Уникальный индекс: на сотрудника и чат — одна роль. */
 	public const INDEXES = ['UX_SHEF_TAIA_CHOICE' => ['columns' => ['USER_ID', 'CHAT_KEY'], 'unique' => true]];
 
+	/** Имя таблицы в базе. */
 	public static function getTableName(): string
 	{
 		return 'shef_toolsaiassistant_role_choice';
 	}
 
+	/** Поля: ID, USER_ID, CHAT_KEY, ROLE_CODE, CHANGED_AT. */
 	public static function getMap(): array
 	{
 		return [

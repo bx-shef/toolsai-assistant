@@ -12,11 +12,13 @@ use Bitrix\Main\ORM\Fields\StringField;
  */
 class RoleTable extends DataManager
 {
+	/** Имя таблицы в базе. */
 	public static function getTableName(): string
 	{
 		return 'shef_toolsaiassistant_role';
 	}
 
+	/** Поля: ID, NAME. */
 	public static function getMap(): array
 	{
 		return [

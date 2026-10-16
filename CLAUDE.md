@@ -53,6 +53,10 @@
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —
   `/bitrix/js/shef/toolsaiassistant`, `/local/components/shef/toolsaiassistant.rights`,
   `/shef/toolsaiassistant` (`tests/install_test.php`).
+- **Частота ответов** ограничена на сотрудника (`Chat\RateLimit`, `CHAT_ratelimit`):
+  отметка ставится до вызова модели — сбои тоже считаются.
+- **Выкладка**: сначала shef.toolsai 1.50.0, потом этот модуль
+  ([docs/private/project-map.md](docs/private/project-map.md)).
 - Фильтры контроллеров — через `configureActions()`, не атрибутами: модуль
   ставится на main от 22.600.
 
@@ -60,4 +64,6 @@
 
 `tests/*_test.php` и `tests/*_test.mjs`, обвязка `tests/assert.php` (как у линейки),
 заглушки ядра — `tests/stub/`. Сценарий чата тестируется на подменах шлюзов
-(`answerservice_test.php`); шлюзы к shef.toolsai — только на стенде.
+(`answerservice_test.php`); шлюз модели — на подмене shef.toolsai
+(`tests/stub/toolsai.php`, `modelgateway_test.php`); что подменённое API
+существует — `toolsaiapi_test.php` (по исходникам shef.toolsai, если они рядом).

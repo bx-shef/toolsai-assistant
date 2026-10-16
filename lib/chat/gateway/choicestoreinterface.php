@@ -10,5 +10,6 @@ interface ChoiceStoreInterface
 	/** Код роли или null — не выбирал. */
 	public function get(int $userId, string $chatKey): ?string;
 
+	/** Запомнить роль сотрудника в чате; одна строка на пару сотрудник + чат. */
 	public function save(int $userId, string $chatKey, string $roleCode): void;
 }

@@ -11,6 +11,7 @@ use Shef\ToolsAi\Analysis\RecordHistory;
  */
 final class ToolsAiRecordSource implements RecordSourceInterface
 {
+	/** История записи с правами CRM сотрудника; не видна или нет — null. */
 	public function get(int $entityTypeId, int $id, int $userId): ?array
 	{
 		$record = RecordHistory::get($entityTypeId, $id, $userId);

@@ -58,6 +58,7 @@ final class Rights
 		return new self(false, []);
 	}
 
+	/** Есть ли право (Actions::CHAT_USE или role:<код>). Администратору — chat.use; роли администратора — canRole(). */
 	public function can(string $action): bool
 	{
 		return ($this->isAdmin && $action === Actions::CHAT_USE) || in_array($action, $this->actions, true);

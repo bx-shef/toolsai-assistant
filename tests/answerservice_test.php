@@ -19,6 +19,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\ChoiceStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSourceInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\ModelGatewayInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\PromptSourceInterface;
+use Shef\ToolsAiAssistant\Chat\Gateway\RateStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\RecordSourceInterface;
 use Shef\ToolsAiAssistant\Chat\Record;
 use Shef\ToolsAiAssistant\Config;
@@ -130,12 +131,29 @@ final class FakeChoices implements ChoiceStoreInterface
 	}
 }
 
+final class FakeRates implements RateStoreInterface
+{
+	public array $stamps = [];
+
+	public function get(int $userId): array
+	{
+		return $this->stamps[$userId] ?? [];
+	}
+
+	public function put(int $userId, array $stamps): void
+	{
+		$this->stamps[$userId] = $stamps;
+	}
+}
+
 $prompts = new FakePrompts();
 $records = new FakeRecords();
 $kb = new FakeKb();
 $model = new FakeModel();
 $choices = new FakeChoices();
-$service = new AnswerService($prompts, $records, $kb, $model, $choices, new Config(kbLimit: 3));
+$rates = new FakeRates();
+$now = 1000;
+$service = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(kbLimit: 3, rateLimit: 100), static function() use (&$now): int { return $now; });
 
 $seller = Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => array_map(static fn(string $c): string => 'role:'.$c, Roles::sellerRoles())]]);
 $nobody = Rights::resolve(false, ['U2'], []);
@@ -224,6 +242,25 @@ $model->exceeded = false;
 $model->fail = 'Модель не ответила';
 $choices->rows = [];
 Check::same('сбой модели — отказ, выбор не запомнен', [$outcome(static fn() => $service->answer($seller, 1, $ask('Привет', null, Roles::CUSTOMER))), $choices->rows], [ChatException::MODEL, []]);
+
+Check::group('частота ответов');
+
+$model->fail = null;
+$limited = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(rateLimit: 2), static function() use (&$now): int { return $now; });
+$rates->stamps = [];
+$model->calls = [];
+$limited->answer($seller, 1, $ask('Раз'));
+$limited->answer($seller, 1, $ask('Два'));
+Check::same('третий вопрос за минуту — отказ rate, модель не звали', [$outcome(static fn() => $limited->answer($seller, 1, $ask('Три'))), count($model->calls)], [ChatException::RATE, 2]);
+Check::same('другому сотруднику — можно', $outcome(static fn() => $limited->answer($admin = Rights::resolve(true, [], []), 9, $ask('Раз'))), 'ok');
+$now += 61;
+Check::same('через минуту — снова можно', $outcome(static fn() => $limited->answer($seller, 1, $ask('Четыре'))), 'ok');
+$model->stub = true;
+$rates->stamps = [];
+$limited->answer($seller, 1, $ask('a'));
+$limited->answer($seller, 1, $ask('b'));
+Check::same('заглушка лимит не тратит', [$outcome(static fn() => $limited->answer($seller, 1, $ask('c'))), $rates->stamps], ['ok', []]);
+$model->stub = false;
 
 Check::group('администратор');
 

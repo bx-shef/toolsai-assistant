@@ -15,11 +15,13 @@ class RolePermissionTable extends DataManager
 	/** Уникальный индекс: право у роли одно. */
 	public const INDEXES = ['UX_SHEF_TAIA_ROLE_PERM' => ['columns' => ['ROLE_ID', 'ACTION'], 'unique' => true]];
 
+	/** Имя таблицы в базе. */
 	public static function getTableName(): string
 	{
 		return 'shef_toolsaiassistant_role_permission';
 	}
 
+	/** Поля: ID, ROLE_ID, ACTION. */
 	public static function getMap(): array
 	{
 		return [

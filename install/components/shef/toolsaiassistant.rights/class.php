@@ -21,6 +21,7 @@ use Shef\ToolsAiAssistant\Container;
  */
 class ShefToolsAiAssistantRightsComponent extends CBitrixComponent
 {
+	/** Проверить права и модули, собрать конфиг страницы прав и вывести шаблон. */
 	public function executeComponent(): void
 	{
 		global $USER;

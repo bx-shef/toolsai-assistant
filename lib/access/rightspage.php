@@ -45,7 +45,9 @@ final class RightsPage
 			->setIsSaveOnlyChangedRights(false)
 			// Отделы (DR) и сотрудники; группы, проекты и команды — выключены,
 			// остальное сервер отклоняет (RoleForm)
-			->configureAdditionalMembersParams(static function(AdditionalMemberOptions $options): void
+			->configureAdditionalMembersParams(
+				/** Выбор участников: только отделы с подотделами и сотрудники. */
+				static function(AdditionalMemberOptions $options): void
 			{
 				$options
 					->setAddUserGroupsProviderTab(false)

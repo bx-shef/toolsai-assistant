@@ -7,6 +7,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\ChoiceStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSourceInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\ModelGatewayInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\PromptSourceInterface;
+use Shef\ToolsAiAssistant\Chat\Gateway\RateStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\RecordSourceInterface;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Main\Constants;
@@ -27,13 +28,16 @@ final class AnswerService
 {
 	public const STUB_TEXT = 'Модель не подключена: в shef.toolsai выбран провайдер-заглушка. Подключите модель в настройках shef.toolsai — тогда помощник ответит по истории записи и статьям базы знаний.';
 
+	/** Шлюзы к shef.toolsai и shef.toolsaikb, хранилища выбора роли и отметок частоты, настройки; $clock — время для тестов (по умолчанию time()). */
 	public function __construct(
 		private readonly PromptSourceInterface $prompts,
 		private readonly RecordSourceInterface $records,
 		private readonly KbSourceInterface $kb,
 		private readonly ModelGatewayInterface $model,
 		private readonly ChoiceStoreInterface $choices,
+		private readonly RateStoreInterface $rates,
 		private readonly Config $config,
+		private readonly ?\Closure $clock = null,
 	)
 	{
 	}
@@ -109,6 +113,11 @@ final class AnswerService
 
 			return ['text' => self::STUB_TEXT, 'role' => $role, 'sources' => [], 'finishReason' => 'stop'];
 		}
+		$rate = RateLimit::hit($this->rates->get($userId), $this->clock !== null ? ($this->clock)() : time(), $this->config->rateLimit);
+		if(!$rate['allowed'])
+		{
+			throw new ChatException('Слишком много вопросов подряд — подождите минуту', ChatException::RATE);
+		}
 		if($this->model->isQuotaExceeded())
 		{
 			throw new ChatException('Месячная квота ИИ исчерпана — обратитесь к администратору портала', ChatException::QUOTA);
@@ -126,6 +135,8 @@ final class AnswerService
 		}
 
 		$composed = $this->prompts->compose($role, $request->record?->entityTypeId, $allowed);
+		// Отметка — до вызова модели: сбой модели тоже считается, иначе повторы в цикле обходили бы лимит
+		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
 		$answer = $this->model->complete(ContextBuilder::messages($composed['system'], $recordText, $articles, $request->history));
 		$this->choices->save($userId, $key, $role);

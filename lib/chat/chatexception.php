@@ -13,9 +13,11 @@ final class ChatException extends \RuntimeException
 	public const NO_ROLES = 'no_roles';
 	public const EMPTY_QUESTION = 'empty_question';
 	public const QUOTA = 'quota';
+	public const RATE = 'rate';
 	public const RECORD = 'record';
 	public const MODEL = 'model';
 
+	/** Текст — для сотрудника; $errorCode — константа класса (уходит кодом ошибки ajax). */
 	public function __construct(string $message, public readonly string $errorCode, ?\Throwable $previous = null)
 	{
 		parent::__construct($message, 0, $previous);

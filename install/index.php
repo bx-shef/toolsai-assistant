@@ -76,6 +76,7 @@ class shef_toolsaiassistant extends CModule
 	/** @var \CMain */
 	private $application;
 
+	/** Версия, название и партнёр модуля — из version.php и языкового файла. */
 	public function __construct()
 	{
 		$arModuleVersion = [];
@@ -234,6 +235,7 @@ class shef_toolsaiassistant extends CModule
 		return is_array($list) ? $list : [];
 	}
 
+	/** Разложить файлы по installDir из .settings.php: JS-расширение, компонент прав, страницу прав. */
 	public function InstallFiles(array $arParams = []): bool
 	{
 		$docRoot = (string)Application::getDocumentRoot();
@@ -283,6 +285,7 @@ class shef_toolsaiassistant extends CModule
 	// endregion ////
 
 	// region Install.Public ////
+	/** Установка из «Настройки → Модули»: проверки окружения, таблицы, события, файлы. */
 	public function DoInstall(): void
 	{
 		/**
@@ -335,6 +338,7 @@ class shef_toolsaiassistant extends CModule
 		$this->ShowForm('OK', Loc::getMessage('SH_MOD_INST_OK').'<br><br>'.Loc::getMessage('SH_TOOLSAIASSISTANT_SETUP_HINT'));
 	}
 
+	/** Удаление: файлы (если нет зависимых модулей), события, таблицы и настройки. */
 	public function DoUninstall(): void
 	{
 		if(!$this->UnInstallFiles())

@@ -8,4 +8,5 @@ $shef_toolsaiassistant_default_option = [
 	'PANEL_paths' => "/crm/\n/shef/toolsai/view/",
 	'CHAT_history' => '10',
 	'CHAT_kblimit' => '5',
+	'CHAT_ratelimit' => '10',
 ];

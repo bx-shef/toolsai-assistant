@@ -58,6 +58,11 @@ $options->addTab(
 				->setTitle(Loc::getMessage($options->moduleId.'_TAB_CHAT_kblimit'))
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_CHAT_kblimit_descr'))
 		)
+		->addOption(
+			(new Options\NumberInt('ratelimit'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_CHAT_ratelimit'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_CHAT_ratelimit_descr'))
+		)
 );
 
 return $options->get();

@@ -24,6 +24,7 @@ final class RoleChoiceStore implements ChoiceStoreInterface
 		TableInstaller::uninstall(RoleChoiceTable::class);
 	}
 
+	/** Запомненная роль сотрудника в чате или null. */
 	public function get(int $userId, string $chatKey): ?string
 	{
 		$row = RoleChoiceTable::getList([
@@ -35,6 +36,7 @@ final class RoleChoiceStore implements ChoiceStoreInterface
 		return is_array($row) ? (string)$row['ROLE_CODE'] : null;
 	}
 
+	/** Запомнить роль: обновить строку пары сотрудник + чат или добавить её. */
 	public function save(int $userId, string $chatKey, string $roleCode): void
 	{
 		$this->write($userId, $chatKey, $roleCode, true);

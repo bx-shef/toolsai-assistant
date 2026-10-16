@@ -26,7 +26,7 @@ shef.toolsai от этого модуля не зависит: связь — с
 | `Container::getLlm(Config::DIRECTION_ASSISTANT)` | модель направления «Чат ИИ-помощника» | `Chat\Gateway\ToolsAiModelGateway` |
 | `LlmProviderInterface::complete()`, `getCode()`; `LlmResult` (`text`, `finishReason`, `costMicro`, `getTokens()`) | вызов модели | там же |
 | `Main\Constants::PROVIDER_ECHO`, `getEngineCode()` | заглушка; код движка в журнале | там же |
-| `Container::getMeter()->getMonthly()->isExceeded()` | квота до вызова | там же |
+| `Container::getMeter()->getMonthly()->isExceeded()` (`Quota\Balance`) | квота до вызова | там же |
 | `Quota\Ledger::start()` / `finish()`, `Quota\Status::SUCCESS/ERROR` | журнал расхода | там же |
 | `Provider\ProviderException` (`spentUnits`, `spentMicro`) | оплаченный, но негодный ответ — в журнал | там же |
 | `Container::getConfig()->getAssistantEndpoint()->model` | название модели под окном | там же |

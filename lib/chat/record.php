@@ -10,6 +10,7 @@ namespace Shef\ToolsAiAssistant\Chat;
  */
 final class Record
 {
+	/** Тип сущности CRM и ID записи — оба больше нуля (проверяет fromArray()). */
 	public function __construct(
 		public readonly int $entityTypeId,
 		public readonly int $id,

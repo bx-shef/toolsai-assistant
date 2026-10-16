@@ -12,3 +12,5 @@ $MESS['shef.toolsaiassistant_TAB_CHAT_history'] = 'Сообщений переп
 $MESS['shef.toolsaiassistant_TAB_CHAT_history_descr'] = 'Последние N сообщений чата уходят модели вместе с вопросом (2–30, по умолчанию 10). Больше — помнит дольше, но каждый ответ дороже.';
 $MESS['shef.toolsaiassistant_TAB_CHAT_kblimit'] = 'Статей базы знаний в ответе';
 $MESS['shef.toolsaiassistant_TAB_CHAT_kblimit_descr'] = 'Сколько статей shef.toolsaikb подбирать под вопрос (0–10, по умолчанию 5; 0 — не искать). Без модуля shef.toolsaikb не действует.';
+$MESS['shef.toolsaiassistant_TAB_CHAT_ratelimit'] = 'Ответов на сотрудника в минуту';
+$MESS['shef.toolsaiassistant_TAB_CHAT_ratelimit_descr'] = 'Не больше N вызовов модели одним сотрудником за минуту (0–120, по умолчанию 10; 0 — без ограничения). Защищает общую квоту shef.toolsai от потока запросов.';

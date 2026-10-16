@@ -18,6 +18,7 @@ use Shef\ToolsAi\Prompt\RegistryService;
  */
 final class ToolsAiPromptSource implements PromptSourceInterface
 {
+	/** Включённые роли реестра, открытые сотруднику ($allowed; null — все). */
 	public function roles(?array $allowed): array
 	{
 		return array_map(static fn(Definition $role): array => [
@@ -27,6 +28,7 @@ final class ToolsAiPromptSource implements PromptSourceInterface
 		], RegistryService::registry()->roles($allowed));
 	}
 
+	/** Текст роли и вопросы; навык — только привязанный к этой роли. */
 	public function compose(string $roleCode, ?int $entityTypeId, ?array $allowed): array
 	{
 		$composed = RegistryService::compose(

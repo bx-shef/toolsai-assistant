@@ -22,6 +22,7 @@ use Shef\ToolsAiAssistant\Container;
  */
 class Access extends Controller
 {
+	/** Фильтры save: авторизация, только POST, sessid. */
 	public function configureActions(): array
 	{
 		return [

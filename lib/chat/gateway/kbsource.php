@@ -17,11 +17,13 @@ use Shef\ToolsAiAssistant\Main\Constants;
  */
 final class KbSource implements KbSourceInterface
 {
+	/** Установлен ли shef.toolsaikb и есть ли его сервис поиска. */
 	public function isAvailable(): bool
 	{
 		return Loader::includeModule(Constants::KB_MODULE_ID) && class_exists(Constants::KB_SEARCH_CLASS);
 	}
 
+	/** Статьи под вопрос с правами текущего пользователя; нет модуля или сбой — пустой список. */
 	public function find(string $query, int $limit): array
 	{
 		if($limit <= 0 || trim($query) === '' || !$this->isAvailable())

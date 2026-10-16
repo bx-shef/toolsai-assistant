@@ -26,6 +26,7 @@ use Shef\ToolsAiAssistant\Container;
  */
 class Chat extends Controller
 {
+	/** Фильтры: авторизация, только POST, sessid; answer — ещё и отпустить сессию до вызова модели. */
 	public function configureActions(): array
 	{
 		$filters = [

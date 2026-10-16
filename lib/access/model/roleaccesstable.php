@@ -15,11 +15,13 @@ class RoleAccessTable extends DataManager
 	/** Уникальный индекс: код у роли один. */
 	public const INDEXES = ['UX_SHEF_TAIA_ROLE_ACCESS' => ['columns' => ['ROLE_ID', 'ACCESS_CODE'], 'unique' => true]];
 
+	/** Имя таблицы в базе. */
 	public static function getTableName(): string
 	{
 		return 'shef_toolsaiassistant_role_access';
 	}
 
+	/** Поля: ID, ROLE_ID, ACCESS_CODE. */
 	public static function getMap(): array
 	{
 		return [

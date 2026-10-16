@@ -23,6 +23,7 @@ use Shef\ToolsAiAssistant\Public\Service\ChatPanel;
  */
 final class OnPrologEventHandler
 {
+	/** Добавить кнопку и панель, если страница, хит и права подходят; сбой — в лог, страница не падает. */
 	public static function handle(): void
 	{
 		try

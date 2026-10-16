@@ -22,7 +22,8 @@ Check::group('разбор');
 $empty = Config::fromValues([]);
 Check::same('пусто — включено', $empty->enabled, true);
 Check::same('пусто — CRM и вид «ИИ»', $empty->paths, ['/crm/', '/shef/toolsai/view/']);
-Check::same('пусто — история и статьи по умолчанию', [$empty->history, $empty->kbLimit], [10, 5]);
+Check::same('пусто — история, статьи и частота по умолчанию', [$empty->history, $empty->kbLimit, $empty->rateLimit], [10, 5, 10]);
+Check::same('частота: 0 — без ограничения, больше 120 — 120', [Config::fromValues([Config::OPTION_RATE_LIMIT => '0'])->rateLimit, Config::fromValues([Config::OPTION_RATE_LIMIT => '500'])->rateLimit], [0, 120]);
 
 $custom = Config::fromValues([
 	Config::OPTION_ENABLED => 'N',
@@ -48,7 +49,7 @@ Check::group('умолчания и страница настроек');
 $shef_toolsaiassistant_default_option = [];
 require $root.'/default_option.php';
 $defaults = Config::fromValues($shef_toolsaiassistant_default_option);
-Check::same('default_option.php даёт те же умолчания, что Config', [$defaults->enabled, $defaults->paths, $defaults->history, $defaults->kbLimit], [$empty->enabled, $empty->paths, $empty->history, $empty->kbLimit]);
+Check::same('default_option.php даёт те же умолчания, что Config', [$defaults->enabled, $defaults->paths, $defaults->history, $defaults->kbLimit, $defaults->rateLimit], [$empty->enabled, $empty->paths, $empty->history, $empty->kbLimit, $empty->rateLimit]);
 
 $tabs = require $root.'/options_conf.php';
 $codes = [];
@@ -63,7 +64,7 @@ foreach($tabs as $tab)
 	}
 }
 sort($codes);
-$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT];
+$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT];
 sort($expected);
 Check::same('страница настроек сохраняет ровно то, что читает Config', $codes, $expected);
 $defaultKeys = array_keys($shef_toolsaiassistant_default_option);
