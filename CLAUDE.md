@@ -1,0 +1,72 @@
+# Памятка агенту: shef.toolsaiassistant
+
+> Последняя сверка: 2026-10-16
+
+Модуль коробочного Битрикс24: чат ИИ-помощника панелью справа в CRM с ролями
+(анализ работы сотрудников, узкие места, качество ведения сделки). Вынесен из
+`shef.toolsai` (там чат жил с 1.44.0 по 1.49.0). Канон линейки — как у
+[shef.toolsai](https://github.com/bx-shef/toolsai/blob/main/CLAUDE.md) и
+[shef.options](https://github.com/bx-shef/options/blob/main/CLAUDE.md): всё, что там
+сказано про устройство модуля линейки, верно и здесь.
+
+Проверка перед сдачей — всегда `./build.sh --check`, ровно это же гоняет CI.
+Как работа попадает в `main` — [docs/private/agent-rules.md](docs/private/agent-rules.md).
+Документацию правим **в том же PR**, что и код.
+
+## Зависимости — строго
+
+- `shef.options`, `shef.problems`, `shef.toolsai` — в `requireModules`: без них модуль
+  не грузится. От `shef.toolsai` берём **только публичное** — список в
+  [docs/guide/03-dependencies.md](docs/guide/03-dependencies.md). Toolsai не правим из
+  этого репозитория; не хватает API — пишем требование туда же.
+- `shef.toolsaikb` — **мягко**: `Loader::includeModule` + `class_exists`
+  (`Chat\Gateway\KbSource`). Нет модуля — чат отвечает без статей.
+- `shef.toolsai` про этот модуль не знает. Связь — событием
+  `shef.toolsai:OnPromptRegistryBuild` (роли) и JS-глобалом `window.ShefAiChat`.
+
+## Опорные точки
+
+| что | где |
+|---|---|
+| роли помощника (тексты, коды, заготовки прав) | `lib/prompt/roles.php` |
+| обработчик реестра промптов | `lib/internals/integration/toolsai/eventhandler/` |
+| панель на страницах CRM | `lib/internals/integration/main/eventhandler/onprologeventhandler.php` |
+| сценарий ответа (права → роль → квота → запись → kb → модель) | `lib/chat/answerservice.php` |
+| вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
+| «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
+| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/answer`) |
+| права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
+| окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
+| публичный API для других модулей | `lib/public/service/chatpanel.php` |
+
+## Решения и ловушки
+
+- **Право роли проверяет сервер на каждом ответе** (`Chat\RoleSelector`): присланная
+  роль, не открытая сотруднику, — отказ, а не тихая подмена. Запомненная, но
+  закрытая потом роль — не берётся.
+- **От shef.toolsai — только `Shef\ToolsAi\Public\…`** (1.50.0): `LlmService`,
+  `PromptService` (место `PLACE_ASSISTANT`), `RecordService`, событие
+  `OnViewRowActionsBuild`. Внутренние классы shef.toolsai не трогаем.
+- **Права чата shef.toolsai до 1.50.0** переносятся при установке один раз
+  (`Access\LegacyRights`).
+- **Ответ — одним JSON**, не потоком: `Bitrix\Main\Engine\Controller`; сессия
+  отпускается до вызова модели (`ActionFilter\CloseSession`).
+- **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
+  (`markdown.js`, `tests/markdown_test.mjs`).
+- **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —
+  `/bitrix/js/shef/toolsaiassistant`, `/local/components/shef/toolsaiassistant.rights`,
+  `/shef/toolsaiassistant` (`tests/install_test.php`).
+- **Частота ответов** ограничена на сотрудника (`Chat\RateLimit`, `CHAT_ratelimit`):
+  отметка ставится до вызова модели — сбои тоже считаются.
+- **Выкладка**: сначала shef.toolsai 1.50.0, потом этот модуль
+  ([docs/private/project-map.md](docs/private/project-map.md)).
+- Фильтры контроллеров — через `configureActions()`, не атрибутами: модуль
+  ставится на main от 22.600.
+
+## Тесты
+
+`tests/*_test.php` и `tests/*_test.mjs`, обвязка `tests/assert.php` (как у линейки),
+заглушки ядра — `tests/stub/`. Сценарий чата тестируется на подменах шлюзов
+(`answerservice_test.php`); шлюз модели — на подмене shef.toolsai
+(`tests/stub/toolsai.php`, `modelgateway_test.php`); что подменённое API
+существует — `toolsaiapi_test.php` (по исходникам shef.toolsai, если они рядом).

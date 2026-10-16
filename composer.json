@@ -1,0 +1,44 @@
+{
+	"name": "bxshef/toolsai-assistant",
+	"description": "Битрикс24 (коробка): чат ИИ-помощника панелью справа в CRM — роли для анализа работы сотрудников, узких мест и качества ведения сделки; модель, квота и расход — shef.toolsai",
+	"type": "bitrix-module",
+	"license": "MIT",
+	"keywords": [
+		"bitrix",
+		"Bitrix24",
+		"local-module",
+		"ai",
+		"assistant",
+		"crm"
+	],
+	"homepage": "https://github.com/bx-shef/toolsai-assistant",
+	"authors": [
+		{
+			"name": "Igor Shevchik",
+			"email": "offer@bx-shef.by",
+			"homepage": "https://bx-shef.by/"
+		}
+	],
+	"support": {
+		"email": "offer@bx-shef.by"
+	},
+	"minimum-stability": "stable",
+	"require": {
+		"php": ">=8.2.0",
+		"ext-json": "*",
+		"ext-mbstring": "*",
+		"composer/installers": "^1.0 || ^2.0",
+		"bxshef/options": "^3.0",
+		"bxshef/problems": "^2.0",
+		"bxshef/toolsai": "^1.50"
+	},
+	"suggest": {
+		"bxshef/toolsai-kb": "Статьи базы знаний в ответах помощника (shef.toolsaikb)"
+	},
+	"extra": {
+		"installer-name": "shef.toolsaiassistant",
+		"branch-alias": {
+			"dev-main": "1.x-dev"
+		}
+	}
+}
