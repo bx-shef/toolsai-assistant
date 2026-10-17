@@ -79,6 +79,11 @@ final class ContextBuilder
 			$left -= mb_strlen($line) + 1;
 			array_unshift($tail, $line);
 		}
+		if($tail === [] && $lines !== [] && $left > 1)
+		{
+			// Самая свежая строка длиннее остатка — её конец, а не пустой хвост
+			$tail[] = '…'.mb_substr(end($lines), -($left - 1));
+		}
 
 		return mb_substr($head, 0, self::AGENT_RECORD_MAX)."\n… (начало ленты обрезано: старые касания — инструментами портала, см. «Подробности открытого»)".($tail !== [] ? "\n".implode("\n", $tail) : '');
 	}

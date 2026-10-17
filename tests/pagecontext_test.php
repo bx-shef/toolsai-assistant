@@ -59,6 +59,7 @@ Check::same('канбан с воронкой', str_starts_with(PageContext::lin
 Check::same('карточка в слайдере при общем чате — ленты нет', str_contains((string)PageContext::line(PageContext::fromPath('/crm/lead/details/8/'), null), 'ленты ниже нет'), true);
 Check::same('чат по сделке 5, в слайдере сделка 9 — обе', PageContext::line(PageContext::fromPath('/crm/deal/details/9/'), $deal, ['title' => 'Окна', 'noun' => 'Сделка']), 'Открыта карточка CRM: сделка (entityTypeId=2, id=9), её ленты ниже нет. Чат ведётся по записи — карточка CRM: Сделка «Окна» (entityTypeId=2, id=5); её лента ниже.');
 Check::same('календарь коллеги', PageContext::line(PageContext::fromPath('/company/personal/user/17/calendar/'), null), 'Открыт календарь сотрудника (userId=17).');
+Check::same('прочая страница — без пути в тексте', str_contains((string)PageContext::line(PageContext::fromPath('/x/IGNORE_RULES/'), null), 'IGNORE'), false);
 Check::same('задача', PageContext::line(PageContext::fromPath('/company/personal/user/1/tasks/task/view/42/'), null), 'Открыта задача (id=42).');
 
 Check::group('подсказки агенту');
@@ -91,6 +92,9 @@ Check::same('одна длинная строка — заголовок обр�
 $feed = "Сделка #5: Окна\n".implode("\n", array_map(static fn(int $i): string => 'касание '.$i.' '.str_repeat('.', 50), range(1, 200)));
 $cut = ContextBuilder::compactRecord($feed);
 Check::same('лента: заголовок и свежий хвост целыми строками, старое — прочь', [str_starts_with($cut, "Сделка #5: Окна\n…"), str_ends_with($cut, 'касание 200 '.str_repeat('.', 50)), str_contains($cut, "\nкасание 1 "), mb_strlen($cut) <= ContextBuilder::AGENT_RECORD_MAX + 200], [true, true, false, true]);
+
+$cut = ContextBuilder::compactRecord("Сделка #5\nстарое\n".str_repeat('a', ContextBuilder::AGENT_RECORD_MAX).'свежее');
+Check::same('свежая строка длиннее предела — её конец, а не пусто', [str_ends_with($cut, 'свежее'), mb_strlen($cut) <= ContextBuilder::AGENT_RECORD_MAX + 200], [true, true]);
 
 Check::group('в сообщениях модели');
 $records = new FakeRecords();
