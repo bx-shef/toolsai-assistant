@@ -29,6 +29,9 @@
 		placeholder: function(text, from) { return NS.ChatView ? NS.ChatView.placeholder(text, from) : null; }
 	};
 	var ACTION = 'shef:toolsaiassistant.chat.';
+	/** Режим «Агент» (1.9.0): инструменты MCP — agent.js и контроллер Agent. */
+	var AGENT_ACTION = 'shef:toolsaiassistant.agent.';
+	var AGENT_KEY = 'shef-aia-agent';
 	var HISTORY_KEEP = 40;
 	/** id кнопки вида «ИИ» (Panel\SidePanel::VIEW_BUTTON_ID): её клик — в onclick, здесь только метка «открыт». */
 	var VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
@@ -220,6 +223,10 @@
 		/** Файлы к следующему вопросу (1.8.0): {id, name, status: reading|ok|error, file, error}. */
 		attachments: [],
 		attachSeq: 0,
+		/** Агент (1.9.0): шаги текущего вопроса для модели (trace сервера) — до ответа сотруднику. */
+		agentTrace: [],
+		/** Подписка на сообщение окна подключения к MCP. */
+		agentListener: null,
 
 		/** Запуск на странице: один раз и только в верхнем окне. */
 		init: function(settings)
@@ -250,7 +257,9 @@
 				toggle: function(rec) { self.isOpen() ? self.close() : self.open(rec); },
 				isOpen: function() { return self.isOpen(); },
 				/** Чат по карточке CRM, открытой в этом окне (1.4.0): кнопка в шапке карточки. */
-				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } }
+				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } },
+				/** Режим «Агент» (1.9.0): открыть чат с включённым агентом; question — в поле ввода. */
+				agent: function(rec) { self.openAgent(rec); }
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { self.open(rec); });
@@ -315,6 +324,11 @@
 
 			var bar = el('div', 'shef-aia-bar');
 			bar.appendChild(el('span', 'shef-aia-bar-title', 'ИИ-помощник'));
+			// Режим «Агент» (1.9.0): видно, когда агент открыт сотруднику
+			this.agentButton = el('button', 'shef-aia-agent-toggle', '⚡ Агент');
+			this.agentButton.type = 'button';
+			this.agentButton.addEventListener('click', function() { self.toggleAgent(); });
+			bar.appendChild(this.agentButton);
 			this.clearButton = iconButton('shef-aia-icon', 'o-trashcan', 'Очистить диалог');
 			this.clearButton.addEventListener('click', function() { self.askClear(true); });
 			bar.appendChild(this.clearButton);
@@ -522,6 +536,21 @@
 			setTimeout(function() { input.focus({preventScroll: true}); }, 50);
 		},
 
+		/**
+		 * Открыть чат в режиме «Агент» (window.ShefAiChat.agent, 1.9.0): {entityTypeId,
+		 * id, title} — как open, question — в поле ввода (не отправка: сотрудник
+		 * видит, что попросит). Агент не открыт или не подключён — кнопка в шапке
+		 * предложит подключиться.
+		 */
+		openAgent: function(rec)
+		{
+			put(AGENT_KEY, '1');
+			this.open(rec && (rec.entityTypeId || rec.context) ? rec : null);
+			var question = rec && typeof rec.question === 'string' ? rec.question.slice(0, 2000) : '';
+			if(question && !this.busy) { this.prefill(question); }
+			this.render();
+		},
+
 		close: function()
 		{
 			this.panel.classList.remove('--open');
@@ -643,6 +672,7 @@
 			this.stopStream();
 			this.busy = false;
 			this.messages = [];
+			this.agentTrace = [];
 			this.lastError = '';
 			drop(this.storageKey());
 			this.render();
@@ -825,6 +855,12 @@
 		 */
 		ask: function()
 		{
+			if(this.agentMode())
+			{
+				this.agentTrace = [];
+				this.askAgent(null);
+				return;
+			}
 			var self = this;
 			var requestId = ++this.requestId;
 			var message = null;
@@ -1268,6 +1304,132 @@
 			BX.Runtime.loadExtension(names).then(function() { self.render(); }, function() {});
 		},
 
+		/** Агент открыт сотруднику (настройки модуля, право agent.use). */
+		agentAvailable: function()
+		{
+			return !!(this.info && this.info.agent && this.info.agent.enabled && NS.Agent);
+		},
+
+		/** Вопросы идут агенту: открыт, подключён и включён сотрудником. */
+		agentMode: function()
+		{
+			return this.agentAvailable() && this.info.agent.connected && get(AGENT_KEY) === '1';
+		},
+
+		/** Кнопка «⚡ Агент»: не подключён — подключиться; иначе включить/выключить. */
+		toggleAgent: function()
+		{
+			if(!this.agentAvailable() || this.busy) { return; }
+			if(!this.info.agent.connected)
+			{
+				this.connectAgent();
+				return;
+			}
+			put(AGENT_KEY, get(AGENT_KEY) === '1' ? '0' : '1');
+			this.agentTrace = [];
+			this.render();
+		},
+
+		/**
+		 * Подключение к MCP-серверу: адрес входа от сервера, вход — в новом окне
+		 * (сотрудник входит в свой Битрикс24 на экране согласия MCP), итог —
+		 * сообщением окна возврата (/shef/toolsaiassistant/mcp/).
+		 */
+		connectAgent: function()
+		{
+			var self = this;
+			var popup = window.open('', 'shef_aia_mcp', 'width=560,height=760');
+			BX.ajax.runAction(AGENT_ACTION + 'connect', {data: {}}).then(function(response)
+			{
+				var url = response.data && response.data.url;
+				if(!url) { if(popup) { popup.close(); } return; }
+				if(popup) { popup.location.href = url; } else { window.open(url, 'shef_aia_mcp'); }
+				self.listenAgentConnect();
+			}, function(response)
+			{
+				if(popup) { popup.close(); }
+				self.lastError = errorText(response, 'Не удалось начать подключение к MCP');
+				self.render();
+			});
+		},
+
+		listenAgentConnect: function()
+		{
+			var self = this;
+			if(this.agentListener) { window.removeEventListener('message', this.agentListener); }
+			this.agentListener = function(event)
+			{
+				if(!NS.Agent.isConnectMessage(event, window.location.origin)) { return; }
+				window.removeEventListener('message', self.agentListener);
+				self.agentListener = null;
+				if(event.data.ok && self.info && self.info.agent)
+				{
+					self.info.agent.connected = true;
+					put(AGENT_KEY, '1');
+					self.lastError = '';
+				}
+				self.render();
+			};
+			window.addEventListener('message', this.agentListener);
+		},
+
+		/**
+		 * Ответ агента: вопрос (confirm = null) или решение по ждущему действию.
+		 * Сервер присылает шаги, текст и, если нужно, ждущее действие + trace —
+		 * его отдаём назад при «Выполнить / Отмена».
+		 */
+		askAgent: function(confirm)
+		{
+			var self = this;
+			var A = NS.Agent;
+			var requestId = ++this.requestId;
+			this.stopStream();
+			this.busy = true;
+			this.status = null;
+			this.render();
+			BX.ajax.runAction(AGENT_ACTION + 'run', {data: {
+				messages: A.history(this.messages),
+				record: recordData(this.record), context: contextOf(this.record),
+				role: this.info && this.info.role ? this.info.role : '',
+				trace: this.agentTrace,
+				confirm: confirm || {}
+			}}).then(function(response)
+			{
+				if(requestId !== self.requestId) { return; }
+				self.busy = false;
+				var data = response.data || {};
+				var message = A.message(data);
+				self.agentTrace = message.pending && Array.isArray(data.trace) ? data.trace : [];
+				(message.steps || []).forEach(function(step) { A.emit(A.EVENT_STEP, [step]); });
+				if(message.pending) { A.emit(A.EVENT_PENDING, [message.pending]); }
+				self.messages.push(message);
+				self.saveMessages();
+				self.render();
+			}, function(response)
+			{
+				if(requestId !== self.requestId) { return; }
+				self.busy = false;
+				var code = response && response.errors && response.errors[0] ? response.errors[0].code : '';
+				if(code === 'mcp_auth' && self.info && self.info.agent)
+				{
+					self.info.agent.connected = false;
+				}
+				self.agentTrace = [];
+				self.lastError = errorText(response, 'Агент не ответил');
+				self.render();
+			});
+		},
+
+		/** «Выполнить» / «Отмена» на карточке агента. */
+		decideAgent: function(message, decision)
+		{
+			if(this.busy || !message.pending || message.decided) { return; }
+			message.decided = decision;
+			NS.Agent.emit(NS.Agent.EVENT_DECISION, [message.pending, decision]);
+			this.saveMessages();
+			this.askAgent({id: message.pending.id, decision: decision});
+		},
+
 		render: function()
 		{
 			var self = this;
@@ -1281,6 +1443,18 @@
 			this.roleRow.style.display = roles.length ? '' : 'none';
 			this.roleButton.disabled = this.busy;
 			this.clearButton.style.visibility = this.messages.length ? 'visible' : 'hidden';
+			this.agentButton.style.display = this.agentAvailable() ? '' : 'none';
+			if(this.agentAvailable())
+			{
+				var on = this.agentMode();
+				this.agentButton.classList.toggle('--on', on);
+				this.agentButton.setAttribute('aria-pressed', on ? 'true' : 'false');
+				this.agentButton.textContent = this.info.agent.connected ? (on ? '⚡ Агент: вкл' : '⚡ Агент') : '⚡ Подключить агента';
+				this.agentButton.title = this.info.agent.connected
+					? (on ? 'Помощник действует в портале инструментами MCP. Нажмите, чтобы только отвечать.' : 'Включить режим «Агент»: помощник ищет, смотрит и по вашей кнопке меняет данные портала')
+					: 'Подключиться к MCP-серверу: один раз войти в свой Битрикс24';
+				this.agentButton.disabled = this.busy;
+			}
 			if(!this.messages.length) { this.askClear(false); }
 			this.promptsButton.style.display = info && info.prompts && info.prompts.length ? '' : 'none';
 			this.promptsButton.disabled = this.busy;
@@ -1361,10 +1535,19 @@
 				author.appendChild(el('span', 'shef-aia-author-name', view.author));
 				if(view.time) { author.appendChild(el('span', 'shef-aia-time', view.time)); }
 				column.appendChild(author);
+				if(message.steps && message.steps.length && NS.Agent)
+				{
+					column.appendChild(NS.Agent.renderSteps(message.steps, el));
+				}
 				var body = el('div', 'shef-aia-bubble shef-aia-md');
 				body.innerHTML = view.html; // Markdown.render экранирует весь ответ
 				self.mountWidgets(body, view.widgets);
-				column.appendChild(body);
+				if(message.text !== '' || !message.pending) { column.appendChild(body); }
+				if(message.pending && NS.Agent)
+				{
+					var last = index === self.messages.length - 1;
+					column.appendChild(NS.Agent.renderPending(message.pending, message.decided || (last ? '' : 'no'), el, function(decision) { self.decideAgent(message, decision); }));
+				}
 				answer.appendChild(column);
 				var row = answer;
 				answer = column;
@@ -1426,7 +1609,7 @@
 				box.appendChild(row);
 			});
 
-			var waiting = this.busy ? (this.status && NS.ChatStatus ? NS.ChatStatus.label(this.status) : 'Думаю…') : '';
+			var waiting = this.busy ? (this.status && NS.ChatStatus ? NS.ChatStatus.label(this.status) : (this.agentMode() ? 'Агент работает: смотрю данные портала…' : 'Думаю…')) : '';
 			if(waiting)
 			{
 				var thinking = el('div', 'shef-aia-thinking');
@@ -1445,6 +1628,13 @@
 					retry.type = 'button';
 					retry.addEventListener('click', function() { self.retry(); });
 					error.appendChild(retry);
+				}
+				if(this.agentAvailable() && !this.info.agent.connected)
+				{
+					var connect = el('button', 'ui-btn ui-btn-sm ui-btn-primary', 'Подключить агента');
+					connect.type = 'button';
+					connect.addEventListener('click', function() { self.connectAgent(); });
+					error.appendChild(connect);
 				}
 				box.appendChild(error);
 			}
@@ -1522,7 +1712,8 @@
 				toggle: api('toggle'),
 				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); },
 				// Адрес карточки — этого фрейма, открываем в верхнем окне
-				openCurrent: function() { var rec = currentRecord(); if(rec) { window.ShefAiChat.open(rec); } }
+				openCurrent: function() { var rec = currentRecord(); if(rec) { window.ShefAiChat.open(rec); } },
+				agent: function(rec) { self.top(function(chat) { chat.agent(rec); }); }
 			};
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { window.ShefAiChat.open(rec); });
 			this.installStub();
@@ -1546,7 +1737,7 @@
 			{
 				if(top.ShefAiChat) { return; }
 				var call = function(name) { return function(rec) { self.top(function(chat) { chat[name](rec); }); }; };
-				top.ShefAiChat = {stub: true, open: call('open'), close: call('close'), toggle: call('toggle'), isOpen: function() { return false; }};
+				top.ShefAiChat = {stub: true, open: call('open'), close: call('close'), toggle: call('toggle'), agent: call('agent'), isOpen: function() { return false; }};
 			}
 			catch(e) {}
 		},

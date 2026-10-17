@@ -27,6 +27,8 @@ final class Constants
 	 * не API: раздел promptlib, Settings\Sections shef.toolsai.
 	 */
 	public const TOOLSAI_PROMPT_LIBRARY_URL = '/shef/toolsai/?section=promptlib';
+	/** Страница возврата из входа в MCP-сервер (1.9.0, режим «Агент»): redirect_uri чата как клиента OAuth. */
+	public const MCP_CALLBACK_URL = '/shef/toolsaiassistant/mcp/';
 	/** Компонент страницы прав: ui.accessrights.v2 сохраняет через его ajax.php. */
 	public const RIGHTS_COMPONENT = 'shef:toolsaiassistant.rights';
 

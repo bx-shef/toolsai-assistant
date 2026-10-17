@@ -98,6 +98,13 @@ BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', role: 'shef.toolsai:assis
 Событие `shef.toolsaiassistant:OnChatPlacesCollect` — [04-events.md](04-events.md).
 Сопоставление адреса со страницей — `Panel\PlaceUrl::matches($placeUrl, $requestUri)`.
 
+## Агент со своей кнопки (1.9.0)
+
+`window.ShefAiChat.agent({entityTypeId, id, title, question})` — чат с
+включённым режимом «Агент», `question` — в поле ввода. На PHP:
+`ChatPanel::canUseAgent()` и `ChatPanel::openAgentJs($question, $entityTypeId = 0, $id = 0, $title = '')`.
+События окна и сервера — [10-agent.md](10-agent.md).
+
 ## PHP: встроить чат в свою страницу
 
 ```php
@@ -164,6 +171,9 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 | `stream` | как у `answer` | поток `text/event-stream` (1.1.0) — см. ниже |
 | `favorite` | `role`, `on: Y\|N` | `{prefs: {recent, favorite}}` — звёздочка роли в диалоге (1.4.0); роль не открыта — ошибка `role` |
 | `rate` | `rating: up\|down`, `role`, `record`, `question`, `answer`, `comment` | `{id}` (1.1.0) |
+
+`info` с 1.9.0 отдаёт и `agent: {enabled, connected, server}`; действия агента —
+`shef:toolsaiassistant.agent.status|connect|disconnect|run` ([10-agent.md](10-agent.md)).
 
 Коды ошибок (`errors[0].code`): `access`, `role`, `no_roles`, `empty_question`,
 `quota`, `rate`, `record`, `model`, `feedback`, `internal`. Текст ошибки можно

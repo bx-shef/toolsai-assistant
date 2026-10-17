@@ -24,6 +24,12 @@ final class Config
 	public const RATE_LIMIT_MAX = 120;
 	public const DEFAULT_FEEDBACK_DAYS = 90;
 	public const FEEDBACK_DAYS_MAX = 3650;
+	/** Агент (1.9.0): шагов инструментов на один вопрос и знаков результата инструмента для модели. */
+	public const DEFAULT_AGENT_STEPS = 6;
+	public const AGENT_STEPS_MAX = 15;
+	public const DEFAULT_AGENT_RESULT = 8000;
+	public const AGENT_RESULT_MIN = 1000;
+	public const AGENT_RESULT_MAX = 30000;
 
 	/** Коды опций: <вкладка>_<опция> (shef.options). Менять нельзя — значения в базе. */
 	public const OPTION_ENABLED = 'PANEL_enabled';
@@ -32,6 +38,11 @@ final class Config
 	public const OPTION_KB_LIMIT = 'CHAT_kblimit';
 	public const OPTION_RATE_LIMIT = 'CHAT_ratelimit';
 	public const OPTION_FEEDBACK_DAYS = 'CHAT_feedbackdays';
+	public const OPTION_AGENT_ENABLED = 'AGENT_enabled';
+	public const OPTION_AGENT_URL = 'AGENT_mcpurl';
+	public const OPTION_AGENT_STEPS = 'AGENT_steps';
+	public const OPTION_AGENT_AUTOREAD = 'AGENT_autoread';
+	public const OPTION_AGENT_RESULT = 'AGENT_resultmax';
 
 	/**
 	 * @param list<string> $paths адреса мест, где есть кнопка и панель: начало
@@ -45,6 +56,14 @@ final class Config
 		public readonly int $kbLimit = self::DEFAULT_KB_LIMIT,
 		public readonly int $rateLimit = self::DEFAULT_RATE_LIMIT,
 		public readonly int $feedbackDays = self::DEFAULT_FEEDBACK_DAYS,
+		/** Режим «Агент» (1.9.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp. */
+		public readonly bool $agentEnabled = false,
+		/** Базовый адрес MCP-сервера (https, без «/mcp»); пусто — агента нет. */
+		public readonly string $agentUrl = '',
+		public readonly int $agentSteps = self::DEFAULT_AGENT_STEPS,
+		/** Инструменты только для чтения — без вопроса; запись спрашивает всегда. */
+		public readonly bool $agentAutoRead = true,
+		public readonly int $agentResultMax = self::DEFAULT_AGENT_RESULT,
 	)
 	{
 	}
@@ -61,6 +80,11 @@ final class Config
 			self::OPTION_KB_LIMIT => $get(self::OPTION_KB_LIMIT),
 			self::OPTION_RATE_LIMIT => $get(self::OPTION_RATE_LIMIT),
 			self::OPTION_FEEDBACK_DAYS => $get(self::OPTION_FEEDBACK_DAYS),
+			self::OPTION_AGENT_ENABLED => $get(self::OPTION_AGENT_ENABLED),
+			self::OPTION_AGENT_URL => $get(self::OPTION_AGENT_URL),
+			self::OPTION_AGENT_STEPS => $get(self::OPTION_AGENT_STEPS),
+			self::OPTION_AGENT_AUTOREAD => $get(self::OPTION_AGENT_AUTOREAD),
+			self::OPTION_AGENT_RESULT => $get(self::OPTION_AGENT_RESULT),
 		]);
 	}
 
@@ -93,7 +117,42 @@ final class Config
 			kbLimit: static::int($values[self::OPTION_KB_LIMIT] ?? '', self::DEFAULT_KB_LIMIT, 0, self::KB_LIMIT_MAX),
 			rateLimit: static::int($values[self::OPTION_RATE_LIMIT] ?? '', self::DEFAULT_RATE_LIMIT, 0, self::RATE_LIMIT_MAX),
 			feedbackDays: static::int($values[self::OPTION_FEEDBACK_DAYS] ?? '', self::DEFAULT_FEEDBACK_DAYS, 1, self::FEEDBACK_DAYS_MAX),
+			agentEnabled: (string)($values[self::OPTION_AGENT_ENABLED] ?? '') === 'Y',
+			agentUrl: static::mcpUrl((string)($values[self::OPTION_AGENT_URL] ?? '')) ?? '',
+			agentSteps: static::int($values[self::OPTION_AGENT_STEPS] ?? '', self::DEFAULT_AGENT_STEPS, 1, self::AGENT_STEPS_MAX),
+			agentAutoRead: (string)($values[self::OPTION_AGENT_AUTOREAD] ?? '') !== 'N',
+			agentResultMax: static::int($values[self::OPTION_AGENT_RESULT] ?? '', self::DEFAULT_AGENT_RESULT, self::AGENT_RESULT_MIN, self::AGENT_RESULT_MAX),
 		);
+	}
+
+	/** Агент включён и адрес MCP-сервера задан. */
+	public function agentReady(): bool
+	{
+		return $this->agentEnabled && $this->agentUrl !== '';
+	}
+
+	/**
+	 * Адрес MCP-сервера → базовый: только https, без логина, параметров и
+	 * «#», «/mcp» и «/connect» в конце убираются (так же понимает адрес
+	 * кнопка «Подключить ИИ» shef.toolsai). Не адрес — null.
+	 */
+	public static function mcpUrl(string $value): ?string
+	{
+		$value = trim($value);
+		if($value === '' || mb_strlen($value) > 300 || preg_match('/[\s<>"\'\\\\]/', $value))
+		{
+			return null;
+		}
+		$parts = parse_url($value);
+		if(!is_array($parts) || strtolower((string)($parts['scheme'] ?? '')) !== 'https' || empty($parts['host'])
+			|| isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment']))
+		{
+			return null;
+		}
+		$path = rtrim((string)($parts['path'] ?? ''), '/');
+		$path = rtrim((string)preg_replace('~/(mcp|connect)$~', '', $path), '/');
+
+		return 'https://'.strtolower((string)$parts['host']).(isset($parts['port']) ? ':'.(int)$parts['port'] : '').$path;
 	}
 
 	/**

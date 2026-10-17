@@ -35,7 +35,7 @@ final class Rights
 	{
 		if($isAdmin)
 		{
-			return new self(true, [Actions::CHAT_USE, Actions::FEEDBACK_VIEW, Actions::FEEDBACK_EDIT]);
+			return new self(true, array_keys(Actions::getList()));
 		}
 
 		$userCodes = array_fill_keys(array_map('strval', $userCodes), true);
@@ -65,6 +65,12 @@ final class Rights
 	public function can(string $action): bool
 	{
 		return ($this->isAdmin && isset(Actions::getList()[$action])) || in_array($action, $this->actions, true);
+	}
+
+	/** Режим «Агент»: инструменты MCP от имени сотрудника (1.9.0). */
+	public function canUseAgent(): bool
+	{
+		return $this->can(Actions::AGENT_USE);
 	}
 
 	/** Смотреть оценки ответов (1.1.0). */

@@ -49,6 +49,8 @@
 | меню промптов в поле ввода (1.7.0): места окна, типовые запросы, группы | `lib/prompt/chatplaces.php`, `lib/prompt/typicalprompts.php`, `install/js/.../chat/promptmenu.js`, глава 09 |
 | виджеты в ответах (1.7.0): блок ```widget, реестр, событие `OnChatWidgetsCollect` | `markdown.js` (`renderFull`), `install/js/.../chat/widgets.js`, `lib/chat/widgetcatalog.php`, глава 09 |
 | файлы в чате (1.8.0): текст из PDF/DOCX/XLSX/PPTX/CSV/TXT в браузере, пределы на сервере | `install/js/.../chat/files.js`, `lib/chat/chatfiles.php`, глава 09 |
+| режим «Агент» (1.9.0): цикл инструментов MCP, подтверждение записи, события модулей | `lib/agent/` (`AgentService`, `ToolProtocol`, `ToolCatalog`, `AgentEvents`), окно — `install/js/.../chat/agent.js`, контроллер `lib/controller/agent.php`, глава 10 |
+| чат как клиент MCP-сервера toolsai-mcp (1.9.0): OAuth с PKCE, токены сотрудника зашифрованы | `lib/mcp/` (`McpConnection`, `OAuthClient`, `McpClient`, `TokenStore`), возврат входа — `/shef/toolsaiassistant/mcp/` |
 | места «Где показывать чат» (1.3.0) | `lib/panel/placeurl.php` (сопоставление), `placecatalog.php` (свои + событие `OnChatPlacesCollect`), `placesoption.php` (поле настроек), провайдер `lib/internals/integration/ui/entityselector/placeprovider.php` |
 
 ## Решения и ловушки
@@ -110,6 +112,12 @@
   отметка ставится до вызова модели — сбои тоже считаются.
 - **Выкладка**: сначала shef.toolsai 1.54.0, потом этот модуль
   ([docs/private/project-map.md](docs/private/project-map.md)).
+- **Агент меняет данные только после «Выполнить»** (1.9.0): чтение или запись
+  решает сервер MCP (`annotations.readOnlyHint`), ждущий вызов хранится на
+  сервере (`Agent\UserOptionPendingStore`), окно шлёт только id и решение —
+  аргументы из окна не берём. Протокол вызова — свой блок ```tool, а не tool
+  calling провайдера: `LlmService` shef.toolsai — текст. Свои инструменты модули
+  добавляют в MCP-сервер (манифест), а не сюда; здесь — только правила событием.
 - Фильтры контроллеров — через `configureActions()`, не атрибутами: модуль
   ставится на main от 22.600.
 

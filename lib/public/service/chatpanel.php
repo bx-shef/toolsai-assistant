@@ -24,7 +24,9 @@ use Shef\ToolsAiAssistant\Panel\SidePanel;
  * На страницах из настройки «Где показывать чат» модуль делает первые два
  * шага сам (Internals\Integration\Main\EventHandler\OnPrologEventHandler).
  * В JS: window.ShefAiChat.open({entityTypeId, id, title}) и
- * window.ShefAiChat.close().
+ * window.ShefAiChat.close(); режим «Агент» (1.9.0) —
+ * window.ShefAiChat.agent({entityTypeId, id, title, question}) (вопрос — в поле ввода)
+ * или openAgentJs() ниже.
  */
 final class ChatPanel
 {
@@ -35,6 +37,28 @@ final class ChatPanel
 	public static function canUse(): bool
 	{
 		return UserAccess::current()->canUseChat();
+	}
+
+	/** Открыт ли текущему сотруднику режим «Агент» (1.9.0): включён в настройках и право agent.use. */
+	public static function canUseAgent(): bool
+	{
+		return \Shef\ToolsAiAssistant\Config::current()->agentReady() && UserAccess::current()->canUseAgent();
+	}
+
+	/**
+	 * JS для onclick: открыть чат в режиме «Агент» с вопросом в поле ввода
+	 * (1.9.0) — например, кнопка «Разобрать входящие» в своём модуле. Запись —
+	 * по желанию (0 — общий чат). Данные экранированы.
+	 */
+	public static function openAgentJs(string $question, int $entityTypeId = 0, int $id = 0, string $title = ''): string
+	{
+		$rec = ['question' => mb_substr($question, 0, 2000)];
+		if($entityTypeId > 0 && $id > 0)
+		{
+			$rec += ['entityTypeId' => $entityTypeId, 'id' => $id, 'title' => $title];
+		}
+
+		return 'window.ShefAiChat&&window.ShefAiChat.agent('.SidePanel::json($rec).')';
 	}
 
 	/** JS для onclick: открыть чат по записи CRM. Данные экранированы. */

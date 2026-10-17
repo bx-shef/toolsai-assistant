@@ -10,4 +10,9 @@ $shef_toolsaiassistant_default_option = [
 	'CHAT_kblimit' => '5',
 	'CHAT_ratelimit' => '10',
 	'CHAT_feedbackdays' => '90',
+	'AGENT_enabled' => 'N',
+	'AGENT_mcpurl' => '',
+	'AGENT_steps' => '6',
+	'AGENT_autoread' => 'Y',
+	'AGENT_resultmax' => '8000',
 ];

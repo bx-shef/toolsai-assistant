@@ -114,6 +114,7 @@ class shef_toolsaiassistant extends CModule
 		\Shef\ToolsAiAssistant\Access\RoleStore::install();
 		\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::install();
 		\Shef\ToolsAiAssistant\Feedback\FeedbackStore::install();
+		\Shef\ToolsAiAssistant\Mcp\TokenStore::install();
 		\Shef\ToolsAiAssistant\Feedback\FeedbackStore::installAgent();
 		// Файлы и подписки ставит установщик — самовосстановлению после обновления делать нечего
 		Config\Option::set($this->MODULE_ID, \Shef\ToolsAiAssistant\Main\Maintenance::OPTION_VERSION, $this->MODULE_VERSION);
@@ -140,6 +141,7 @@ class shef_toolsaiassistant extends CModule
 				\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::uninstall();
 				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::uninstall();
 				\Shef\ToolsAiAssistant\Access\RoleStore::uninstall();
+				\Shef\ToolsAiAssistant\Mcp\TokenStore::uninstall();
 			}
 			catch(\Throwable)
 			{
