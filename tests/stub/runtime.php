@@ -125,6 +125,8 @@ namespace Bitrix\Main\Engine
 			public function addError(\Bitrix\Main\Error $error): void { $this->errors[] = $error; }
 			public function getErrors(): array { return $this->errors; }
 			public function getCurrentUser(): ?CurrentUser { return static::$user; }
+			/** В ядре final (main/lib/Engine/Controller.php): наследник не может объявить свой run() — иначе фатальная ошибка. */
+			final public function run($actionName, array $sourceParametersList) { return null; }
 		}
 	}
 }

@@ -56,13 +56,13 @@ class Chat extends Controller
 	/** Что показать в окне. $record — {entityTypeId, id} или пусто. */
 	public function infoAction(array $record = []): ?array
 	{
-		return $this->run(fn(): array => Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record)));
+		return $this->guarded(fn(): array => Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record)));
 	}
 
 	/** Сменить роль в этом чате. */
 	public function roleAction(string $role = '', array $record = []): ?array
 	{
-		return $this->run(fn(): array => Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role));
+		return $this->guarded(fn(): array => Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role));
 	}
 
 	/**
@@ -71,7 +71,7 @@ class Chat extends Controller
 	 */
 	public function answerAction(array $messages = [], array $record = [], string $role = ''): ?array
 	{
-		return $this->run(fn(): array => Container::getAnswerService()->answer(
+		return $this->guarded(fn(): array => Container::getAnswerService()->answer(
 			UserAccess::current(),
 			$this->userId(),
 			ChatRequest::parse($messages, $record, $role, Config::current()->history)
@@ -86,7 +86,7 @@ class Chat extends Controller
 	{
 		$service = Container::getAnswerService();
 		$userId = $this->userId();
-		$prepared = $this->run(fn(): PreparedAnswer => $service->prepare(
+		$prepared = $this->guarded(fn(): PreparedAnswer => $service->prepare(
 			UserAccess::current(),
 			$userId,
 			ChatRequest::parse($messages, $record, $role, Config::current()->history)
@@ -123,13 +123,13 @@ class Chat extends Controller
 	 */
 	public function rateAction(string $rating = '', string $role = '', array $record = [], string $question = '', string $answer = '', string $comment = ''): ?array
 	{
-		return $this->run(fn(): array => Container::getAnswerService()->rate(UserAccess::current(), $this->userId(), [
+		return $this->guarded(fn(): array => Container::getAnswerService()->rate(UserAccess::current(), $this->userId(), [
 			'rating' => $rating, 'role' => $role, 'record' => $record, 'question' => $question, 'answer' => $answer, 'comment' => $comment,
 		]));
 	}
 
 	/** Отказ сценария — ошибкой ответа с кодом; прочий сбой — в лог, наружу общий текст. */
-	private function run(callable $action): mixed
+	private function guarded(callable $action): mixed
 	{
 		try
 		{
