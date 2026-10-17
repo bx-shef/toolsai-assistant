@@ -1,6 +1,6 @@
 # Правила агента
 
-> Последняя сверка: 2026-10-16
+> Последняя сверка: 2026-10-17
 
 Правила процесса — **те же, что у shef.toolsai**:
 [docs/private/agent-rules.md shef.toolsai](https://github.com/bx-shef/toolsai/blob/main/docs/private/agent-rules.md).
@@ -20,3 +20,4 @@
    [guide/03-dependencies.md](../guide/03-dependencies.md) и issue в shef.toolsai.
 7. **Решает владелец**: новые зависимости, права по умолчанию, тексты ролей по
    умолчанию, мерж.
+8. **Выпуск с новой версией — тег.** После мержа PR, который поднял `VERSION` в `install/version.php`, ставим аннотированный тег `v<версия>` на squash-коммит в `main`: `git tag -a v<версия> -m "<заголовок squash-коммита>" <коммит>`, затем `git push origin v<версия>`. Тег с такой версией уже есть — не перезаписываем. Решение владельца от 2026-10-17.
