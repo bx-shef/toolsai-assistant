@@ -70,6 +70,12 @@ same('первое уточнение — со скобками', V.placeholder(
 same('следующее — от позиции', V.placeholder('Разбери звонок с [клиент] за [период]', 25), { start: 29, end: 37 });
 same('пустые скобки и перевод строки — не уточнение', [V.placeholder('a [] b'), V.placeholder('a [x\ny] b'), V.placeholder('a [ ] [ok]')], [null, null, { start: 6, end: 10 }]);
 same('нет уточнений — null', V.placeholder('Что дальше?'), null);
+same('пустые «[ ]» подряд пропускаются', V.placeholder('[ ] [  ] [x]'), { start: 9, end: 12 });
+same('вложенные — внутреннее уточнение', V.placeholder('a [b [c] d] e'), { start: 5, end: 8 });
+same('незакрытая скобка — не уточнение; следующая пара — да', [V.placeholder('a [b c'), V.placeholder('a [b [c]')], [null, { start: 5, end: 8 }]);
+same('перевод строки \\r — не уточнение', V.placeholder('a [x\ry]'), null);
+same('ровно 200 знаков — да, 201 — нет', [V.placeholder('[' + 'я'.repeat(200) + ']'), V.placeholder('[' + 'я'.repeat(201) + ']')], [{ start: 0, end: 202 }, null]);
+same('200 знаков считаются знаками, а не половинками UTF-16 (как /u в PHP)', V.placeholder('[' + '😀'.repeat(200) + ']'), { start: 0, end: 402 });
 
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }

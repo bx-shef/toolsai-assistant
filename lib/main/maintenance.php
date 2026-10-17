@@ -21,11 +21,15 @@ use Bitrix\Main\EventManager;
  *     INSERT IGNORE по UNIQUE_ID, main/lib/eventmanager.php);
  *   - ставит агент очистки оценок;
  *   - удаляет устаревшие опции (OBSOLETE_OPTIONS);
- *   - сверяет версию shef.toolsai с NEED_TOOLSAI (1.6.0): старее — шаг
- *     «toolsai» не удался, версия файлов не пишется и проверка повторится
- *     на следующем хите, а чат до обновления отвечает отказом
- *     (Chat\Gateway\ToolsAiPromptSource). Установщик проверяет то же
- *     (NEED_MODULES_BY_VERSION).
+ *   - удаляет мёртвые права role:<код> ролей доступа (1.6.0: роли открывает
+ *     библиотека промптов shef.toolsai, эти строки больше не читаются и не
+ *     должны ожить, если такое право когда-нибудь вернут);
+ *   - сверяет версию shef.toolsai с NEED_TOOLSAI (с 1.6.0 модуля;
+ *     NEED_TOOLSAI = 1.54.0) — только для отчёта: на запись версии файлов
+ *     это не влияет, иначе на старом shef.toolsai всё доведение гонялось бы
+ *     на каждом хите. Чат до обновления shef.toolsai и так отвечает отказом
+ *     (Chat\Gateway\ToolsAiPromptSource::assertVersion). Установщик
+ *     проверяет то же (NEED_MODULES_BY_VERSION).
  *
  * Версия файлов, до которой довели, — опция FILES_version. Совпала с версией
  * модуля — ничего не делаем (одно чтение опции из кеша ядра). Не всё
@@ -85,9 +89,11 @@ final class Maintenance
 	 *
 	 * @param (\Closure(): void)|null $tables создание таблиц (тесты подменяют)
 	 * @param (\Closure(): void)|null $agents агенты (тесты подменяют)
-	 * @return array<string, bool> что сделано => получилось
+	 * @param (\Closure(): void)|null $rights чистка мёртвых прав role:<код> (тесты подменяют)
+	 * @return array<string, bool> что сделано => получилось; toolsai — только
+	 *   отчёт о версии shef.toolsai, на запись версии файлов не влияет
 	 */
-	public static function ensure(string $documentRoot, string $moduleDir, ?\Closure $tables = null, ?\Closure $agents = null): array
+	public static function ensure(string $documentRoot, string $moduleDir, ?\Closure $tables = null, ?\Closure $agents = null, ?\Closure $rights = null): array
 	{
 		$settings = static::settings($moduleDir);
 		$report = [];
@@ -119,12 +125,9 @@ final class Maintenance
 			{
 				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::installAgent();
 			},
-			'toolsai' => static function(): void
+			'rights' => $rights ?? static function(): void
 			{
-				if(!static::toolsaiReady((string)\Bitrix\Main\ModuleManager::getVersion('shef.toolsai')))
-				{
-					throw new \RuntimeException('shef.toolsai старее '.self::NEED_TOOLSAI);
-				}
+				\Shef\ToolsAiAssistant\Access\RoleStore::purgeLegacy();
 			},
 			'options' => static function(): void
 			{
@@ -150,6 +153,15 @@ final class Maintenance
 		if(!in_array(false, $report, true))
 		{
 			Option::set(Constants::MODULE_ID, self::OPTION_VERSION, static::moduleVersion($moduleDir));
+		}
+		// Вне условия записи: старый shef.toolsai не должен гонять доведение на каждом хите
+		try
+		{
+			$report['toolsai'] = static::toolsaiReady((string)\Bitrix\Main\ModuleManager::getVersion('shef.toolsai'));
+		}
+		catch(\Throwable)
+		{
+			$report['toolsai'] = false;
 		}
 
 		return $report;

@@ -43,11 +43,12 @@
 	 * Первое уточнение «[ … ]» в тексте (1.6.0): {start, end} — для выделения
 	 * в поле ввода, скобки входят; нет — null. Правило то же, что
 	 * Prompt\Definition::placeholders() shef.toolsai: внутри без скобок и
-	 * переводов строки, до 200 знаков.
+	 * переводов строки, от 1 до 200 знаков (флаг u — знаки, а не
+	 * половинки UTF-16, как /u в PHP); вложенные — внутренние, незакрытые — нет.
 	 */
 	function placeholder(text, from)
 	{
-		var re = /\[[^\[\]\r\n]{1,200}\]/g;
+		var re = /\[[^\[\]\r\n]{1,200}\]/gu;
 		re.lastIndex = from || 0;
 		var m = re.exec(String(text || ''));
 		while(m && m[0].slice(1, -1).trim() === '') { m = re.exec(String(text || '')); }

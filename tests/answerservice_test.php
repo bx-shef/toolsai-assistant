@@ -39,8 +39,11 @@ final class FakePrompts implements PromptSourceInterface
 	public array $closed = [];
 	public array $checked = [];
 	public string $template = '';
+	/** Роль, которую библиотека «молча» возьмёт в compose() (роль выключили между вызовами); null — та же. */
+	public ?string $substitute = null;
+	public array $users = [];
 
-	public function roles(): array
+	public function roles(int $userId): array
 	{
 		$out = [];
 		foreach(Roles::raw() as $raw)
@@ -54,18 +57,22 @@ final class FakePrompts implements PromptSourceInterface
 		return $out;
 	}
 
-	public function isAvailable(string $roleCode): bool
+	public function isAvailable(string $roleCode, int $userId): bool
 	{
 		$this->checked[] = $roleCode;
+		$this->users[] = $userId;
 
-		return in_array($roleCode, array_column($this->roles(), 'code'), true) && !in_array($roleCode, $this->closed, true);
+		return in_array($roleCode, array_column($this->roles($userId), 'code'), true) && !in_array($roleCode, $this->closed, true);
 	}
 
-	public function compose(string $roleCode, ?int $entityTypeId): array
+	public function compose(string $roleCode, ?int $entityTypeId, int $userId): array
 	{
 		$this->composed[] = [$roleCode, $entityTypeId];
+		$this->users[] = $userId;
 
-		return ['system' => 'ТЕКСТ РОЛИ '.$roleCode, 'examples' => ['вопрос '.$roleCode], 'template' => $this->template];
+		$roleCode = $this->substitute ?? $roleCode;
+
+		return ['role' => $roleCode, 'system' => 'ТЕКСТ РОЛИ '.$roleCode, 'examples' => ['вопрос '.$roleCode], 'template' => $this->template];
 	}
 }
 
@@ -256,6 +263,15 @@ unset($choices->rows['1|docs']);
 Check::same('в общем чате — по-прежнему по умолчанию', $service->info($seller, 1, null)['role'], Roles::MANAGER);
 Check::same('в чате записи — запомненная', $service->info($seller, 1, new Record(2, 5))['role'], Roles::COACH);
 
+Check::group('роль выключили между roles() и compose()');
+
+$prompts->substitute = Roles::MANAGER;
+$before = $choices->rows;
+Check::same('chooseRole: библиотека взяла другую роль — отказ, выбор не запомнен', [$outcome(static fn() => $service->chooseRole($seller, 1, new Record(2, 7), Roles::COACH)), $choices->rows], [ChatException::ROLE, $before]);
+Check::same('info: показывается роль, которую взяла библиотека, с её вопросами', [$service->info($seller, 1, new Record(2, 5))['role'], $service->info($seller, 1, new Record(2, 5))['examples']], [Roles::MANAGER, ['вопрос '.Roles::MANAGER]]);
+$prompts->substitute = null;
+Check::same('сотрудник передаётся явно во все вызовы библиотеки', array_values(array_unique($prompts->users)), [1]);
+
 Check::group('ответ: права');
 
 $records->visible['2:5'] = ['title' => 'Окна', 'text' => "Сделка #5: Окна\nКасаний пока нет."];
@@ -372,6 +388,9 @@ $rating = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, n
 $good = ['rating' => 'up', 'role' => Roles::MANAGER, 'record' => ['entityTypeId' => 2, 'id' => 10], 'question' => 'Что мешает?', 'answer' => 'Нет шага', 'comment' => ''];
 Check::same('оценка сохранена', [$rating->rate($seller, 1, $good), $feedback->rows[0][1]['chatKey'], $feedback->rows[0][1]['rating']], [['id' => 1], 'record:2:10', 1]);
 Check::same('роль не открыта — отказ', $outcome(static fn() => $rating->rate($seller, 1, ['role' => Roles::SUPERVISOR] + $good)), ChatException::ROLE);
+$prompts->closed = [Roles::MANAGER];
+Check::same('роль закрыли после ответа — оценить нельзя (1.6.0, осознанно)', $outcome(static fn() => $rating->rate($seller, 1, $good)), ChatException::ROLE);
+$prompts->closed = [];
 Check::same('без права на чат — отказ', $outcome(static fn() => $rating->rate($nobody, 2, $good)), ChatException::ACCESS);
 Check::same('мусор — отказ feedback', $outcome(static fn() => $rating->rate($seller, 1, ['rating' => '5'] + $good)), ChatException::FEEDBACK);
 Check::same('без хранилища — отказ feedback', $outcome(static fn() => $service->rate($seller, 1, $good)), ChatException::FEEDBACK);

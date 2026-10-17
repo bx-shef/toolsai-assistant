@@ -34,7 +34,7 @@ $service = new AnswerService(
 	new class($broken) implements PromptSourceInterface
 	{
 		public function __construct(private bool &$broken) {}
-		public function roles(): array
+		public function roles(int $userId): array
 		{
 			if($this->broken)
 			{
@@ -43,8 +43,8 @@ $service = new AnswerService(
 
 			return [['code' => Roles::MANAGER, 'title' => 'Помощник менеджера', 'description' => '']];
 		}
-		public function isAvailable(string $roleCode): bool { return true; }
-		public function compose(string $roleCode, ?int $entityTypeId): array { return ['system' => 'роль', 'examples' => [], 'template' => '']; }
+		public function isAvailable(string $roleCode, int $userId): bool { return true; }
+		public function compose(string $roleCode, ?int $entityTypeId, int $userId): array { return ['role' => $roleCode, 'system' => 'роль', 'examples' => [], 'template' => '']; }
 	},
 	new class implements RecordSourceInterface { public function get(int $entityTypeId, int $id, int $userId): ?array { return null; } },
 	new class implements KbSourceInterface { public function isAvailable(): bool { return false; } public function find(string $query, int $limit): array { return []; } },

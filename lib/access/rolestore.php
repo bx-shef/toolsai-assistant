@@ -150,6 +150,21 @@ final class RoleStore
 		}
 	}
 
+	/**
+	 * Удалить мёртвые права role:<код> у всех ролей доступа (1.6.0): роли
+	 * помощника открывает библиотека промптов shef.toolsai, эти строки не
+	 * читаются. Зовёт Main\Maintenance при обновлении; повторный вызов —
+	 * ничего не делает.
+	 */
+	public static function purgeLegacy(): void
+	{
+		$rows = RolePermissionTable::getList(['select' => ['ID'], 'filter' => ['%=ACTION' => Actions::LEGACY_ROLE_PREFIX.'%']])->fetchAll();
+		foreach($rows as $row)
+		{
+			static::check(RolePermissionTable::delete($row['ID']));
+		}
+	}
+
 	/** Убрать права и участников роли. */
 	private static function clear(int $id): void
 	{

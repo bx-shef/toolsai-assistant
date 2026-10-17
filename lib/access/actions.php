@@ -14,8 +14,12 @@ namespace Shef\ToolsAiAssistant\Access;
  *
  * Какие роли помощника открыты сотруднику, с 1.6.0 решает библиотека
  * промптов shef.toolsai 1.54.0 («Кому доступна» у роли), а не эта страница.
- * Старые записи прав role:<код> в базе остаются и просто не читаются:
- * normalize() отбрасывает неизвестные коды.
+ * Старые записи прав role:<код> (до 1.6.0) не читаются — normalize()
+ * отбрасывает неизвестные коды — и удаляются при обновлении
+ * (Main\Maintenance, шаг rights → RoleStore::purgeLegacy()). Переноса в
+ * «Кому доступна» нет — решение владельца: после обновления роли открыты
+ * всем с chat.use, пока администратор не закроет их в библиотеке (см.
+ * CHANGELOG 1.6.0 и docs/guide/02-rights.md).
  *
  * Чистый класс — без ядра (access_test.php).
  */
@@ -26,6 +30,8 @@ final class Actions
 	public const FEEDBACK_VIEW = 'feedback.view';
 	/** Разбирать оценки: статус, ожидаемый ответ, выгрузка кейсов проверки (1.5.0). */
 	public const FEEDBACK_EDIT = 'feedback.edit';
+	/** Приставка прав на роли до 1.6.0 (role:<код промпта>) — только для чистки. */
+	public const LEGACY_ROLE_PREFIX = 'role:';
 
 	/** Код промпта реестра shef.toolsai — тот же шаблон, что Prompt\Definition::fromArray() (оценки, фильтр грида). */
 	public const PROMPT_CODE_PATTERN = '/^[a-z0-9_.]+:[a-z0-9_.\-]{1,80}$/';

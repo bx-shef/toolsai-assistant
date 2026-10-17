@@ -13,7 +13,8 @@
 - Окно чата — JS-расширение; контроллер ответа; шесть ролей в реестре промптов.
 - Права на `ui.accessrights.v2`: чат и роли; выбор роли на сотрудника и чат.
 - Статьи shef.toolsaikb — мягко.
-- Публичный API shef.toolsai 1.50.0 (`LlmService`, `PromptService`, `RecordService`),
+- Публичный API shef.toolsai (`LlmService`, `PromptService`, `RecordService`; в 1.0.0 —
+  1.50.0, с 1.6.0 модуля — 1.54.0: `roles`/`isAvailable`/`compose` с `$userId`),
   «✦ Спросить ИИ» в виде «ИИ» событием `OnViewRowActionsBuild`. Перенос прав
   чата из shef.toolsai убран в 1.2.0 — модуль на порталах уже стоит.
 

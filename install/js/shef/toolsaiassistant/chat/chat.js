@@ -588,32 +588,58 @@
 		 * Вставить текст в поле ввода, не отправляя (1.6.0): готовый вопрос
 		 * или промпт «с уточнениями». Первое уточнение «[ … ]» выделяется —
 		 * сотрудник сразу печатает поверх; Tab переходит к следующему.
+		 *
+		 * Набранное сотрудником не затирается: пустое поле или нетронутая
+		 * прежняя вставка — заменяется, свой текст — новый дописывается ниже.
 		 */
-		prefill: function(text)
+		prefill: function(text, fromTemplate)
 		{
 			var input = this.input;
-			input.value = String(text || '');
+			text = String(text || '');
+			var current = String(input.value || '');
+			var untouched = !current.trim() || current === this.prefilled;
+			var value = untouched ? text : current.replace(/\s+$/, '') + '\n' + text;
+			var from = value.length - text.length;
+			input.value = value;
+			this.prefilled = untouched ? text : null;
+			this.prefilledTemplate = untouched && !!fromTemplate;
 			input.focus();
-			var mark = View.placeholder(input.value);
-			var end = input.value.length;
+			var mark = View.placeholder(value, from);
+			var end = value.length;
 			try { input.setSelectionRange(mark ? mark.start : end, mark ? mark.end : end); } catch(e) {}
 		},
 
-		/** Навык роли «с уточнениями» (type = template) — в пустое поле ввода. */
+		/**
+		 * Навык роли «с уточнениями» (type = template) — в поле ввода, если там
+		 * пусто или нетронутая прежняя вставка (смена роли заменяет шаблон
+		 * прежней роли). У новой роли шаблона нет — нетронутый шаблон убирается.
+		 */
 		prefillTemplate: function()
 		{
-			if(this.info && this.info.template && !String(this.input.value || '').trim() && !this.busy)
+			if(!this.info || this.busy) { return; }
+			var current = String(this.input.value || '');
+			if(current.trim() && current !== this.prefilled) { return; }
+			if(this.info.template)
 			{
-				this.prefill(this.info.template);
+				this.prefill(this.info.template, true);
+			}
+			else if(current && this.prefilledTemplate)
+			{
+				this.input.value = '';
+				this.prefilled = null;
+				this.prefilledTemplate = false;
 			}
 		},
 
-		/** Tab в поле ввода: к следующему уточнению «[ … ]»; нет — как обычно. */
+		/**
+		 * Tab в поле ввода: к следующему уточнению «[ … ]» по кругу (одно —
+		 * остаётся выделенным); нет уточнений — Tab как обычно.
+		 */
 		nextPlaceholder: function()
 		{
 			var input = this.input;
 			var mark = View.placeholder(input.value, input.selectionEnd || 0) || View.placeholder(input.value, 0);
-			if(!mark || (mark.start === input.selectionStart && mark.end === input.selectionEnd)) { return false; }
+			if(!mark) { return false; }
 			input.setSelectionRange(mark.start, mark.end);
 			return true;
 		},
@@ -623,6 +649,8 @@
 			var question = String(text || '').trim();
 			if(!question || this.busy || !this.info || this.info.error) { return; }
 			this.input.value = '';
+			this.prefilled = null;
+			this.prefilledTemplate = false;
 			this.lastError = '';
 			this.messages.push({role: 'user', text: question, time: Date.now()});
 			this.saveMessages();

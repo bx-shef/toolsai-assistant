@@ -44,6 +44,8 @@ namespace Shef\ToolsAi\Public\Service
 
 		public static function get(string $code): ?array
 		{
+			static::$calls[] = ['get', $code];
+
 			return static::$prompts[$code] ?? null;
 		}
 	}

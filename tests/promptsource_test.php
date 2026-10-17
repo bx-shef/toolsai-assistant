@@ -2,8 +2,9 @@
 
 /**
  * Роли из библиотеки промптов shef.toolsai 1.54.0 (Chat\Gateway\ToolsAiPromptSource):
- * список и сборка — для текущего сотрудника без своего сужения
- * (roles(null, -1), compose(…, null, -1)), проверка роли — isAvailable(),
+ * список и сборка — для явного сотрудника без своего сужения
+ * (roles(null, 7), compose(…, null, 7)), не USER_CURRENT; сотрудника нет
+ * (id <= 0) — отказ, а не «без проверки»; проверка роли — isAvailable(),
  * иконка set:<имя> и картинка iconUrl, шаблон навыка «с уточнениями».
  * shef.toolsai старее 1.54.0 — отказ, а не роли всем.
  */
@@ -23,7 +24,7 @@ Check::group('shef.toolsai без PromptService 1.54.0');
 $code = '';
 try
 {
-	(new ToolsAiPromptSource())->roles();
+	(new ToolsAiPromptSource())->roles(7);
 }
 catch(ChatException $exception)
 {
@@ -40,8 +41,8 @@ PromptService::$roles = [
 	['code' => 'shef.toolsaiassistant:manager', 'title' => 'Помощник', 'icon' => 'file:12', 'iconUrl' => '/upload/shef/ab/icon.png', 'favorite' => false],
 	['code' => 'shef.toolsai:x', 'title' => 'Чужая', 'icon' => '', 'iconUrl' => 'javascript:alert(1)'],
 ];
-$roles = (new ToolsAiPromptSource())->roles();
-Check::same('для текущего сотрудника, без своего сужения', PromptService::$calls[0], ['roles', null, PromptService::USER_CURRENT]);
+$roles = (new ToolsAiPromptSource())->roles(7);
+Check::same('для этого сотрудника, без своего сужения', PromptService::$calls[0], ['roles', null, 7]);
 Check::same('порядок библиотеки (избранные первыми) сохранён', array_column($roles, 'code'), ['shef.toolsaiassistant:coach', 'shef.toolsaiassistant:manager', 'shef.toolsai:x']);
 Check::same('избранное — из библиотеки', array_column($roles, 'favorite'), [true, false, false]);
 Check::same('иконка set:<имя> — имя ui.icon-set; file: — запасная по коду', array_column($roles, 'icon'), ['rocket', 'o-person', 'o-copilot']);
@@ -52,17 +53,45 @@ Check::group('проверка роли и сборка');
 PromptService::$open = ['shef.toolsaiassistant:coach'];
 PromptService::$calls = [];
 $source = new ToolsAiPromptSource();
-Check::same('isAvailable — для текущего сотрудника', [$source->isAvailable('shef.toolsaiassistant:coach'), $source->isAvailable('shef.toolsaiassistant:supervisor'), PromptService::$calls[0]], [true, false, ['isAvailable', 'shef.toolsaiassistant:coach', PromptService::USER_CURRENT]]);
+Check::same('isAvailable — для этого сотрудника', [$source->isAvailable('shef.toolsaiassistant:coach', 7), $source->isAvailable('shef.toolsaiassistant:supervisor', 7), PromptService::$calls[0]], [true, false, ['isAvailable', 'shef.toolsaiassistant:coach', 7]]);
+
+$refused = static function(callable $call): string
+{
+	try
+	{
+		$call();
+	}
+	catch(ChatException $exception)
+	{
+		return $exception->errorCode;
+	}
+
+	return 'нет отказа';
+};
+PromptService::$calls = [];
+Check::same('сотрудника нет (0, -1) — отказ, библиотеку не зовём (иначе USER_ANY — роли всем)', [
+	$refused(static fn() => $source->roles(0)),
+	$refused(static fn() => $source->isAvailable('shef.toolsaiassistant:coach', 0)),
+	$refused(static fn() => $source->compose('shef.toolsaiassistant:coach', null, -1)),
+	PromptService::$calls,
+], [ChatException::ACCESS, ChatException::ACCESS, ChatException::ACCESS, []]);
+
+PromptService::$calls = [];
+Check::same('названия для фильтра оценок — без проверки доступа', [$source->titles(), PromptService::$calls[0]], [['shef.toolsaiassistant:coach' => 'Наставник', 'shef.toolsaiassistant:manager' => 'Помощник', 'shef.toolsai:x' => 'Чужая'], ['roles', null, PromptService::USER_ANY]]);
 
 PromptService::$composed = ['role' => 'shef.toolsaiassistant:coach', 'skill' => null, 'system' => 'СИСТЕМА', 'examples' => ['Что дальше?'], 'type' => 'plain'];
 PromptService::$calls = [];
-$composed = $source->compose('shef.toolsaiassistant:coach', null);
-Check::same('compose — место чата, без записи, для текущего сотрудника', PromptService::$calls[0], ['compose', 'shef.toolsaiassistant:coach', 'assistant', 0, null, PromptService::USER_CURRENT]);
-Check::same('обычный навык — шаблона нет', $composed, ['system' => 'СИСТЕМА', 'examples' => ['Что дальше?'], 'template' => '']);
+$composed = $source->compose('shef.toolsaiassistant:coach', null, 7);
+Check::same('compose — место чата, без записи, для этого сотрудника', PromptService::$calls[0], ['compose', 'shef.toolsaiassistant:coach', 'assistant', 0, null, 7]);
+Check::same('обычный навык — шаблона нет; роль, которую взяла библиотека, — наружу', $composed, ['role' => 'shef.toolsaiassistant:coach', 'system' => 'СИСТЕМА', 'examples' => ['Что дальше?'], 'template' => '']);
 
 PromptService::$composed = ['role' => 'shef.toolsaiassistant:coach', 'skill' => 'shef.toolsai:call.review', 'system' => 'СИСТЕМА', 'examples' => [], 'type' => 'template'];
 PromptService::$prompts['shef.toolsai:call.review'] = ['text' => 'Разбери звонок с [клиент]'];
-Check::same('навык «с уточнениями» — его текст в шаблон', $source->compose('shef.toolsaiassistant:coach', 2)['template'], 'Разбери звонок с [клиент]');
+PromptService::$open = ['shef.toolsaiassistant:coach', 'shef.toolsai:call.review'];
+Check::same('навык «с уточнениями» — его текст в шаблон', $source->compose('shef.toolsaiassistant:coach', 2, 7)['template'], 'Разбери звонок с [клиент]');
+PromptService::$open = ['shef.toolsaiassistant:coach'];
+PromptService::$calls = [];
+Check::same('навык сотруднику не открыт — шаблона нет, get() не зовём', [$source->compose('shef.toolsaiassistant:coach', 2, 7)['template'], array_column(PromptService::$calls, 0)], ['', ['compose', 'isAvailable']]);
 
 Check::group('адрес картинки роли');
 

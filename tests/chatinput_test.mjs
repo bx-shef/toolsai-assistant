@@ -59,7 +59,19 @@ same('Tab на последнем — снова к первому', [chat.nextP
 chat.prefill('Что дальше?');
 same('без уточнений — курсор в конце', [input.selectionStart, input.selectionEnd], [11, 11]);
 same('без уточнений Tab — обычный', chat.nextPlaceholder(), false);
+chat.prefill('Разбери [клиент]');
+same('одно уточнение уже выделено — Tab остаётся на нём, а не уходит из поля', [chat.nextPlaceholder(), input.selectionStart, input.selectionEnd], [true, 8, 16]);
 
+console.log('\nнабранное сотрудником не затирается');
+input.value = 'мой вопрос';
+chat.prefill('Что дальше с [сделка]?');
+same('готовый вопрос дописан ниже своего текста, выделено его уточнение', [input.value, input.selectionStart, input.selectionEnd], ['мой вопрос\nЧто дальше с [сделка]?', 24, 32]);
+input.value = '';
+chat.prefill('Что дальше?');
+chat.prefill('Кто клиент?');
+same('нетронутый готовый вопрос — заменяется', input.value, 'Кто клиент?');
+
+console.log('\nшаблон навыка');
 input.value = 'мой текст';
 chat.info.template = 'Шаблон [x]';
 chat.prefillTemplate();
@@ -67,6 +79,21 @@ same('шаблон не затирает то, что сотрудник уже 
 input.value = '';
 chat.prefillTemplate();
 same('пустое поле — шаблон вставлен', [input.value, input.selectionStart, input.selectionEnd], ['Шаблон [x]', 7, 10]);
+chat.info.template = 'Другой [y]';
+chat.prefillTemplate();
+same('смена роли — нетронутый шаблон прежней роли заменён', input.value, 'Другой [y]');
+input.value = 'Другой Иван';
+chat.info.template = 'Третий [z]';
+chat.prefillTemplate();
+same('шаблон, который сотрудник уже правил, — не трогаем', input.value, 'Другой Иван');
+input.value = '';
+chat.prefillTemplate();
+chat.info.template = '';
+chat.prefillTemplate();
+same('у новой роли шаблона нет — нетронутый шаблон убран', input.value, '');
+chat.prefill('Что дальше?');
+chat.prefillTemplate();
+same('готовый вопрос роль без шаблона не убирает', input.value, 'Что дальше?');
 
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }
