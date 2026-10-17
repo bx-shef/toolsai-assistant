@@ -39,6 +39,23 @@
 		return text.length > (max || 200) ? text.slice(0, (max || 200) - 1) + '…' : text;
 	}
 
+	/** Многострочный текст: переносы строк сохраняются, лишние пробелы в строке — нет. */
+	function text(value, max)
+	{
+		if(value === null || value === undefined || typeof value === 'object') { return ''; }
+		var out = String(value).replace(/\r\n?/g, '\n').split('\n').map(function(line) { return line.replace(/[ \t\f\v]+/g, ' ').trim(); }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+		return out.length > max ? out.slice(0, max) : out;
+	}
+
+	/** Свой ключ объекта: данные модели не достают «constructor» и прочее из прототипа. */
+	function own(object, key)
+	{
+		return typeof key === 'string' && Object.prototype.hasOwnProperty.call(object, key);
+	}
+
+	/** Поздравления окна (1.11.0): черновик и «отправлено» по получателю и тексту модели — переживают перерисовку. */
+	var greetState = {};
+
 	function list(value, max)
 	{
 		return Array.isArray(value) ? value.slice(0, max || LIMIT_ITEMS) : [];
@@ -57,8 +74,10 @@
 	/** Число для полосы: конечное и не меньше нуля; иначе null. */
 	function amount(value)
 	{
-		var n = typeof value === 'number' ? value : Number(String(value).replace(/\s+/g, '').replace(',', '.'));
-		return isFinite(n) && n >= 0 ? n : null;
+		if(typeof value === 'number') { return isFinite(value) && value >= 0 ? value : null; }
+		// «85%», «12 000 шт», «1,5 млн» — число в начале строки
+		var m = /^\d+(?:[.,]\d+)?/.exec(String(value === null || value === undefined ? '' : value).replace(/[\s\u00a0]+/g, ''));
+		return m ? Number(m[0].replace(',', '.')) : null;
 	}
 
 	/** Ссылка ячейки таблицы: запись CRM ({entityTypeId, id}) или путь своего портала ({url: "/…"}); иначе ''. */
@@ -82,10 +101,7 @@
 			var url = cellUrl(cell, ctx);
 			if(url)
 			{
-				var a = ctx.el('a', 'shef-aiw-link', text || url);
-				a.setAttribute('href', url);
-				a.setAttribute('data-shef-link', '1');
-				td.appendChild(a);
+				td.appendChild(link(ctx, url, text || url));
 				return td;
 			}
 			td.textContent = text;
@@ -98,7 +114,7 @@
 	/** Процент a от b целым; b не больше нуля — null. */
 	function percent(a, b)
 	{
-		return b > 0 ? Math.round(a / b * 100) : null;
+		return a !== null && b !== null && b > 0 ? Math.round(a / b * 100) : null;
 	}
 
 	/** Номер телефона: цифры и ведущий «+», 5–20 цифр; иначе ''. */
@@ -348,8 +364,9 @@
 		funnel: {
 			render: function(data, ctx)
 			{
-				var items = list(data.items).filter(function(i) { return i && typeof i === 'object' && amount(i.value) !== null; });
-				var max = Math.max.apply(null, items.map(function(i) { return amount(i.value); }).concat([0]));
+				// Стадия без числа остаётся на месте с «—»: выкинуть её — значит выдумать конверсию между соседями
+				var items = list(data.items).filter(function(i) { return i && typeof i === 'object'; });
+				var max = Math.max.apply(null, items.map(function(i) { return amount(i.value) || 0; }).concat([0]));
 				var first = items.length ? amount(items[0].value) : 0;
 				var box = ctx.el('div', 'shef-aiw-funnel');
 				items.forEach(function(item, index)
@@ -357,9 +374,9 @@
 					var value = amount(item.value);
 					var row = ctx.el('div', 'shef-aiw-funnel-row');
 					var bar = ctx.el('div', 'shef-aiw-funnel-bar');
-					bar.style.width = (40 + (max > 0 ? Math.round(value / max * 60) : 0)) + '%';
+					bar.style.width = (40 + (max > 0 && value !== null ? Math.round(value / max * 60) : 0)) + '%';
 					bar.appendChild(ctx.el('span', 'shef-aiw-funnel-label', str(item.label, 60)));
-					bar.appendChild(ctx.el('span', 'shef-aiw-funnel-value', str(item.value, 20) + (data.unit ? ' ' + str(data.unit, 10) : '')));
+					bar.appendChild(ctx.el('span', 'shef-aiw-funnel-value', value === null ? '—' : str(item.value, 20) + (data.unit ? ' ' + str(data.unit, 10) : '')));
 					row.appendChild(bar);
 					if(index > 0)
 					{
@@ -372,9 +389,10 @@
 					}
 					box.appendChild(row);
 				});
-				if(items.length > 1 && first > 0)
+				var overall = items.length > 1 ? percent(amount(items[items.length - 1].value), first) : null;
+				if(overall !== null)
 				{
-					box.appendChild(ctx.el('div', 'shef-aiw-funnel-sum', 'Итоговая конверсия: ' + percent(amount(items[items.length - 1].value), first) + '%'));
+					box.appendChild(ctx.el('div', 'shef-aiw-funnel-sum', 'Итоговая конверсия: ' + overall + '%'));
 				}
 				return box;
 			}
@@ -460,10 +478,7 @@
 				var url = ctx.recordUrl(data.entityTypeId, data.id);
 				if(url)
 				{
-					var open = ctx.el('a', 'shef-aiw-action', 'Открыть карточку');
-					open.setAttribute('href', url);
-					open.setAttribute('data-shef-link', '1');
-					actions.appendChild(open);
+					actions.appendChild(link(ctx, url, 'Открыть карточку', 'shef-aiw-action'));
 				}
 				var prep = ctx.el('button', 'shef-aiw-action', 'Подготовиться к звонку');
 				prep.setAttribute('type', 'button');
@@ -554,8 +569,8 @@
 				hot.concat(rest).forEach(function(item, index)
 				{
 					if(hot.length && index === hot.length && rest.length) { box.appendChild(ctx.el('div', 'shef-aiw-today-head', 'Остальное')); }
-					var url = item.taskId ? taskUrl(item.taskId, ctx.userId) : (ctx.recordUrl(item.entityTypeId, item.id) || cellUrl({url: item.url}, ctx));
-					var kind = [KINDS[item.kind] || '', str(item.time, 20)].filter(Boolean).join(' · ');
+					var url = intId(item.taskId) ? taskUrl(item.taskId, ctx.userId) : (ctx.recordUrl(item.entityTypeId, item.id) || cellUrl({url: item.url}, ctx));
+					var kind = [own(KINDS, item.kind) ? KINDS[item.kind] : '', str(item.time, 20)].filter(Boolean).join(' · ');
 					box.appendChild(taskRow(ctx, {title: item.title, urgent: item.urgent, note: item.note, deadline: item.deadline, overdue: item.overdue}, {url: url, kind: kind}));
 				});
 				return box;
@@ -570,7 +585,7 @@
 			render: function(data, ctx)
 			{
 				var order = {breach: 0, risk: 1, ok: 2};
-				var rank = function(i) { return Object.prototype.hasOwnProperty.call(order, i.sla) ? order[i.sla] : 3; };
+				var rank = function(i) { return own(order, i.sla) ? order[i.sla] : 3; };
 				var items = list(data.items, 20).filter(function(i) { return i && typeof i === 'object'; })
 					.map(function(i, n) { return {item: i, n: n}; })
 					.sort(function(a, b) { return (rank(a.item) - rank(b.item)) || a.n - b.n; });
@@ -582,9 +597,9 @@
 				items.forEach(function(entry)
 				{
 					var item = entry.item;
-					if(counts[item.sla] !== undefined) { counts[item.sla]++; }
+					if(own(counts, item.sla)) { counts[item.sla]++; }
 					var row = ctx.el('div', 'shef-aiw-support-row');
-					row.appendChild(ctx.el('span', 'shef-aiw-sla --' + (labels[item.sla] ? item.sla : 'none'), labels[item.sla] || '—'));
+					row.appendChild(ctx.el('span', 'shef-aiw-sla --' + (own(labels, item.sla) ? item.sla : 'none'), own(labels, item.sla) ? labels[item.sla] : '—'));
 					var main = ctx.el('div', 'shef-aiw-task-main');
 					var title = str(item.title, 160) || 'Обращение';
 					var url = ctx.recordUrl(item.entityTypeId, item.id) || cellUrl({url: item.url}, ctx);
@@ -601,8 +616,10 @@
 
 		/**
 		 * День рождения сотрудника: {userId, name, date?, position?, message?}. Текст
-		 * поздравления правится в поле; «Сгенерировать» просит модель, «Отправить»
-		 * — второе нажатие подтверждает, сообщение уходит в личку от сотрудника (ctx.greet).
+		 * правится в поле; «Сгенерировать» просит модель. «Отправить» — в два шага:
+		 * сервер называет настоящего получателя (имя с портала, не от модели) и
+		 * проверяет повод, второе нажатие отправляет в личку от сотрудника (ctx.greet).
+		 * Черновик и «отправлено» живут в greetState — перерисовка ответа их не теряет.
 		 */
 		birthday: {
 			ownTitle: true,
@@ -611,6 +628,8 @@
 				var card = ctx.el('div', 'shef-aiw-birthday');
 				var name = str(data.name, 80) || 'Сотрудник';
 				var userId = intId(data.userId);
+				var key = String(userId) + ':' + text(data.message, 2000);
+				var state = own(greetState, key) ? greetState[key] : (greetState[key] = {draft: text(data.message, 2000), sent: false, busy: false});
 				var head = ctx.el('div', 'shef-aiw-missed-head');
 				head.appendChild(ctx.el('span', 'shef-aiw-bday-icon', '🎂'));
 				var who = ctx.el('div', 'shef-aiw-missed-who');
@@ -624,43 +643,71 @@
 				area.setAttribute('rows', '4');
 				area.setAttribute('maxlength', '2000');
 				area.setAttribute('placeholder', 'Своё поздравление или «Сгенерировать»');
-				area.value = str(data.message, 2000);
+				area.value = state.draft;
 				card.appendChild(area);
 				var status = ctx.el('div', 'shef-aiw-bday-status', '');
 				var actions = ctx.el('div', 'shef-aiw-actions');
 				var send = ctx.el('button', 'shef-aiw-action --primary', 'Отправить в чат');
 				send.setAttribute('type', 'button');
+				var generate = ctx.el('button', 'shef-aiw-action', area.value ? 'Сгенерировать заново' : 'Сгенерировать');
+				generate.setAttribute('type', 'button');
 				var armed = false;
+				var lock = function(label)
+				{
+					send.disabled = true;
+					send.textContent = label;
+					area.disabled = true;
+					generate.disabled = true;
+				};
+				if(state.sent) { lock('Отправлено ✓'); }
+				else if(state.busy) { lock('Отправляю…'); }
+				var fail = function(message)
+				{
+					state.busy = false;
+					armed = false;
+					send.disabled = false;
+					area.disabled = false;
+					generate.disabled = false;
+					send.textContent = 'Отправить в чат';
+					status.textContent = message ? String(message) : 'Не отправилось — попробуйте ещё раз';
+				};
 				send.addEventListener('click', function()
 				{
-					var text = String(area.value || '').trim();
+					var value = String(area.value || '').trim();
+					if(state.sent || state.busy) { return; }
 					if(!userId || !ctx.greet) { status.textContent = 'Не понятно, кого поздравить'; return; }
-					if(!text) { status.textContent = 'Напишите поздравление или нажмите «Сгенерировать»'; return; }
+					if(!value) { status.textContent = 'Напишите поздравление или нажмите «Сгенерировать»'; return; }
+					state.busy = true;
+					send.disabled = true;
 					if(!armed)
 					{
-						armed = true;
-						send.textContent = 'Точно отправить ' + name + '?';
-						status.textContent = 'Сообщение уйдёт в личный чат от вашего имени.';
+						status.textContent = 'Проверяю получателя…';
+						Promise.resolve(ctx.greet(userId, value, false)).then(function(info)
+						{
+							state.busy = false;
+							armed = true;
+							send.disabled = false;
+							var real = info && info.name ? String(info.name) : name;
+							send.textContent = 'Точно отправить: ' + real + '?';
+							status.textContent = 'Получатель: ' + real + (info && info.position ? ', ' + String(info.position) : '') + '. Сообщение уйдёт в личный чат от вашего имени.';
+						}, fail);
 						return;
 					}
 					armed = false;
-					send.disabled = true;
-					status.textContent = 'Отправляю…';
-					Promise.resolve(ctx.greet(userId, text)).then(function()
+					lock('Отправляю…');
+					status.textContent = '';
+					Promise.resolve(ctx.greet(userId, value, true)).then(function()
 					{
+						state.busy = false;
+						state.sent = true;
 						send.textContent = 'Отправлено ✓';
-						status.textContent = '';
-						area.disabled = true;
-					}, function(message)
-					{
-						send.disabled = false;
-						send.textContent = 'Отправить в чат';
-						status.textContent = message ? String(message) : 'Не отправилось — попробуйте ещё раз';
-					});
+					}, fail);
 				});
-				area.addEventListener('input', function() { if(armed) { armed = false; send.textContent = 'Отправить в чат'; status.textContent = ''; } });
-				var generate = ctx.el('button', 'shef-aiw-action', area.value ? 'Сгенерировать заново' : 'Сгенерировать');
-				generate.setAttribute('type', 'button');
+				area.addEventListener('input', function()
+				{
+					state.draft = String(area.value || '');
+					if(armed) { armed = false; send.textContent = 'Отправить в чат'; status.textContent = ''; }
+				});
 				generate.addEventListener('click', function()
 				{
 					ctx.send('Напиши тёплое короткое поздравление с днём рождения для ' + name + (data.position ? ' (' + str(data.position, 80) + ')' : '') + ' и покажи его виджетом birthday с полем message, userId ' + userId + '.');
@@ -734,7 +781,7 @@
 				if(allDay.length)
 				{
 					var top = ctx.el('div', 'shef-aiw-sched-allday');
-					allDay.forEach(function(e) { top.appendChild(label(e, 'shef-aiw-sched-chip --' + (KINDS[e.kind] ? e.kind : 'other'))); });
+					allDay.forEach(function(e) { top.appendChild(label(e, 'shef-aiw-sched-chip --' + (own(KINDS, e.kind) ? e.kind : 'other'))); });
 					box.appendChild(top);
 				}
 				var grid = ctx.el('div', 'shef-aiw-sched-grid');
@@ -751,7 +798,7 @@
 				timed.forEach(function(t, i)
 				{
 					var e = t.e;
-					var ev = ctx.el('div', 'shef-aiw-sched-event --' + (KINDS[e.kind] ? e.kind : 'other'));
+					var ev = ctx.el('div', 'shef-aiw-sched-event --' + (own(KINDS, e.kind) ? e.kind : 'other'));
 					ev.style.top = ((t.from - start) / 60 * HOUR) + 'px';
 					ev.style.height = Math.max((t.to - t.from) / 60 * HOUR - 2, 18) + 'px';
 					ev.style.left = (places[i].col / places[i].cols * 100) + '%';
@@ -804,7 +851,7 @@
 					[str(item.resource, 60), item.client ? str(item.service, 80) : ''].filter(Boolean).forEach(function(t) { meta.appendChild(ctx.el('span', '', t)); });
 					if(item.confirmed === true) { meta.appendChild(ctx.el('span', 'shef-aiw-badge --ok', 'подтверждена')); }
 					if(item.confirmed === false) { meta.appendChild(ctx.el('span', 'shef-aiw-badge --warn', 'не подтверждена')); }
-					if(visits[item.visit]) { meta.appendChild(ctx.el('span', 'shef-aiw-badge ' + visits[item.visit][1], visits[item.visit][0])); }
+					if(own(visits, item.visit)) { meta.appendChild(ctx.el('span', 'shef-aiw-badge ' + visits[item.visit][1], visits[item.visit][0])); }
 					var crm = ctx.recordUrl(item.entityTypeId, item.entityId);
 					if(crm) { meta.appendChild(link(ctx, crm, 'карточка CRM')); }
 					main.appendChild(meta);

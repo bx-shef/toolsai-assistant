@@ -1499,13 +1499,14 @@
 				safeUrl: function(url) { return NS.Markdown ? NS.Markdown.safeUrl(url) : null; },
 				recordUrl: NS.Widgets.recordUrl,
 				call: function(number, binding) { callPhone(number, binding); },
-				userId: Number(BX.message('USER_ID')) || 0,
-				// Поздравление (1.11.0, виджет birthday): виджет уже спросил подтверждение
-				greet: function(userId, text)
+				userId: (self.info && Number(self.info.userId)) || Number(BX.message('USER_ID')) || 0,
+				// Поздравление (1.11.0, виджет birthday): confirm = false — сервер называет
+				// получателя и проверяет повод, true — отправляет; ответ — {name, position, text, sent}
+				greet: function(userId, text, confirm)
 				{
 					return new Promise(function(resolve, reject)
 					{
-						BX.ajax.runAction(ACTION + 'greet', {data: {userId: String(userId), text: text}}).then(function() { resolve(true); }, function(response)
+						BX.ajax.runAction(ACTION + 'greet', {data: {userId: String(userId), text: text, confirm: confirm ? 'Y' : 'N'}}).then(function(response) { resolve(response && response.data); }, function(response)
 						{
 							var error = response && response.errors && response.errors[0];
 							reject((error && error.message) || 'Не отправилось — попробуйте ещё раз');

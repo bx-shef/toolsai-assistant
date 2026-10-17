@@ -9,6 +9,8 @@ use Shef\ToolsAiAssistant\Access\UserAccess;
 use Shef\ToolsAiAssistant\Chat\ChatException;
 use Shef\ToolsAiAssistant\Chat\ChatKey;
 use Shef\ToolsAiAssistant\Chat\ChatRequest;
+use Shef\ToolsAiAssistant\Chat\Greeting;
+use Shef\ToolsAiAssistant\Chat\RateLimit;
 use Shef\ToolsAiAssistant\Chat\PreparedAnswer;
 use Shef\ToolsAiAssistant\Chat\StreamEvents;
 use Shef\ToolsAiAssistant\Chat\StreamResponse;
@@ -66,7 +68,9 @@ class Chat extends Controller
 			// 1.7.0: виджеты модулей (расширения подключит окно) и библиотека промптов shef.toolsai
 			+ ['widgets' => WidgetCatalog::forClient(WidgetCatalog::collect()), 'library' => ChatPlaces::LIBRARY_URL]
 			// 1.10.0: режим «Агент» — кнопка и подключение к MCP
-			+ ['agent' => \Shef\ToolsAiAssistant\Agent\AgentStatus::of(UserAccess::current(), Config::current(), $this->userId())]);
+			+ ['agent' => \Shef\ToolsAiAssistant\Agent\AgentStatus::of(UserAccess::current(), Config::current(), $this->userId())]
+			// 1.11.0: ссылки виджетов на задачи и календарь сотрудника
+			+ ['userId' => $this->userId()]);
 	}
 
 	/**
@@ -175,22 +179,47 @@ class Chat extends Controller
 	}
 
 	/**
-	 * Поздравить сотрудника (1.11.0, виджет birthday): личное сообщение от
-	 * текущего сотрудника. Окно отправляет только после подтверждения; право —
-	 * «Пользоваться чатом».
+	 * Поздравить сотрудника (1.11.0, виджет birthday) — в два шага:
+	 * $confirm = N — проверить и вернуть настоящего получателя (имя с портала,
+	 * а не от модели) и очищенный текст; $confirm = Y — отправить личное
+	 * сообщение от текущего сотрудника. Получатель — сотрудник портала с днём
+	 * рождения в пределах Greeting::BIRTHDAY_DAYS дней; не больше
+	 * Greeting::RATE_LIMIT отправок в минуту. Право — «Пользоваться чатом».
 	 */
-	public function greetAction(string $userId = '', string $text = ''): ?array
+	public function greetAction(string $userId = '', string $text = '', string $confirm = 'N'): ?array
 	{
-		return $this->guarded(function() use ($userId, $text): array
+		return $this->guarded(function() use ($userId, $text, $confirm): array
 		{
 			if(!UserAccess::current()->canUseChat())
 			{
 				throw new ChatException('Нет доступа к чату ИИ-помощника — обратитесь к администратору портала', ChatException::ACCESS);
 			}
-			$greeting = \Shef\ToolsAiAssistant\Chat\Greeting::parse($this->userId(), $userId, $text);
-			Container::getMessenger()->send($this->userId(), $greeting->toUserId, $greeting->text);
+			$greeting = Greeting::parse($this->userId(), $userId, $text);
+			$messenger = Container::getMessenger();
+			$recipient = $messenger->recipient($greeting->toUserId);
+			if($recipient === null || !$recipient['employee'])
+			{
+				throw new ChatException('Сотрудник не найден или уволен', ChatException::GREETING);
+			}
+			if(!Greeting::isNearBirthday($recipient['birthday'], Container::now()))
+			{
+				throw new ChatException('У '.$recipient['name'].' сейчас не день рождения — поздравление не отправлено', ChatException::GREETING);
+			}
+			$result = ['name' => $recipient['name'], 'position' => $recipient['position'], 'text' => $greeting->text, 'sent' => false];
+			if($confirm !== 'Y')
+			{
+				return $result;
+			}
+			$rates = Container::getGreetRates();
+			$rate = RateLimit::hit($rates->get($this->userId()), Container::now()->getTimestamp(), Greeting::RATE_LIMIT);
+			if(!$rate['allowed'])
+			{
+				throw new ChatException('Слишком много поздравлений подряд — подождите минуту', ChatException::RATE);
+			}
+			$rates->put($this->userId(), $rate['stamps']);
+			$messenger->send($this->userId(), $greeting->toUserId, $greeting->text);
 
-			return ['sent' => true];
+			return ['sent' => true] + $result;
 		});
 	}
 

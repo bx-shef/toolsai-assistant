@@ -29,20 +29,20 @@ final class WidgetCatalog
 	/** Встроенные типы: тип => описание данных для модели. */
 	public const BUILTIN = [
 		'kpi' => 'Показатели плитками: {"title": "…", "items": [{"label": "…", "value": "…", "hint": "…", "trend": "up|down"}]} — до 8 штук.',
-		'table' => 'Таблица: {"title": "…", "columns": ["…"], "rows": [["…"]]} — до 12 столбцов и 50 строк. Ячейка-ссылка на запись CRM — {"text": "…", "entityTypeId": число, "id": число}, на страницу портала — {"text": "…", "url": "/…"}.',
+		'table' => 'Таблица: {"title": "…", "columns": ["…"], "rows": [["…"]]} — до 12 столбцов и 50 строк; ячейка-ссылка — {"text", "entityTypeId", "id"} или {"text", "url": "/…"}.',
 		'bars' => 'Полосы (простой график): {"title": "…", "unit": "…", "items": [{"label": "…", "value": число}]}.',
 		'record' => 'Карточка записи CRM со ссылкой: {"entityTypeId": число, "id": число, "title": "…", "subtitle": "…", "stage": "…", "fields": [{"label": "…", "value": "…"}]}. Только записи из данных выше.',
-		'funnel' => 'Воронка с конверсией по стадиям: {"title": "…", "unit": "…", "items": [{"label": "стадия", "value": число}]} — стадии по порядку, конверсию окно считает само.',
-		'score' => 'Оценка работы: {"title": "…", "value": число, "max": 100, "label": "…", "summary": "…", "criteria": [{"label": "…", "passed": true, "note": "…"}]} — до 20 критериев.',
-		'missedcall' => 'Пропущенный звонок с кнопкой «Перезвонить»: {"phone": "…", "name": "…", "time": "…", "waiting": "…", "entityTypeId": число, "id": число, "note": "…"}. Только звонки из данных выше.',
-		'tasks' => 'Список задач: {"title": "…", "items": [{"id": число, "title": "…", "deadline": "…", "overdue": true, "responsible": "…", "status": "…", "urgent": true, "note": "…"}]} — до 20; название ведёт в задачу.',
-		'task' => 'Карточка задачи: {"id": число, "title": "…", "status": "…", "deadline": "…", "overdue": false, "responsible": "…", "creator": "…", "description": "…", "checklist": [{"label": "…", "done": true}], "entityTypeId": число, "entityId": число, "entityTitle": "…"}.',
-		'today' => 'Главное на сегодня: {"title": "…", "items": [{"kind": "task|call|meeting|deal|lead|email|chat|booking", "title": "…", "time": "ЧЧ:ММ", "urgent": true, "note": "…", "taskId": число, "entityTypeId": число, "id": число}]} — до 15; urgent = горит, идёт первым.',
-		'support' => 'Обращения клиентов (саппорт): {"title": "…", "items": [{"title": "…", "client": "…", "channel": "…", "waiting": "…", "status": "…", "sla": "breach|risk|ok", "entityTypeId": число, "id": число, "url": "/…"}]} — до 20.',
-		'birthday' => 'День рождения сотрудника: {"userId": число, "name": "…", "position": "…", "date": "…", "message": "текст поздравления"} — сотрудник правит текст и сам отправляет его в личный чат.',
-		'doc' => 'Страницы документации: {"title": "…", "items": [{"title": "…", "url": "/… или https://…", "summary": "…", "section": "…", "updated": "…", "tags": ["…"]}]} — до 8; только страницы из данных выше.',
-		'schedule' => 'Расписание дня как в календаре: {"date": "…", "now": "ЧЧ:ММ", "events": [{"title": "…", "from": "ЧЧ:ММ", "to": "ЧЧ:ММ", "kind": "meeting|call|task|deal|booking", "place": "…", "allDay": false, "eventId": число, "bookingId": число, "taskId": число}]} — до 30.',
-		'booking' => 'Записи на приём (онлайн-запись): {"date": "…", "waitlist": число, "items": [{"id": число, "from": "ЧЧ:ММ", "to": "ЧЧ:ММ", "resource": "специалист или кабинет", "client": "…", "phone": "…", "service": "…", "confirmed": true, "visit": "unknown|visited|notVisited", "note": "…", "entityTypeId": число, "entityId": число}]} — до 20.',
+		'funnel' => 'Воронка: {"title", "unit", "items": [{"label": стадия, "value": число}]} по порядку стадий; конверсию считает окно.',
+		'score' => 'Оценка: {"title", "value": число, "max": 100, "label", "summary", "criteria": [{"label", "passed": bool, "note"}]}.',
+		'missedcall' => 'Пропущенный звонок: {"phone", "name", "time", "waiting", "entityTypeId", "id", "note"}.',
+		'tasks' => 'Задачи: {"title", "items": [{"id", "title", "deadline", "overdue": bool, "responsible", "status", "urgent": bool}]}.',
+		'task' => 'Задача: {"id", "title", "status", "deadline", "overdue", "responsible", "creator", "description", "checklist": [{"label", "done"}], "entityTypeId", "entityId", "entityTitle"}.',
+		'today' => 'Главное на сегодня: {"items": [{"kind": "task|call|meeting|deal|lead|email|chat|booking", "title", "time", "urgent": bool, "note", "taskId" | "entityTypeId"+"id"}]}.',
+		'support' => 'Обращения: {"items": [{"title", "client", "channel", "waiting", "status", "sla": "breach|risk|ok", "entityTypeId", "id"}]}.',
+		'birthday' => 'День рождения сотрудника: {"userId", "name", "position", "date", "message": поздравление}; отправляет сам сотрудник.',
+		'doc' => 'Документация: {"items": [{"title", "url", "summary", "section", "updated", "tags": []}]}.',
+		'schedule' => 'Расписание дня: {"date", "now": "ЧЧ:ММ", "events": [{"title", "from": "ЧЧ:ММ", "to", "kind", "place", "allDay", "eventId" | "bookingId" | "taskId"}]}.',
+		'booking' => 'Записи на приём: {"date", "waitlist": число, "items": [{"id", "from", "to", "resource", "client", "phone", "service", "confirmed": bool, "visit": "unknown|visited|notVisited", "entityTypeId", "entityId"}]}.',
 		'actions' => 'Кнопки следующего шага: {"items": [{"label": "…", "prompt": "текст запроса", "send": false}]} — до 6; send = true отправит запрос сразу.',
 	];
 
@@ -94,6 +94,7 @@ final class WidgetCatalog
 			'{"type": "kpi", "items": [{"label": "Сделок в работе", "value": 12}]}',
 			'```',
 			'Один блок — один виджет, внутри только JSON. Данные — только из блоков ниже, не выдумывай. Не больше трёх виджетов в ответе; короткий текст рядом всё равно пиши.',
+			'Задачи, расписание, записи, звонки, обращения, дни рождения — только если они есть в данных; нет данных — не рисуй виджет, скажи, чего не хватает.',
 			'Типы:',
 		];
 		foreach(self::BUILTIN as $type => $description)
