@@ -10,7 +10,13 @@ window.ShefAiChat.open();                                               // об�
 window.ShefAiChat.close();
 window.ShefAiChat.toggle();                                             // открыть/закрыть (1.3.0)
 window.ShefAiChat.isOpen();                                             // открыт ли (1.3.0)
+window.ShefAiChat.openCurrent();                                        // чат по карточке CRM этого окна (1.3.2)
 ```
+
+`openCurrent()` берёт запись из адреса карточки: `/crm/deal|lead|contact|company|quote/details/ID/`
+и `/crm/type/<entityTypeId>/details/ID/`, заголовок — `document.title` (`recordFromPath()`
+в `chat.js`, `tests/chatopen_test.mjs`). Во фрейме слайдера — адрес фрейма, чат открывается
+в верхнем окне.
 
 Есть на страницах, где подключена панель. С 1.3.0 — и на странице в слайдере
 (`IFRAME=Y`): там `window.ShefAiChat` — посредник, сам чат открывается в верхнем
@@ -25,7 +31,23 @@ window.ShefAiChat.isOpen();                                             // от�
 **Поверх слайдеров** (1.3.0): панель регистрируется в стопке `BX.ZIndexManager`
 ядра (там же слои `BX.SidePanel`, `main/install/js/main/sidepanel/src/slider.js`),
 при открытии чата и при открытии нового слайдера (`SidePanel.Slider:onOpen`,
-`onOpenComplete`) поднимается наверх — не прячется под слайдером.
+`onOpenComplete`) поднимается наверх — не прячется под слайдером. С 1.3.2 слой
+зарегистрирован с `alwaysOnTop` — стопка всегда ставит его последним
+(`main/install/js/main/core/src/lib/z-index/z-index-stack.js`, `sort()`), без гонки
+с `bringToFront()` слайдера.
+
+**Панель лежит поверх, страницу не сдвигает** (1.3.2). До 1.3.2 `body` получал
+`padding-right` на ширину панели. Полоса мессенджера (`#right-bar`, `position: sticky`
+в шаблоне Air) уезжала влево, а по ней слайдер считает правую границу
+(`intranet/install/js/intranet/sidepanel/air/src/slider.js`, `getRightBoundary()`:
+`ширина окна − left полосы`) — карточка сжималась до ~276 px. Сейчас слайдер
+считает ширину штатно, панель встаёт поверх у правого края, левее полосы
+мессенджера (полоса остаётся видна у края). Ширина — `layout.js`: по умолчанию
+`clamp(420, 36% окна, 480)`, на узком (свободно меньше 760 px) — на всю ширину;
+тянется мышью от 320 до 720 px (но не шире окна без 65 px слева) и запоминается.
+Почему не «свернуть в кнопку при слайдере»: чат по записи открывают как раз из
+карточки — прятать его, когда карточка открыта, неудобно; а отнять место у
+слайдера без правки ядра нельзя (Air-слайдер сбрасывает `customRightBoundary`).
 
 ## JS: чат из справки (1.3.0)
 

@@ -33,9 +33,12 @@ final class SidePanel
 	public const VIEW_PATH = '/shef/toolsai/view/';
 	/** id кнопки в виде «ИИ» — свой, не BUTTON_ID: клик уже в onclick, повторная привязка chat.js не нужна. */
 	public const VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
+	/** Пункт меню-шестерёнки карточки CRM (1.3.2, intranet:onBuildBindingMenu). */
+	public const DETAIL_MENU_TEXT = '✦ Спросить ИИ';
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
-	public const WIDTH_DEFAULT = 400;
+	/** Запасная ширина: без layout.js. Обычно ширину считает layout.js — clamp(420, 36% окна, 480) (1.3.2). */
+	public const WIDTH_DEFAULT = 440;
 	/**
 	 * Запасной слой (поле z настроек окна): действует, только если в окне нет
 	 * BX.ZIndexManager. С 1.3.0 панель регистрируется в стопке ZIndexManager
@@ -65,6 +68,19 @@ final class SidePanel
 			'id' => $id,
 			'title' => mb_substr($title, 0, self::TITLE_MAX),
 		]).')';
+	}
+
+	/**
+	 * JS пункта меню карточки CRM: чат по карточке, открытой в этом окне
+	 * (во фрейме слайдера — его адрес; chat.js, openCurrent()). Панели на
+	 * странице нет (место не в настройке или нет права) — уведомление.
+	 */
+	public static function openCurrentJs(): string
+	{
+		$text = (string)json_encode('Чат ИИ здесь недоступен: нет права или страница не входит в «Где показывать чат».', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+		return 'if(window.ShefAiChat&&window.ShefAiChat.openCurrent){window.ShefAiChat.openCurrent();}'
+			.'else if(BX.UI&&BX.UI.Notification){BX.UI.Notification.Center.notify({content:'.$text.'});}';
 	}
 
 	/**

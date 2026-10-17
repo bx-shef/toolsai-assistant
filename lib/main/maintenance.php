@@ -100,6 +100,8 @@ final class Maintenance
 			'events' => static function() use ($settings): void
 			{
 				static::registerEvents((array)($settings['installEvents'] ?? []));
+				// Меню карточки CRM кешируется — сбросить, чтобы пункт чата появился (1.3.2)
+				\Shef\ToolsAiAssistant\Internals\Integration\Intranet\EventHandler\OnBuildBindingMenuEventHandler::clearCache();
 			},
 			'agents' => $agents ?? static function(): void
 			{

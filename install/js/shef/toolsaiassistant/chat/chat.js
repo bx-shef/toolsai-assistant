@@ -22,6 +22,10 @@
 	var NS = BX.namespace('BX.Shef.ToolsAiAssistant');
 	var ACTION = 'shef:toolsaiassistant.chat.';
 	var HISTORY_KEEP = 40;
+	/** id кнопки вида «ИИ» (Panel\SidePanel::VIEW_BUTTON_ID): её клик — в onclick, здесь только метка «открыт». */
+	var VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
+	/** Карточки CRM: адрес /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). */
+	var DETAIL_TYPES = {lead: 1, deal: 2, contact: 3, company: 4, quote: 7};
 
 	function get(key) { try { return window.localStorage.getItem(key); } catch(e) { return null; } }
 	function put(key, value) { try { window.localStorage.setItem(key, value); } catch(e) {} }
@@ -80,6 +84,32 @@
 		return {entityTypeId: type, id: id, title: String(rec.title || ('Запись #' + id)).slice(0, 120)};
 	}
 
+	/**
+	 * Запись CRM по адресу карточки (1.3.2, пункт «✦ Спросить ИИ» меню карточки):
+	 * /crm/deal/details/5/, /crm/lead|contact|company|quote/details/ID/,
+	 * /crm/type/<entityTypeId>/details/ID/ (смарт-процессы, счета). Новая
+	 * запись (ID 0) и чужие адреса — null.
+	 */
+	function recordFromPath(path)
+	{
+		var m = String(path || '').match(/^\/crm\/(?:type\/(\d+)|([a-z]+))\/details\/(\d+)\//);
+		if(!m) { return null; }
+		var type = m[1] ? parseInt(m[1], 10) : (DETAIL_TYPES[m[2]] || 0);
+		var id = parseInt(m[3], 10);
+		return type > 0 && id > 0 ? {entityTypeId: type, id: id} : null;
+	}
+
+	/** Запись карточки, открытой в этом окне (во фрейме слайдера — его адрес), с заголовком страницы. */
+	function currentRecord()
+	{
+		var record = recordFromPath(window.location && window.location.pathname);
+		if(record)
+		{
+			record.title = String(document.title || '').trim();
+		}
+		return record;
+	}
+
 	function errorText(response, fallback)
 	{
 		var errors = response && response.errors;
@@ -123,7 +153,9 @@
 				open: function(rec) { self.open(rec); },
 				close: function() { self.close(); },
 				toggle: function(rec) { self.isOpen() ? self.close() : self.open(rec); },
-				isOpen: function() { return self.isOpen(); }
+				isOpen: function() { return self.isOpen(); },
+				/** Чат по карточке CRM, открытой в этом окне (1.3.2): меню карточки. */
+				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } }
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { self.open(rec); });
@@ -134,18 +166,40 @@
 			}
 		},
 
-		clamp: function(width)
+		/** Отступ справа под полосу мессенджера портала (#right-bar шаблона), см. layout.js. */
+		inset: function()
 		{
+			var bar = document.getElementById('right-bar');
+			var rect = bar && bar.offsetWidth > 0 ? bar.getBoundingClientRect() : null;
+			return NS.ChatLayout ? NS.ChatLayout.inset(window.innerWidth, rect) : 0;
+		},
+
+		/**
+		 * Ширина и место панели (1.3.2): поверх страницы, страницу не сдвигаем —
+		 * иначе сдвигается и полоса мессенджера, а по ней слайдер считает свою
+		 * ширину (intranet/sidepanel/air, getRightBoundary()) и сжимался.
+		 */
+		applyLayout: function(width)
+		{
+			if(!this.panel)
+			{
+				return;
+			}
 			var s = this.settings;
-			width = parseInt(width, 10);
-			return isNaN(width) ? s.def : Math.max(s.min, Math.min(s.max, width));
+			var inset = this.inset();
+			var saved = width === undefined ? get('shef-ai-chat-w') : width;
+			var layout = NS.ChatLayout
+				? NS.ChatLayout.compute(window.innerWidth, inset, saved, {min: s.min, max: s.max})
+				: {width: s.def, right: 0, narrow: false};
+			this.panel.style.setProperty('--shef-aia-chat-w', layout.width + 'px');
+			this.panel.style.setProperty('--shef-aia-chat-r', layout.right + 'px');
+			this.panel.classList.toggle('--narrow', layout.narrow);
+			this.width = layout.width;
 		},
 
 		buildPanel: function()
 		{
 			var self = this;
-			var root = document.documentElement;
-			root.style.setProperty('--shef-aia-chat-w', this.clamp(get('shef-ai-chat-w')) + 'px');
 
 			var panel = el('div');
 			panel.id = 'shef-aia-chat';
@@ -212,24 +266,33 @@
 
 			document.body.appendChild(panel);
 			this.panel = panel;
+			this.applyLayout();
 			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слои
-			// слайдеров: уже в документе — ядро само выставит слой (style.zIndex)
+			// слайдеров. alwaysOnTop (1.3.2): стопка сортирует такие слои последними
+			// (z-index-stack.js, sort) — панель над любым слайдером и его
+			// затемнением без гонки с bringToFront() слайдера.
 			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
 			{
-				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
+				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel, {alwaysOnTop: true}); } catch(e) {}
 			}
+			var relayout = function() { self.applyLayout(); };
+			window.addEventListener('resize', relayout);
 
 			drag.addEventListener('mousedown', function(e)
 			{
 				e.preventDefault();
 				panel.classList.add('--drag');
-				function move(ev) { root.style.setProperty('--shef-aia-chat-w', self.clamp(window.innerWidth - ev.clientX) + 'px'); }
+				var inset = self.inset();
+				function move(ev)
+				{
+					self.applyLayout(NS.ChatLayout ? NS.ChatLayout.dragWidth(window.innerWidth, inset, ev.clientX) : self.width);
+				}
 				function up()
 				{
 					panel.classList.remove('--drag');
 					document.removeEventListener('mousemove', move);
 					document.removeEventListener('mouseup', up);
-					put('shef-ai-chat-w', String(self.clamp(parseInt(getComputedStyle(root).getPropertyValue('--shef-aia-chat-w'), 10))));
+					put('shef-ai-chat-w', String(self.width));
 				}
 				document.addEventListener('mousemove', move);
 				document.addEventListener('mouseup', up);
@@ -245,11 +308,12 @@
 		watchSliders: function()
 		{
 			var self = this;
-			var lift = function() { if(self.isOpen()) { self.raise(); } };
+			var lift = function() { self.applyLayout(); if(self.isOpen()) { self.raise(); } };
 			if(BX.Event && BX.Event.EventEmitter)
 			{
 				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpen', function() { setTimeout(lift, 0); });
 				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpenComplete', lift);
+				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onCloseComplete', lift);
 			}
 		},
 
@@ -297,9 +361,12 @@
 			{
 				this.input.value = record.question;
 			}
+			this.applyLayout();
 			this.panel.classList.add('--open');
 			this.raise();
+			// Только метка «открыт»: страницу не сдвигаем (1.3.2)
 			document.body.classList.add('shef-ai-chat-open');
+			this.markButtons(true);
 			put('shef-ai-chat-open', '1');
 			var input = this.input;
 			setTimeout(function() { input.focus({preventScroll: true}); }, 50);
@@ -309,7 +376,25 @@
 		{
 			this.panel.classList.remove('--open');
 			document.body.classList.remove('shef-ai-chat-open');
+			this.markButtons(false);
 			put('shef-ai-chat-open', '0');
+		},
+
+		/**
+		 * Состояние «открыт» на кнопках «✦ ИИ: чат» (1.3.2): штатный класс
+		 * ui-btn-active и aria-pressed. Кнопку не перестраиваем — только метка.
+		 */
+		markButtons: function(open)
+		{
+			[this.settings.button, VIEW_BUTTON_ID].forEach(function(id)
+			{
+				var button = id && document.getElementById(id);
+				if(button)
+				{
+					button.classList.toggle('ui-btn-active', open);
+					button.setAttribute('aria-pressed', open ? 'true' : 'false');
+				}
+			});
 		},
 
 		/** Другой чат: своя переписка, свои роли и вопросы с сервера. */
@@ -791,7 +876,9 @@
 				open: api('open'),
 				close: api('close'),
 				toggle: api('toggle'),
-				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); }
+				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); },
+				// Адрес карточки — этого фрейма, открываем в верхнем окне
+				openCurrent: function() { var rec = currentRecord(); if(rec) { window.ShefAiChat.open(rec); } }
 			};
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { window.ShefAiChat.open(rec); });
 			this.installStub();
@@ -867,6 +954,8 @@
 		/** Для тестов: посредник фрейма (Frame.init(settings, topWindow)). */
 		Frame: Frame,
 		/** Для тестов: что откроет window.ShefAiChat.open() (запись CRM или справка). */
-		normalizeRecord: normalizeRecord
+		normalizeRecord: normalizeRecord,
+		/** Для тестов: запись CRM по адресу карточки (1.3.2). */
+		recordFromPath: recordFromPath
 	};
 })();

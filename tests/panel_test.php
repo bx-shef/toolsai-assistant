@@ -15,7 +15,7 @@ use Shef\ToolsAiAssistant\Public\Service\ChatPanel;
 
 Check::group('ширина');
 
-Check::same('мусор — по умолчанию', SidePanel::width('abc'), 400);
+Check::same('мусор — по умолчанию', SidePanel::width('abc'), 440);
 Check::same('меньше минимума', SidePanel::width(10), 320);
 Check::same('больше максимума', SidePanel::width('9999'), 720);
 Check::same('в пределах', SidePanel::width('500'), 500);
@@ -35,7 +35,7 @@ Check::group('настройки окна');
 $settings = SidePanel::settings('  Сделки  ', 'btn"<x>');
 Check::same('id кнопки — только безопасные символы', $settings['button'], 'btnx');
 Check::same('тема — обрезана', $settings['context'], 'Сделки');
-Check::same('пределы ширины и слой', [$settings['min'], $settings['max'], $settings['def'], $settings['z']], [320, 720, 400, 990]);
+Check::same('пределы ширины и слой', [$settings['min'], $settings['max'], $settings['def'], $settings['z']], [320, 720, 440, 990]);
 Check::same('пустой id — по умолчанию', SidePanel::settings('', '<>')['button'], SidePanel::BUTTON_ID);
 $script = SidePanel::initScript(SidePanel::settings('</script><script>alert(1)</script>'));
 Check::same('скрипт запуска не закрывается данными', substr_count($script, '</script>'), 1);

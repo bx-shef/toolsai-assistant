@@ -35,6 +35,8 @@
 | вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
 | «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
 | «✦ ИИ: чат» в шапке вида «ИИ» (событие `OnViewToolbarBuild`, 1.3.1) | `lib/internals/integration/toolsai/eventhandler/onviewtoolbarbuildeventhandler.php` |
+| «✦ Спросить ИИ» в меню-шестерёнке карточки CRM (`intranet:onBuildBindingMenu`, 1.3.2) | `lib/internals/integration/intranet/eventhandler/onbuildbindingmenueventhandler.php` |
+| ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.3.2) | `install/js/shef/toolsaiassistant/chat/layout.js` |
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
 | оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`) |
@@ -70,6 +72,11 @@
 - **Чат поверх слайдеров и из слайдера** (1.3.0): панель — в стопке
   `BX.ZIndexManager`; во фрейме (`IFRAME=Y`) `window.ShefAiChat` — посредник к
   верхнему окну (`chat.js`, `Frame`). Чат справки — `open({context: 'docs'})`.
+- **Панель не сдвигает страницу** (1.3.2): никакого `padding` у `body` — по полосе
+  мессенджера (`#right-bar`) Air-слайдер считает ширину и сжимался. Слой —
+  `alwaysOnTop` в `ZIndexManager`.
+- **Меню карточки CRM кешируется общим** (`intranet_menu_binding`): право в
+  `onBuildBindingMenu` не проверять; новый пункт — сбросить кеш.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —
