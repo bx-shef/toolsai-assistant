@@ -33,14 +33,14 @@ final class SidePanel
 	public const VIEW_PATH = '/shef/toolsai/view/';
 	/** id кнопки в виде «ИИ» — свой, не BUTTON_ID: клик уже в onclick, повторная привязка chat.js не нужна. */
 	public const VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
-	/** Кнопка в шапке карточки CRM (1.3.2): чат по этой записи. */
+	/** Кнопка в шапке карточки CRM (1.4.0): чат по этой записи. */
 	public const DETAIL_BUTTON_TEXT = '✦ Спросить ИИ';
 	public const DETAIL_BUTTON_ID = 'shef-ai-chat-record-btn';
 	/** Карточки CRM: /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). Как DETAIL_TYPES в chat.js. */
 	public const DETAIL_TYPES = ['lead' => 1, 'deal' => 2, 'contact' => 3, 'company' => 4, 'quote' => 7];
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
-	/** Запасная ширина: без layout.js. Обычно ширину считает layout.js — clamp(420, 36% окна, 480) (1.3.2). */
+	/** Запасная ширина: без layout.js. Обычно ширину считает layout.js — clamp(420, 36% окна, 480) (1.4.0). */
 	public const WIDTH_DEFAULT = 440;
 	/**
 	 * Запасной слой (поле z настроек окна): действует, только если в окне нет

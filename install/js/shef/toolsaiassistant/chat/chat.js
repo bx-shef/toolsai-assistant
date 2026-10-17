@@ -91,7 +91,7 @@
 	}
 
 	/**
-	 * Запись CRM по адресу карточки (1.3.2, кнопка «✦ Спросить ИИ» в шапке карточки):
+	 * Запись CRM по адресу карточки (1.4.0, кнопка «✦ Спросить ИИ» в шапке карточки):
 	 * /crm/deal/details/5/, /crm/lead|contact|company|quote/details/ID/,
 	 * /crm/type/<entityTypeId>/details/ID/ (смарт-процессы, счета). Новая
 	 * запись (ID 0) и чужие адреса — null.
@@ -117,7 +117,7 @@
 	}
 
 	/**
-	 * Кнопка-иконка (1.3.2): штатная иконка ui.icon-set (набор outline) и
+	 * Кнопка-иконка (1.4.0): штатная иконка ui.icon-set (набор outline) и
 	 * подсказка title / aria-label.
 	 */
 	function iconButton(className, icon, title)
@@ -163,6 +163,8 @@
 		requestId: 0,
 		/** Идущий поток ответа ({abort}) — обрываем при смене чата и очистке. */
 		pending: null,
+		/** До этого момента (мс) не поднимать панель над открывающимся слайдером: его открыли из чата. */
+		ownSliderUntil: 0,
 		/** Перерисовка по кускам потока — не чаще кадра. */
 		frame: 0,
 
@@ -179,7 +181,7 @@
 				return;
 			}
 			this.settings = settings;
-			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.3.2)
+			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.4.0)
 			if(settings.fromFrame && BX.Runtime && BX.Runtime.loadExtension)
 			{
 				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.design-tokens']); } catch(e) {}
@@ -194,7 +196,7 @@
 				close: function() { self.close(); },
 				toggle: function(rec) { self.isOpen() ? self.close() : self.open(rec); },
 				isOpen: function() { return self.isOpen(); },
-				/** Чат по карточке CRM, открытой в этом окне (1.3.2): кнопка в шапке карточки. */
+				/** Чат по карточке CRM, открытой в этом окне (1.4.0): кнопка в шапке карточки. */
 				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } }
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
@@ -215,7 +217,7 @@
 		},
 
 		/**
-		 * Ширина и место панели (1.3.2): поверх страницы, страницу не сдвигаем —
+		 * Ширина и место панели (1.4.0): поверх страницы, страницу не сдвигаем —
 		 * иначе сдвигается и полоса мессенджера, а по ней слайдер считает свою
 		 * ширину (intranet/sidepanel/air, getRightBoundary()) и сжимался.
 		 */
@@ -320,12 +322,13 @@
 			this.panel = panel;
 			this.applyLayout();
 			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слои
-			// слайдеров. alwaysOnTop (1.3.2): стопка сортирует такие слои последними
-			// (z-index-stack.js, sort) — панель над любым слайдером и его
-			// затемнением без гонки с bringToFront() слайдера.
+			// слайдеров и попапов. Без alwaysOnTop (1.4.0): панель поднимаем
+			// bringToFront() при открытии чата и слайдера (raise()), а попапы ядра
+			// (MessageBox, меню, entity-selector) при показе сами делают
+			// bringToFront() (main/popup/src/popup/popup.js, show()) и встают выше.
 			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
 			{
-				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel, {alwaysOnTop: true}); } catch(e) {}
+				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
 			}
 			var relayout = function() { self.applyLayout(); };
 			window.addEventListener('resize', relayout);
@@ -360,7 +363,8 @@
 		watchSliders: function()
 		{
 			var self = this;
-			var lift = function() { self.applyLayout(); if(self.isOpen()) { self.raise(); } };
+			// Слайдер, открытый ссылкой из чата (статья справки), — над чатом: читать целиком (1.4.0)
+			var lift = function() { self.applyLayout(); if(self.isOpen() && Date.now() > self.ownSliderUntil) { self.raise(); } };
 			if(BX.Event && BX.Event.EventEmitter)
 			{
 				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpen', function() { setTimeout(lift, 0); });
@@ -416,7 +420,7 @@
 			this.applyLayout();
 			this.panel.classList.add('--open');
 			this.raise();
-			// Только метка «открыт»: страницу не сдвигаем (1.3.2)
+			// Только метка «открыт»: страницу не сдвигаем (1.4.0)
 			document.body.classList.add('shef-ai-chat-open');
 			this.markButtons(true);
 			put('shef-ai-chat-open', '1');
@@ -433,7 +437,7 @@
 		},
 
 		/**
-		 * Состояние «открыт» на кнопках «✦ ИИ: чат» (1.3.2): штатный класс
+		 * Состояние «открыт» на кнопках «✦ ИИ: чат» (1.4.0): штатный класс
 		 * ui-btn-active и aria-pressed. Кнопку не перестраиваем — только метка.
 		 */
 		markButtons: function(open)
@@ -633,7 +637,7 @@
 		},
 
 		/**
-		 * Этапы ожидания (status.js, 1.3.2): история записи → база знаний →
+		 * Этапы ожидания (status.js, 1.4.0): история записи → база знаний →
 		 * «Думаю…» (start потока) → печать (первый кусок).
 		 */
 		startStatus: function()
@@ -738,6 +742,8 @@
 			try { url = new URL(link.getAttribute('href'), window.location.href); } catch(err) { return; }
 			if(url.origin === window.location.origin && BX.SidePanel && BX.SidePanel.Instance)
 			{
+				// Не поднимать чат над этим слайдером: он открыт из чата (события onOpen/onOpenComplete — в ближайшие секунды)
+				this.ownSliderUntil = Date.now() + 3000;
 				BX.SidePanel.Instance.open(url.href, NS.ChatView ? NS.ChatView.linkOptions(url.pathname) : {cacheable: false});
 			}
 			else
@@ -772,7 +778,7 @@
 		/**
 		 * Диалог «Выбрать роль» (1.4.0) — слоем внутри панели: штатный
 		 * ai.roles-dialog берёт роли модуля ai (ai.engine), а не наши, а окно
-		 * ui.entity-catalog легло бы под панель (она alwaysOnTop). Вид — как у
+		 * ui.entity-catalog оказалось бы над панелью и закрыло её на узком экране. Вид — как у
 		 * ai.roles-dialog: поиск и ×, категории слева, роли справа, звёздочка.
 		 */
 		openRoles: function()
@@ -1059,7 +1065,7 @@
 	};
 
 	/**
-	 * Оценка под ответом (1.3.2) — иконки «полезно» / «не помогло» с
+	 * Оценка под ответом (1.4.0) — иконки «полезно» / «не помогло» с
 	 * состоянием: выбранная подсвечена (aria-pressed), после оценки обе
 	 * неактивны, подсказка — «Спасибо за оценку».
 	 */
@@ -1203,7 +1209,7 @@
 		Frame: Frame,
 		/** Для тестов: что откроет window.ShefAiChat.open() (запись CRM или справка). */
 		normalizeRecord: normalizeRecord,
-		/** Для тестов: запись CRM по адресу карточки (1.3.2). */
+		/** Для тестов: запись CRM по адресу карточки (1.4.0). */
 		recordFromPath: recordFromPath
 	};
 })();

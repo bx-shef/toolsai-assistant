@@ -4,8 +4,8 @@
  * Расширение shef.toolsaiassistant.chat — панель справа и окно чата
  * ИИ-помощника. Чистый BX (main.core), без сборки: файлы подключаются как
  * есть. markdown.js — разбор ответа модели в безопасный HTML (проверяется
- * tests/markdown_test.mjs), layout.js — ширина и место панели (1.3.2,
- * tests/layout_test.mjs), status.js — этапы ожидания ответа (1.3.2,
+ * tests/markdown_test.mjs), layout.js — ширина и место панели (1.4.0,
+ * tests/layout_test.mjs), status.js — этапы ожидания ответа (1.4.0,
  * tests/status_test.mjs), view.js — вид переписки и roledialog.js — диалог
  * ролей (1.4.0, tests/view_test.mjs, tests/roledialog_test.mjs), stream.js — ответ потоком (1.1.0,
  * tests/stream_test.mjs), chat.js — панель и окно.

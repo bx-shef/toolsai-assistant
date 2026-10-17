@@ -10,10 +10,10 @@ window.ShefAiChat.open();                                               // об�
 window.ShefAiChat.close();
 window.ShefAiChat.toggle();                                             // открыть/закрыть (1.3.0)
 window.ShefAiChat.isOpen();                                             // открыт ли (1.3.0)
-window.ShefAiChat.openCurrent();                                        // чат по карточке CRM этого окна (1.3.2)
+window.ShefAiChat.openCurrent();                                        // чат по карточке CRM этого окна (1.4.0)
 ```
 
-Кнопка «✦ Спросить ИИ» в шапке карточки CRM (1.3.2) зовёт именно `openCurrent()`.
+Кнопка «✦ Спросить ИИ» в шапке карточки CRM (1.4.0) зовёт именно `openCurrent()`.
 Её ставит `OnProlog` штатным `Toolbar::addButton(..., ButtonLocation::RIGHT)` —
 раньше кода карточки, поэтому она первая в правом ряду (левее шестерёнки).
 Карточка ставит свои кнопки тем же API (`crm/install/components/bitrix/crm.toolbar/class.php`,
@@ -37,12 +37,15 @@ window.ShefAiChat.openCurrent();                                        // ча�
 **Поверх слайдеров** (1.3.0): панель регистрируется в стопке `BX.ZIndexManager`
 ядра (там же слои `BX.SidePanel`, `main/install/js/main/sidepanel/src/slider.js`),
 при открытии чата и при открытии нового слайдера (`SidePanel.Slider:onOpen`,
-`onOpenComplete`) поднимается наверх — не прячется под слайдером. С 1.3.2 слой
-зарегистрирован с `alwaysOnTop` — стопка всегда ставит его последним
-(`main/install/js/main/core/src/lib/z-index/z-index-stack.js`, `sort()`), без гонки
-с `bringToFront()` слайдера.
+`onOpenComplete`) поднимается наверх — не прячется под слайдером. `alwaysOnTop` не ставим (1.4.0):
+попапы ядра (MessageBox, меню, entity-selector, подтверждения карточки) при показе
+сами зовут `bringToFront()` (`main/install/js/main/popup/src/popup/popup.js`, `show()`)
+и встают выше панели (`z-index-stack.js`, `bringToFront()` — новый номер сортировки).
+Слайдер, открытый ссылкой из чата (статья справки), панель над собой не получает:
+3 с после клика `raise()` пропускается (`ownSliderUntil`). Статью нужно прочитать
+целиком, а чат остаётся под ней и снова виден, когда слайдер закроют.
 
-**Панель лежит поверх, страницу не сдвигает** (1.3.2). До 1.3.2 `body` получал
+**Панель лежит поверх, страницу не сдвигает** (1.4.0). До 1.4.0 `body` получал
 `padding-right` на ширину панели. Полоса мессенджера (`#right-bar`, `position: sticky`
 в шаблоне Air) уезжала влево, а по ней слайдер считает правую границу
 (`intranet/install/js/intranet/sidepanel/air/src/slider.js`, `getRightBoundary()`:
@@ -118,14 +121,14 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 её не правит. В шапку вида «ИИ» (shef.toolsai 1.53+) кнопку ставит сам вид по
 событию `OnViewToolbarBuild`.
 
-## Окно: иконки и ожидание (1.3.2)
+## Окно: иконки и ожидание (1.4.0)
 
 Иконки — `ui.icon-set` (расширение `ui.icon-set.outline`, в `rel` расширения
 окна): `o-trashcan` «Очистить диалог», `cross-m` «Закрыть чат», `o-copy` /
 `check-m` «Копировать ответ» / «Скопировано», `o-refresh` «Ответить заново»,
 `o-like` / `o-dislike` — оценка. У каждой кнопки `title` и `aria-label`.
-Подтверждение очистки — строкой в самой панели: окно `BX.UI.Dialogs` легло бы под
-панель (она `alwaysOnTop`).
+Подтверждение очистки — строкой в самой панели: окно `BX.UI.Dialogs` встало бы над
+панелью и на узком экране закрыло бы её целиком.
 
 Ожидание ответа — `status.js` (`BX.Shef.ToolsAiAssistant.ChatStatus`): этапы
 `record` («Читаю историю записи…», если чат по записи), `kb` («Ищу в базе знаний…»,

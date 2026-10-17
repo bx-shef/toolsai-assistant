@@ -1,5 +1,5 @@
 /**
- * Этапы ожидания ответа (install/js/.../chat/status.js, 1.3.2): история
+ * Этапы ожидания ответа (install/js/.../chat/status.js, 1.4.0): история
  * записи → база знаний → «Думаю…» по start → печать по первому куску.
  * Гоняет build.sh: node tests/status_test.mjs.
  */

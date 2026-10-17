@@ -48,7 +48,7 @@ final class OnPrologEventHandler
 				return;
 			}
 			// Вид «ИИ» с shef.toolsai 1.53+ ставит кнопку сам по OnViewToolbarBuild (1.3.1)
-			// Карточка CRM (1.3.2) — «✦ Спросить ИИ» по этой записи вместо общей кнопки
+			// Карточка CRM (1.4.0) — «✦ Спросить ИИ» по этой записи вместо общей кнопки
 			if(SidePanel::detailRecord((string)$request->getRequestUri()) !== null)
 			{
 				ChatPanel::addRecordToolbarButton();

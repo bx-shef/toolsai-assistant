@@ -35,7 +35,7 @@ function same(what, actual, expected) {
   }
 }
 
-console.log('\nкарточка CRM по адресу (1.3.2)');
+console.log('\nкарточка CRM по адресу (1.4.0)');
 same('сделка', chat.recordFromPath('/crm/deal/details/15/'), { entityTypeId: 2, id: 15 });
 same('лид', chat.recordFromPath('/crm/lead/details/7/?IFRAME=Y'), { entityTypeId: 1, id: 7 });
 same('контакт', chat.recordFromPath('/crm/contact/details/3/'), { entityTypeId: 3, id: 3 });
