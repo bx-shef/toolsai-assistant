@@ -4,6 +4,7 @@ namespace Shef\ToolsAiAssistant;
 
 use Bitrix\Main\Config\Option;
 use Shef\ToolsAiAssistant\Main\Constants;
+use Shef\ToolsAiAssistant\Panel\PlaceUrl;
 
 /**
  * Настройки модуля (страница options_conf.php) — разобранные и с умолчаниями.
@@ -33,7 +34,8 @@ final class Config
 	public const OPTION_FEEDBACK_DAYS = 'CHAT_feedbackdays';
 
 	/**
-	 * @param list<string> $paths начала адресов страниц, где есть кнопка и панель
+	 * @param list<string> $paths адреса мест, где есть кнопка и панель: начало
+	 *   пути и, при желании, параметры запроса (Panel\PlaceUrl, 1.3.0)
 	 * @param int $rateLimit ответов модели на сотрудника в минуту; 0 — без ограничения
 	 */
 	public function __construct(
@@ -76,9 +78,9 @@ final class Config
 		$paths = [];
 		foreach(preg_split('/[\r\n,]+/', (string)($values[self::OPTION_PATHS] ?? '')) ?: [] as $path)
 		{
-			$path = trim($path);
-			// Только путь своего сайта: «/crm/», не адрес и не мусор
-			if($path !== '' && preg_match('~^/[\w\-./]*$~u', $path) && !in_array($path, $paths, true))
+			// Только путь своего сайта: «/crm/», «/shef/toolsai/view/?type=2», не адрес и не мусор
+			$path = PlaceUrl::normalize($path);
+			if($path !== null && !in_array($path, $paths, true))
 			{
 				$paths[] = $path;
 			}
@@ -94,12 +96,17 @@ final class Config
 		);
 	}
 
-	/** Открыта ли панель на странице с этим путём; список адресов пуст — нигде. */
-	public function matchesPath(string $path): bool
+	/**
+	 * Открыта ли панель на этой странице; список адресов пуст — нигде.
+	 *
+	 * @param string $requestUri путь страницы с запросом (1.3.0: учитываются
+	 *   параметры места, PlaceUrl::matches())
+	 */
+	public function matchesPath(string $requestUri): bool
 	{
-		foreach($this->paths as $prefix)
+		foreach($this->paths as $placeUrl)
 		{
-			if(str_starts_with($path, $prefix))
+			if(PlaceUrl::matches($placeUrl, $requestUri))
 			{
 				return true;
 			}

@@ -13,7 +13,8 @@ namespace Shef\ToolsAiAssistant\Panel;
  * окно чата JS-расширения модуля (install/js/shef/toolsaiassistant/chat), и
  * ответ — через контроллер модуля, а не endpoint/kb.php shef.toolsai.
  * Место «Марты» (#app__right-panel) по-прежнему не трогаем: наша панель —
- * слоем выше, ниже слайдеров.
+ * слоем выше; с 1.3.0 открытый чат — и над слайдерами BX.SidePanel, а со
+ * страницы в слайдере (IFRAME=Y) он открывается в верхнем окне.
  *
  * Чистый класс — без ядра (panel_test.php).
  */
@@ -24,9 +25,20 @@ final class SidePanel
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
 	public const WIDTH_DEFAULT = 400;
-	/** Выше места Марты в шаблоне Air, ниже слайдеров (BX.SidePanel — от 1000). */
+	/**
+	 * Выше места Марты в шаблоне Air. С 1.3.0 это запасной слой: панель
+	 * регистрируется в стопке ZIndexManager ядра и при открытии поднимается
+	 * над верхним слайдером (chat.js, watchSliders()).
+	 */
 	public const Z_INDEX = 990;
 	public const TITLE_MAX = 120;
+	/** Файлы расширения shef.toolsaiassistant.chat (install/js/.../chat/config.php) — тот же порядок. */
+	public const ASSETS = [
+		'/bitrix/js/shef/toolsaiassistant/chat/chat.css',
+		'/bitrix/js/shef/toolsaiassistant/chat/markdown.js',
+		'/bitrix/js/shef/toolsaiassistant/chat/stream.js',
+		'/bitrix/js/shef/toolsaiassistant/chat/chat.js',
+	];
 
 	/** Ширина в допустимых пределах. */
 	public static function width(mixed $value): int
@@ -64,6 +76,8 @@ final class SidePanel
 			'max' => self::WIDTH_MAX,
 			'def' => self::WIDTH_DEFAULT,
 			'z' => self::Z_INDEX,
+			// Файлы расширения — для страницы в слайдере: она подгружает их в верхнее окно (1.3.0)
+			'assets' => self::ASSETS,
 		];
 	}
 

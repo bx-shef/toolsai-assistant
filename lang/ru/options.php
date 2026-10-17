@@ -5,7 +5,7 @@ $MESS['shef.toolsaiassistant_TAB_PANEL_RIGHTS'] = 'Кто пользуется �
 $MESS['shef.toolsaiassistant_TAB_PANEL_enabled'] = 'Показывать кнопку «✦ ИИ: чат» и панель';
 $MESS['shef.toolsaiassistant_TAB_PANEL_enabled_descr'] = 'Выключено — модуль сам кнопку и панель не добавляет; страницы, которые встраивают чат через Public\Service\ChatPanel, — по-прежнему могут.';
 $MESS['shef.toolsaiassistant_TAB_PANEL_paths'] = 'Где показывать чат';
-$MESS['shef.toolsaiassistant_TAB_PANEL_paths_descr'] = 'Начала адресов страниц, по одному в строке: /crm/ — вся CRM, /shef/toolsai/view/ — вид «ИИ». Пусто — чат нигде не показывается (страницы, которые встраивают чат через Public\\Service\\ChatPanel, — по-прежнему могут).';
+$MESS['shef.toolsaiassistant_TAB_PANEL_paths_descr'] = 'Разделы портала: выберите готовые (CRM, сделки, вид «ИИ» и места других модулей) или наберите свой адрес в поиске и нажмите «Добавить свой адрес» — путь и, при желании, параметры: /shef/toolsai/view/?type=2&category=0. Чат показывается на страницах, путь которых начинается с адреса и где есть все его параметры. Пусто — чат нигде (страницы, которые встраивают чат через Public\\Service\\ChatPanel, — по-прежнему могут).';
 $MESS['shef.toolsaiassistant_TAB_CHAT_NAME'] = 'Ответы';
 $MESS['shef.toolsaiassistant_TAB_CHAT_TITLE'] = 'Что помощник получает вместе с вопросом';
 $MESS['shef.toolsaiassistant_TAB_CHAT_history'] = 'Сообщений переписки в запросе';
