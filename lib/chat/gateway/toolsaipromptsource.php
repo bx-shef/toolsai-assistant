@@ -113,7 +113,7 @@ final class ToolsAiPromptSource implements PromptSourceInterface
 	}
 
 	/** @throws ChatException shef.toolsai без доступа к ролям из библиотеки (старее 1.54.0) */
-	/** Промпты меню в поле ввода (1.7.0); shef.toolsai старее 1.58.0 — пусто. */
+	/** Промпты меню в поле ввода (1.7.0); shef.toolsai старее 1.59.0 — пусто. */
 	public function prompts(string $roleCode, ?int $entityTypeId, array $places, int $userId): array
 	{
 		static::assertVersion();

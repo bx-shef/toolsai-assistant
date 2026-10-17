@@ -44,7 +44,7 @@ interface PromptSourceInterface
 	/**
 	 * Промпты меню в поле ввода (1.7.0): навыки роли и общие навыки мест окна
 	 * (Prompt\ChatPlaces), для сущности записи, открытые сотруднику, избранные
-	 * первыми. shef.toolsai без PromptService::skills() (старее 1.58.0) — пусто:
+	 * первыми. shef.toolsai без PromptService::skills() (старее 1.59.0) — пусто:
 	 * меню просто не появится.
 	 *
 	 * @param list<string> $places полные коды мест

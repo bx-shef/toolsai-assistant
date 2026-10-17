@@ -37,7 +37,7 @@ const TOOLSAI_API = [
 	['lib/public/service/promptservice.php', 'PromptService', "'favorite' =>"],
 	['lib/public/service/promptservice.php', 'PromptService', 'function forget(): void'],
 	['lib/public/service/promptservice.php', 'PromptService', 'PLACE_ASSISTANT'],
-	// 1.7.0: меню промптов — shef.toolsai 1.58.0 (старее — меню нет, method_exists)
+	// 1.7.0: меню промптов — shef.toolsai 1.59.0 (старее — меню нет, method_exists)
 	['lib/public/service/promptservice.php', 'PromptService', 'function skills(string $roleCode, array $places, int $entityTypeId = 0, int $userId = self::USER_CURRENT): array'],
 	['lib/prompt/places.php', 'Places', "EVENT = 'OnPromptPlacesCollect'"],
 	['lib/public/service/recordservice.php', 'RecordService', 'function get(int $entityTypeId, int $id, int $userId): ?array'],
