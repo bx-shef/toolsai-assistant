@@ -58,4 +58,6 @@
 - [Оценки ответов и проверка промптов](docs/guide/08-feedback.md)
 - Все документы — [docs/README.md](docs/README.md)
 
-Лицензия — MIT.
+Модуль бесплатный и в лицензию shef.toolsai («Звонки, сделки и отчёты») не входит — как и остальные модули-соседи shef.toolsaiassistant, shef.toolsaiannounce, shef.toolsaikb. Отдельно платный в линейке — только MCP-сервер toolsai-mcp. Сам чат отвечает моделью shef.toolsai, поэтому работает, пока у shef.toolsai есть действующая лицензия.
+
+Лицензия кода — MIT.
