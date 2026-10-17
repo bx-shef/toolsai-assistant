@@ -35,6 +35,16 @@ function same(what, actual, expected) {
   }
 }
 
+console.log('\nкарточка CRM по адресу (1.4.0)');
+same('сделка', chat.recordFromPath('/crm/deal/details/15/'), { entityTypeId: 2, id: 15 });
+same('лид', chat.recordFromPath('/crm/lead/details/7/?IFRAME=Y'), { entityTypeId: 1, id: 7 });
+same('контакт', chat.recordFromPath('/crm/contact/details/3/'), { entityTypeId: 3, id: 3 });
+same('компания', chat.recordFromPath('/crm/company/details/4/'), { entityTypeId: 4, id: 4 });
+same('смарт-процесс', chat.recordFromPath('/crm/type/128/details/9/'), { entityTypeId: 128, id: 9 });
+same('новая запись — нет', chat.recordFromPath('/crm/deal/details/0/'), null);
+same('список — нет', chat.recordFromPath('/crm/deal/list/'), null);
+same('чужой код — нет', chat.recordFromPath('/crm/foo/details/5/'), null);
+
 console.log('\nзапись CRM');
 same('пусто — общий чат', chat.normalizeRecord(null), null);
 same('запись — целые', chat.normalizeRecord({ entityTypeId: '2', id: 5, title: 'Сделка' }), { entityTypeId: 2, id: 5, title: 'Сделка' });
@@ -73,7 +83,7 @@ const settings = { button: 'b', assets: ['/bitrix/js/shef/toolsaiassistant/chat/
 chat.Frame.init(settings, topWindow);
 same('без вызова ничего не грузится (лениво)', loads.length, 0);
 same('в верхнем окне — заглушка', topWindow.ShefAiChat.stub, true);
-same('посредник фрейма: open, close, toggle, isOpen', Object.keys(frameWindow.ShefAiChat), ['open', 'close', 'toggle', 'isOpen']);
+same('посредник фрейма: open, close, toggle, isOpen, openCurrent', Object.keys(frameWindow.ShefAiChat), ['open', 'close', 'toggle', 'isOpen', 'openCurrent']);
 same('isOpen до загрузки — нет', frameWindow.ShefAiChat.isOpen(), false);
 frameWindow.ShefAiChat.toggle(null);
 topWindow.ShefAiChat.open({ context: 'docs' });          // справка без BX — через заглушку

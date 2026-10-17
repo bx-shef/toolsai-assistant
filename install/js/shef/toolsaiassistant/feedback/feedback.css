@@ -1,0 +1,24 @@
+/* Страница «Оценки ответов» (1.5.0): сводка по ролям, статусы, окно оценки. */
+.shef-aia-fb-summary { background: #fff; border-radius: 12px; padding: 14px 18px; margin: 0 0 12px; }
+.shef-aia-fb-summary-title { font-weight: 600; margin-bottom: 8px; }
+.shef-aia-fb-summary-table { border-collapse: collapse; }
+.shef-aia-fb-summary-table th, .shef-aia-fb-summary-table td { text-align: left; padding: 4px 14px 4px 0; border-top: 1px solid #edeef0; }
+.shef-aia-fb-summary-table th { color: #828b95; font-weight: 400; border-top: 0; }
+.shef-aia-fb-note { color: #828b95; font-size: 12px; }
+.shef-aia-fb-share { display: inline-block; min-width: 46px; padding: 1px 6px; border-radius: 8px; text-align: center; }
+.shef-aia-fb-share-good { background: #e3f7d1; }
+.shef-aia-fb-share-mid { background: #fff1c2; }
+.shef-aia-fb-share-bad { background: #ffd9d6; }
+.shef-aia-fb-share-thin { background: #f1f2f4; color: #828b95; }
+.shef-aia-fb-status { white-space: nowrap; padding: 1px 6px; border-radius: 8px; background: #eef2f4; }
+.shef-aia-fb-status-new { background: #e5f4fd; }
+.shef-aia-fb-status-reviewed { background: #f1f2f4; }
+.shef-aia-fb-status-eval { background: #e3f7d1; }
+.shef-aia-fb-status-rejected { background: #f1f2f4; color: #a8adb4; text-decoration: line-through; }
+.shef-aia-fb-empty { color: #a8adb4; }
+.shef-aia-fb-detail { max-height: 70vh; overflow: auto; padding: 4px 4px 0; font-size: 14px; line-height: 1.45; }
+.shef-aia-fb-detail h4 { margin: 14px 0 4px; font-size: 13px; color: #535c69; }
+.shef-aia-fb-detail .shef-aia-fb-text { white-space: pre-wrap; background: #f5f7f8; border-radius: 8px; padding: 8px 10px; }
+.shef-aia-fb-detail .shef-aia-fb-answer { background: #f5f7f8; border-radius: 8px; padding: 2px 10px; }
+.shef-aia-fb-detail textarea { width: 100%; box-sizing: border-box; min-height: 110px; font: inherit; padding: 8px; border: 1px solid #c6cdd3; border-radius: 6px; }
+.shef-aia-fb-meta { color: #535c69; font-size: 13px; }

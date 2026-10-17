@@ -2,7 +2,7 @@
 
 /**
  * Пункты меню шестерёнки вида «ИИ» shef.toolsai (OnViewSettingsMenuBuild,
- * 1.3.2): по контракту ViewSettingsMenuBuildEvent, только по правам.
+ * 1.5.1): по контракту ViewSettingsMenuBuildEvent, только по правам.
  */
 
 $root = dirname(__DIR__);
@@ -40,6 +40,9 @@ $GLOBALS['APPLICATION'] = new class {
 	public function GetGroupRight(string $module): string { throw new \RuntimeException('сбой'); }
 };
 Check::same('сбой — пусто, вид не ломается', Handler::handle(new Event('shef.toolsai', 'OnViewSettingsMenuBuild', []))->getParameters()['items'], []);
+$GLOBALS['USER'] = new CUser(1, true);
+Check::same('сбой права на модуль не прячет оценки', Handler::handle(new Event('shef.toolsai', 'OnViewSettingsMenuBuild', []))->getParameters()['items'], [$feedback]);
+$GLOBALS['USER'] = new CUser(0, false);
 unset($GLOBALS['APPLICATION']);
 
 Check::finish();

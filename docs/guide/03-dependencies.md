@@ -25,10 +25,10 @@ shef.toolsai от этого модуля не зависит: связь — с
 | событие `shef.toolsai:OnViewRowActionsBuild` (`Public\Event\ViewRowActionsBuildEvent`) | «✦ Спросить ИИ» в меню строки вида «ИИ» | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler` |
 | событие `shef.toolsai:OnViewToolbarBuild` (`Public\Event\ViewToolbarBuildEvent`, 1.53.0) | «✦ ИИ: чат» в шапке вида «ИИ»; мягко — нет события, кнопку ставит `OnProlog` | `Internals\Integration\ToolsAi\EventHandler\OnViewToolbarBuildEventHandler` |
 | событие `shef.toolsai:OnViewSettingsMenuBuild` (`Public\Event\ViewSettingsMenuBuildEvent`, 1.53.0) | пункты «ИИ чат с ролями: настройки» и «Оценки ответов» в меню шестерёнки вида «ИИ»; мягко — нет события, нет пунктов | `Internals\Integration\ToolsAi\EventHandler\OnViewSettingsMenuBuildEventHandler` |
-| `Public\Service\PromptService::roles(?array $allowed)` | роли для переключателя и страницы прав | `Chat\Gateway\ToolsAiPromptSource` |
+| `Public\Service\PromptService::roles(?array $allowed)` | роли для диалога «Выбрать роль» и страницы прав. С 1.4.0 читаем необязательные поля роли: `icon` — код иконки `ui.icon-set` по шаблону `^[a-z][a-z0-9-]{1,60}$` (`o-person` и т.п.); нет или не подходит — подберём по коду роли (`Chat\RoleIcon`); `group` — группа в диалоге ролей, до 60 знаков. shef.toolsai может их отдавать, но не обязан | `Chat\Gateway\ToolsAiPromptSource` |
 | `PromptService::compose($role, PromptService::PLACE_ASSISTANT, $entityTypeId, $allowed)` | текст роли (+ её навык) | там же |
 | `PromptService::forget()` | перечитать реестр после установки | `install/index.php` |
-| `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM | `Chat\Gateway\ToolsAiRecordSource` |
+| `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM; с 1.5.0 — и запись в кейсе проверки при выгрузке оценок | `Chat\Gateway\ToolsAiRecordSource` |
 | `Public\Service\LlmService::stream(LlmService::CATEGORY_ASSISTANT, $messages, $onDelta, $userId)` | ответ потоком (окно, 1.1.0); квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |
 | `Public\Service\LlmService::complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId)` | ответ одним куском (действие `answer`) | `Chat\Gateway\ToolsAiModelGateway` |
 | `LlmService::model(CATEGORY_ASSISTANT)` (`''` — заглушка) | подпись под окном; заглушка — подсказка без вызова | там же |

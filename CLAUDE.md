@@ -35,10 +35,14 @@
 | вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
 | «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
 | «✦ ИИ: чат» в шапке вида «ИИ» (событие `OnViewToolbarBuild`, 1.3.1) | `lib/internals/integration/toolsai/eventhandler/onviewtoolbarbuildeventhandler.php` |
-| пункты в меню шестерёнки вида «ИИ» (событие `OnViewSettingsMenuBuild`, 1.3.2) | `lib/internals/integration/toolsai/eventhandler/onviewsettingsmenubuildeventhandler.php` |
-| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate`) |
+| пункты в меню шестерёнки вида «ИИ» (событие `OnViewSettingsMenuBuild`, 1.5.1) | `lib/internals/integration/toolsai/eventhandler/onviewsettingsmenubuildeventhandler.php` |
+| «✦ Спросить ИИ» в шапке карточки CRM (Toolbar API из OnProlog, 1.4.0) | `lib/public/service/chatpanel.php` (`addRecordToolbarButton()`), разбор адреса — `lib/panel/sidepanel.php` (`detailRecord()`) |
+| ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.4.0) | `install/js/shef/toolsaiassistant/chat/layout.js` |
+| вид переписки (карточка роли, пузыри, время; 1.4.0) | `install/js/shef/toolsaiassistant/chat/view.js` |
+| диалог «Выбрать роль» (модель — `roledialog.js`, вид — `chat.js` `openRoles()`), недавние/избранное | `lib/chat/roleprefs.php`, `roleprefsstore.php` (CUserOptions), иконка роли — `lib/chat/roleicon.php` |
+| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate/favorite`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
-| оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`) |
+| оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`); с 1.5.0 — грид и фильтр (`GridFilter`), сводка по ролям (`RoleSummary`), статус и «что должно было быть» (`Review`), кейсы проверки (`EvalCase`, `Anonymizer`), контроллер `lib/controller/feedback.php`, окно — `install/js/shef/toolsaiassistant/feedback/` |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
@@ -61,6 +65,11 @@
 - **Оценки ответов** — своя таблица `shef_toolsaiassistant_feedback`; смотреть —
   право `feedback.view` (администратору всегда). Таблица создаётся и при первой
   оценке после обновления (`FeedbackStore::ensure()`).
+- **Оценки → кейсы проверки промптов shef.toolsai** (1.5.0, [docs/guide/08-feedback.md](docs/guide/08-feedback.md)):
+  разбирать — право `feedback.edit` (тянет `feedback.view`); «В наборе проверки» ставит
+  только выгрузка; кейс — задача `chat`, обезличен `Anonymizer`. Задачу `chat` в
+  `tools/prompt-eval.php` делает shef.toolsai, не мы. Новые колонки старой таблицы —
+  `TableInstaller::addColumns()` (createDbTable() их не добавит).
 - **Обновление без установщика** (`Main\Maintenance::ensureOnce()` в OnProlog):
   версия файлов (`FILES_version`) отстала — перекопировать свои каталоги installDir,
   таблицы, подписки, агент (`tests/maintenance_test.php`). Новый файл в install/ —
@@ -71,6 +80,16 @@
 - **Чат поверх слайдеров и из слайдера** (1.3.0): панель — в стопке
   `BX.ZIndexManager`; во фрейме (`IFRAME=Y`) `window.ShefAiChat` — посредник к
   верхнему окну (`chat.js`, `Frame`). Чат справки — `open({context: 'docs'})`.
+- **Панель не сдвигает страницу** (1.4.0): никакого `padding` у `body` — по полосе
+  мессенджера (`#right-bar`) Air-слайдер считает ширину и сжимался. Слой —
+  в `ZIndexManager` **без** `alwaysOnTop` (прятал попапы ядра); поднимаем
+  `bringToFront()` при открытии чата и слайдера, кроме слайдера из ссылки чата.
+- **Кнопка карточки CRM — не в меню-шестерёнке** (владелец, 1.4.0): отдельной
+  кнопкой Toolbar API из OnProlog. Меню `intranet.binding.menu` кешируется общим
+  на всех — право сотрудника там не проверить.
+- **Диалог ролей — слоем внутри панели**, не `ai.roles-dialog`: тот берёт роли
+  модуля ai (`ai.engine`), а окно `ui.entity-catalog` легло бы
+  над панелью. Вид повторяем по его CSS.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —

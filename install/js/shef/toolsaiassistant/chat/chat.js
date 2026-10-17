@@ -20,8 +20,18 @@
 	'use strict';
 
 	var NS = BX.namespace('BX.Shef.ToolsAiAssistant');
+	/** Вид переписки (view.js, 1.4.0); без него — не стартуем рисовать (подключён в config.php раньше chat.js). */
+	var View = {
+		role: function(roles, code) { return NS.ChatView ? NS.ChatView.role(roles, code) : null; },
+		welcome: function(role, options) { return NS.ChatView.welcome(role, options); },
+		message: function(message, roles) { return NS.ChatView.message(message, roles); }
+	};
 	var ACTION = 'shef:toolsaiassistant.chat.';
 	var HISTORY_KEEP = 40;
+	/** id кнопки вида «ИИ» (Panel\SidePanel::VIEW_BUTTON_ID): её клик — в onclick, здесь только метка «открыт». */
+	var VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
+	/** Карточки CRM: адрес /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). */
+	var DETAIL_TYPES = {lead: 1, deal: 2, contact: 3, company: 4, quote: 7};
 
 	function get(key) { try { return window.localStorage.getItem(key); } catch(e) { return null; } }
 	function put(key, value) { try { window.localStorage.setItem(key, value); } catch(e) {} }
@@ -80,6 +90,61 @@
 		return {entityTypeId: type, id: id, title: String(rec.title || ('Запись #' + id)).slice(0, 120)};
 	}
 
+	/**
+	 * Запись CRM по адресу карточки (1.4.0, кнопка «✦ Спросить ИИ» в шапке карточки):
+	 * /crm/deal/details/5/, /crm/lead|contact|company|quote/details/ID/,
+	 * /crm/type/<entityTypeId>/details/ID/ (смарт-процессы, счета). Новая
+	 * запись (ID 0) и чужие адреса — null.
+	 */
+	function recordFromPath(path)
+	{
+		var m = String(path || '').match(/^\/crm\/(?:type\/(\d+)|([a-z]+))\/details\/(\d+)\//);
+		if(!m) { return null; }
+		var type = m[1] ? parseInt(m[1], 10) : (DETAIL_TYPES[m[2]] || 0);
+		var id = parseInt(m[3], 10);
+		return type > 0 && id > 0 ? {entityTypeId: type, id: id} : null;
+	}
+
+	/** Запись карточки, открытой в этом окне (во фрейме слайдера — его адрес), с заголовком страницы. */
+	function currentRecord()
+	{
+		var record = recordFromPath(window.location && window.location.pathname);
+		if(record)
+		{
+			record.title = String(document.title || '').trim();
+		}
+		return record;
+	}
+
+	/**
+	 * Кнопка-иконка (1.4.0): штатная иконка ui.icon-set (набор outline) и
+	 * подсказка title / aria-label.
+	 */
+	function iconButton(className, icon, title)
+	{
+		var button = el('button', className);
+		button.type = 'button';
+		setIcon(button, icon, title);
+		return button;
+	}
+
+	function setIcon(button, icon, title)
+	{
+		BX.cleanNode(button);
+		button.appendChild(el('span', 'ui-icon-set --' + icon));
+		button.title = title;
+		button.setAttribute('aria-label', title);
+	}
+
+	/** Аватар роли: круг с иконкой ui.icon-set (как аватар CoPilot в мессенджере). */
+	function avatar(icon, className)
+	{
+		var box = el('span', className);
+		box.setAttribute('aria-hidden', 'true');
+		box.appendChild(el('span', 'ui-icon-set --' + icon));
+		return box;
+	}
+
 	function errorText(response, fallback)
 	{
 		var errors = response && response.errors;
@@ -98,6 +163,8 @@
 		requestId: 0,
 		/** Идущий поток ответа ({abort}) — обрываем при смене чата и очистке. */
 		pending: null,
+		/** До этого момента (мс) не поднимать панель над открывающимся слайдером: его открыли из чата. */
+		ownSliderUntil: 0,
 		/** Перерисовка по кускам потока — не чаще кадра. */
 		frame: 0,
 
@@ -114,6 +181,11 @@
 				return;
 			}
 			this.settings = settings;
+			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.4.0)
+			if(settings.fromFrame && BX.Runtime && BX.Runtime.loadExtension)
+			{
+				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.design-tokens']); } catch(e) {}
+			}
 			this.buildPanel();
 			this.bindButton();
 			this.watchSliders();
@@ -123,7 +195,9 @@
 				open: function(rec) { self.open(rec); },
 				close: function() { self.close(); },
 				toggle: function(rec) { self.isOpen() ? self.close() : self.open(rec); },
-				isOpen: function() { return self.isOpen(); }
+				isOpen: function() { return self.isOpen(); },
+				/** Чат по карточке CRM, открытой в этом окне (1.4.0): кнопка в шапке карточки. */
+				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } }
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { self.open(rec); });
@@ -134,18 +208,40 @@
 			}
 		},
 
-		clamp: function(width)
+		/** Отступ справа под полосу мессенджера портала (#right-bar шаблона), см. layout.js. */
+		inset: function()
 		{
+			var bar = document.getElementById('right-bar');
+			var rect = bar && bar.offsetWidth > 0 ? bar.getBoundingClientRect() : null;
+			return NS.ChatLayout ? NS.ChatLayout.inset(window.innerWidth, rect) : 0;
+		},
+
+		/**
+		 * Ширина и место панели (1.4.0): поверх страницы, страницу не сдвигаем —
+		 * иначе сдвигается и полоса мессенджера, а по ней слайдер считает свою
+		 * ширину (intranet/sidepanel/air, getRightBoundary()) и сжимался.
+		 */
+		applyLayout: function(width)
+		{
+			if(!this.panel)
+			{
+				return;
+			}
 			var s = this.settings;
-			width = parseInt(width, 10);
-			return isNaN(width) ? s.def : Math.max(s.min, Math.min(s.max, width));
+			var inset = this.inset();
+			var saved = width === undefined ? get('shef-ai-chat-w') : width;
+			var layout = NS.ChatLayout
+				? NS.ChatLayout.compute(window.innerWidth, inset, saved, {min: s.min, max: s.max})
+				: {width: s.def, right: 0, narrow: false};
+			this.panel.style.setProperty('--shef-aia-chat-w', layout.width + 'px');
+			this.panel.style.setProperty('--shef-aia-chat-r', layout.right + 'px');
+			this.panel.classList.toggle('--narrow', layout.narrow);
+			this.width = layout.width;
 		},
 
 		buildPanel: function()
 		{
 			var self = this;
-			var root = document.documentElement;
-			root.style.setProperty('--shef-aia-chat-w', this.clamp(get('shef-ai-chat-w')) + 'px');
 
 			var panel = el('div');
 			panel.id = 'shef-aia-chat';
@@ -160,25 +256,37 @@
 
 			var bar = el('div', 'shef-aia-bar');
 			bar.appendChild(el('span', 'shef-aia-bar-title', 'ИИ-помощник'));
-			this.clearButton = el('button', 'shef-aia-icon', '⟲');
-			this.clearButton.type = 'button';
-			this.clearButton.title = 'Очистить чат';
-			this.clearButton.setAttribute('aria-label', 'Очистить чат');
-			this.clearButton.addEventListener('click', function() { self.clear(); });
+			this.clearButton = iconButton('shef-aia-icon', 'o-trashcan', 'Очистить диалог');
+			this.clearButton.addEventListener('click', function() { self.askClear(true); });
 			bar.appendChild(this.clearButton);
-			var closeButton = el('button', 'shef-aia-icon', '✕');
-			closeButton.type = 'button';
-			closeButton.title = 'Закрыть';
-			closeButton.setAttribute('aria-label', 'Закрыть чат');
+			var closeButton = iconButton('shef-aia-icon', 'cross-m', 'Закрыть чат');
 			closeButton.addEventListener('click', function() { self.close(); });
 			bar.appendChild(closeButton);
 			panel.appendChild(bar);
 
-			var roleRow = el('label', 'shef-aia-role');
-			roleRow.appendChild(el('span', 'shef-aia-role-label', 'Роль:'));
-			this.roleSelect = el('select', 'shef-aia-role-select');
-			this.roleSelect.addEventListener('change', function() { self.chooseRole(self.roleSelect.value); });
-			roleRow.appendChild(this.roleSelect);
+			// Подтверждение очистки — в самой панели: всплывающее окно ядра легло бы под панель (она поверх всего)
+			var confirmRow = el('div', 'shef-aia-confirm');
+			confirmRow.setAttribute('role', 'alert');
+			confirmRow.appendChild(el('span', 'shef-aia-confirm-text', 'Очистить диалог? Переписка удалится из этого браузера.'));
+			var yes = el('button', 'ui-btn ui-btn-xs ui-btn-danger', 'Очистить');
+			yes.type = 'button';
+			yes.addEventListener('click', function() { self.askClear(false); self.clear(); });
+			var no = el('button', 'ui-btn ui-btn-xs ui-btn-light-border', 'Отмена');
+			no.type = 'button';
+			no.addEventListener('click', function() { self.askClear(false); });
+			confirmRow.appendChild(yes);
+			confirmRow.appendChild(no);
+			confirmRow.hidden = true;
+			this.confirmRow = confirmRow;
+			panel.appendChild(confirmRow);
+
+			// Роль — блок «<иконка> Роль ▸ Изменить роль», как у BitrixGPT (1.4.0); выбор — диалог ролей
+			var roleRow = el('div', 'shef-aia-role');
+			this.roleButton = el('button', 'shef-aia-role-btn');
+			this.roleButton.type = 'button';
+			this.roleButton.title = 'Изменить роль';
+			this.roleButton.addEventListener('click', function() { self.openRoles(); });
+			roleRow.appendChild(this.roleButton);
 			this.roleRow = roleRow;
 			panel.appendChild(roleRow);
 
@@ -199,7 +307,7 @@
 					self.send(self.input.value);
 				}
 			});
-			this.sendButton = el('button', 'ui-btn ui-btn-primary ui-btn-round shef-aia-send', 'Спросить');
+			this.sendButton = iconButton('shef-aia-send', 'arrow-top-m', 'Спросить (Enter)');
 			this.sendButton.type = 'submit';
 			form.addEventListener('submit', function(e) { e.preventDefault(); self.send(self.input.value); });
 			var row = el('div', 'shef-aia-row');
@@ -212,24 +320,34 @@
 
 			document.body.appendChild(panel);
 			this.panel = panel;
+			this.applyLayout();
 			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слои
-			// слайдеров: уже в документе — ядро само выставит слой (style.zIndex)
+			// слайдеров и попапов. Без alwaysOnTop (1.4.0): панель поднимаем
+			// bringToFront() при открытии чата и слайдера (raise()), а попапы ядра
+			// (MessageBox, меню, entity-selector) при показе сами делают
+			// bringToFront() (main/popup/src/popup/popup.js, show()) и встают выше.
 			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
 			{
 				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
 			}
+			var relayout = function() { self.applyLayout(); };
+			window.addEventListener('resize', relayout);
 
 			drag.addEventListener('mousedown', function(e)
 			{
 				e.preventDefault();
 				panel.classList.add('--drag');
-				function move(ev) { root.style.setProperty('--shef-aia-chat-w', self.clamp(window.innerWidth - ev.clientX) + 'px'); }
+				var inset = self.inset();
+				function move(ev)
+				{
+					self.applyLayout(NS.ChatLayout ? NS.ChatLayout.dragWidth(window.innerWidth, inset, ev.clientX) : self.width);
+				}
 				function up()
 				{
 					panel.classList.remove('--drag');
 					document.removeEventListener('mousemove', move);
 					document.removeEventListener('mouseup', up);
-					put('shef-ai-chat-w', String(self.clamp(parseInt(getComputedStyle(root).getPropertyValue('--shef-aia-chat-w'), 10))));
+					put('shef-ai-chat-w', String(self.width));
 				}
 				document.addEventListener('mousemove', move);
 				document.addEventListener('mouseup', up);
@@ -245,11 +363,13 @@
 		watchSliders: function()
 		{
 			var self = this;
-			var lift = function() { if(self.isOpen()) { self.raise(); } };
+			// Слайдер, открытый ссылкой из чата (статья справки), — над чатом: читать целиком (1.4.0)
+			var lift = function() { self.applyLayout(); if(self.isOpen() && Date.now() > self.ownSliderUntil) { self.raise(); } };
 			if(BX.Event && BX.Event.EventEmitter)
 			{
 				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpen', function() { setTimeout(lift, 0); });
 				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpenComplete', lift);
+				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onCloseComplete', lift);
 			}
 		},
 
@@ -297,9 +417,12 @@
 			{
 				this.input.value = record.question;
 			}
+			this.applyLayout();
 			this.panel.classList.add('--open');
 			this.raise();
+			// Только метка «открыт»: страницу не сдвигаем (1.4.0)
 			document.body.classList.add('shef-ai-chat-open');
+			this.markButtons(true);
 			put('shef-ai-chat-open', '1');
 			var input = this.input;
 			setTimeout(function() { input.focus({preventScroll: true}); }, 50);
@@ -309,7 +432,25 @@
 		{
 			this.panel.classList.remove('--open');
 			document.body.classList.remove('shef-ai-chat-open');
+			this.markButtons(false);
 			put('shef-ai-chat-open', '0');
+		},
+
+		/**
+		 * Состояние «открыт» на кнопках «✦ ИИ: чат» (1.4.0): штатный класс
+		 * ui-btn-active и aria-pressed. Кнопку не перестраиваем — только метка.
+		 */
+		markButtons: function(open)
+		{
+			[this.settings.button, VIEW_BUTTON_ID].forEach(function(id)
+			{
+				var button = id && document.getElementById(id);
+				if(button)
+				{
+					button.classList.toggle('ui-btn-active', open);
+					button.setAttribute('aria-pressed', open ? 'true' : 'false');
+				}
+			});
 		},
 
 		/** Другой чат: своя переписка, свои роли и вопросы с сервера. */
@@ -381,6 +522,12 @@
 			})));
 		},
 
+		/** Показать / спрятать подтверждение «Очистить диалог?». */
+		askClear: function(show)
+		{
+			this.confirmRow.hidden = !show;
+		},
+
 		clear: function()
 		{
 			this.requestId++;
@@ -404,6 +551,9 @@
 				{
 					self.info.role = response.data.role;
 					self.info.examples = response.data.examples || [];
+					// Недавние — как запомнил сервер (RolePrefs::touch)
+					var prefs = self.info.prefs || {recent: [], favorite: []};
+					self.info.prefs = {recent: [response.data.role].concat((prefs.recent || []).filter(function(c) { return c !== response.data.role; })).slice(0, 5), favorite: prefs.favorite || []};
 					self.render();
 				}, function(response)
 				{
@@ -419,7 +569,7 @@
 			if(!question || this.busy || !this.info || this.info.error) { return; }
 			this.input.value = '';
 			this.lastError = '';
-			this.messages.push({role: 'user', text: question});
+			this.messages.push({role: 'user', text: question, time: Date.now()});
 			this.saveMessages();
 			this.ask();
 		},
@@ -437,6 +587,7 @@
 			var stale = function() { return requestId !== self.requestId; };
 			this.stopStream();
 			this.busy = true;
+			this.startStatus();
 			this.render();
 			this.pending = NS.Stream.request(ACTION + 'stream', {
 				messages: this.messages.map(function(m) { return {role: m.role, text: m.text}; }),
@@ -446,14 +597,16 @@
 				onStart: function(event)
 				{
 					if(stale()) { return; }
-					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true};
+					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true, time: Date.now()};
 					self.messages.push(message);
+					self.stepStatus('start');
 					self.scheduleRender();
 				},
 				onDelta: function(text)
 				{
 					if(stale() || !message) { return; }
 					message.text += text;
+					self.stepStatus('delta');
 					self.scheduleRender();
 				},
 				onFinish: function(event)
@@ -461,6 +614,7 @@
 					if(stale() || !message) { return; }
 					self.pending = null;
 					self.busy = false;
+					self.stepStatus('finish');
 					delete message.streaming;
 					message.cut = event.finishReason === 'length';
 					self.saveMessages();
@@ -471,6 +625,7 @@
 					if(stale()) { return; }
 					self.pending = null;
 					self.busy = false;
+					self.stepStatus('error');
 					if(message)
 					{
 						self.messages = self.messages.filter(function(m) { return m !== message; });
@@ -481,8 +636,39 @@
 			});
 		},
 
+		/**
+		 * Этапы ожидания (status.js, 1.4.0): история записи → база знаний →
+		 * «Думаю…» (start потока) → печать (первый кусок).
+		 */
+		startStatus: function()
+		{
+			var self = this;
+			var S = NS.ChatStatus;
+			this.stopStatusTimer();
+			this.status = S ? S.initial({record: !!(this.record && !this.record.docs), kb: !!(this.info && this.info.kb)}) : null;
+			if(S)
+			{
+				this.statusTimer = setInterval(function() { self.stepStatus('tick'); }, S.TICK);
+			}
+		},
+
+		stepStatus: function(event)
+		{
+			if(!this.status || !NS.ChatStatus) { return; }
+			var before = NS.ChatStatus.label(this.status);
+			this.status = NS.ChatStatus.next(this.status, event);
+			if(this.status.phase !== 'wait') { this.stopStatusTimer(); }
+			if(event === 'tick' && NS.ChatStatus.label(this.status) !== before) { this.scheduleRender(); }
+		},
+
+		stopStatusTimer: function()
+		{
+			if(this.statusTimer) { clearInterval(this.statusTimer); this.statusTimer = 0; }
+		},
+
 		stopStream: function()
 		{
+			this.stopStatusTimer();
 			if(this.pending)
 			{
 				this.pending.abort();
@@ -556,7 +742,9 @@
 			try { url = new URL(link.getAttribute('href'), window.location.href); } catch(err) { return; }
 			if(url.origin === window.location.origin && BX.SidePanel && BX.SidePanel.Instance)
 			{
-				BX.SidePanel.Instance.open(url.href, {cacheable: false});
+				// Не поднимать чат над этим слайдером: он открыт из чата (события onOpen/onOpenComplete — в ближайшие секунды)
+				this.ownSliderUntil = Date.now() + 3000;
+				BX.SidePanel.Instance.open(url.href, NS.ChatView ? NS.ChatView.linkOptions(url.pathname) : {cacheable: false});
 			}
 			else
 			{
@@ -569,9 +757,135 @@
 			if(!navigator.clipboard) { return; }
 			navigator.clipboard.writeText(text).then(function()
 			{
-				button.textContent = 'Скопировано';
-				setTimeout(function() { button.textContent = 'Копировать'; }, 1500);
+				setIcon(button, 'check-m', 'Скопировано');
+				setTimeout(function() { setIcon(button, 'o-copy', 'Копировать ответ'); }, 1500);
 			}, function() {});
+		},
+
+		/** Блок роли в шапке: «<иконка> Роль ▸ Изменить роль». */
+		renderRoleButton: function(role)
+		{
+			var button = this.roleButton;
+			BX.cleanNode(button);
+			button.appendChild(avatar(NS.ChatView ? NS.ChatView.iconOf(role) : 'o-copilot', 'shef-aia-avatar --sm'));
+			var text = el('span', 'shef-aia-role-text');
+			text.appendChild(el('span', 'shef-aia-role-name', role ? role.title : 'Роль'));
+			text.appendChild(el('span', 'shef-aia-role-change', 'Изменить роль'));
+			button.appendChild(text);
+			button.appendChild(el('span', 'ui-icon-set --chevron-right-m shef-aia-role-chevron'));
+		},
+
+		/**
+		 * Диалог «Выбрать роль» (1.4.0) — слоем внутри панели: штатный
+		 * ai.roles-dialog берёт роли модуля ai (ai.engine), а не наши, а окно
+		 * ui.entity-catalog оказалось бы над панелью и закрыло её на узком экране. Вид — как у
+		 * ai.roles-dialog: поиск и ×, категории слева, роли справа, звёздочка.
+		 */
+		openRoles: function()
+		{
+			var self = this;
+			if(!this.info || !this.info.roles || !this.info.roles.length || this.busy) { return; }
+			var M = NS.RoleDialogModel;
+			if(!M) { return; }
+			if(!this.rolesLayer)
+			{
+				var layer = el('div', 'shef-aia-roles');
+				layer.setAttribute('role', 'dialog');
+				layer.setAttribute('aria-label', 'Выбрать роль');
+				var head = el('div', 'shef-aia-roles-head');
+				head.appendChild(el('span', 'shef-aia-roles-title', 'Выбрать роль'));
+				this.rolesSearch = el('input', 'shef-aia-roles-search');
+				this.rolesSearch.type = 'search';
+				this.rolesSearch.placeholder = 'Поиск роли';
+				this.rolesSearch.setAttribute('aria-label', 'Поиск роли');
+				this.rolesSearch.addEventListener('input', function() { self.rolesUi.query = self.rolesSearch.value; self.renderRoles(); });
+				head.appendChild(this.rolesSearch);
+				var close = iconButton('shef-aia-icon', 'cross-m', 'Закрыть');
+				close.addEventListener('click', function() { self.closeRoles(); });
+				head.appendChild(close);
+				layer.appendChild(head);
+				var body = el('div', 'shef-aia-roles-body');
+				this.rolesNav = el('div', 'shef-aia-roles-nav');
+				this.rolesList = el('div', 'shef-aia-roles-list');
+				body.appendChild(this.rolesNav);
+				body.appendChild(this.rolesList);
+				layer.appendChild(body);
+				layer.addEventListener('keydown', function(e) { if(e.key === 'Escape') { self.closeRoles(); } });
+				this.panel.appendChild(layer);
+				this.rolesLayer = layer;
+			}
+			this.rolesUi = {category: M.defaultCategory(this.info.roles, this.info.prefs), query: ''};
+			this.rolesSearch.value = '';
+			this.rolesLayer.hidden = false;
+			this.renderRoles();
+			this.rolesSearch.focus({preventScroll: true});
+		},
+
+		closeRoles: function()
+		{
+			if(this.rolesLayer) { this.rolesLayer.hidden = true; }
+		},
+
+		renderRoles: function()
+		{
+			var self = this;
+			var M = NS.RoleDialogModel;
+			var roles = this.info.roles;
+			var prefs = this.info.prefs || {recent: [], favorite: []};
+			var ui = this.rolesUi;
+			BX.cleanNode(this.rolesNav);
+			M.categories(roles, prefs).forEach(function(cat)
+			{
+				var item = el('button', 'shef-aia-roles-cat' + (cat.id === ui.category && !ui.query ? ' --active' : ''));
+				item.type = 'button';
+				item.appendChild(el('span', 'ui-icon-set --' + cat.icon));
+				item.appendChild(el('span', 'shef-aia-roles-cat-title', cat.title));
+				item.appendChild(el('span', 'shef-aia-roles-cat-count', String(cat.count)));
+				item.addEventListener('click', function() { ui.category = cat.id; ui.query = ''; self.rolesSearch.value = ''; self.renderRoles(); });
+				self.rolesNav.appendChild(item);
+			});
+			BX.cleanNode(this.rolesList);
+			var items = M.items(roles, prefs, ui.category, ui.query, this.info.role);
+			if(!items.length)
+			{
+				this.rolesList.appendChild(el('p', 'shef-aia-roles-empty', M.empty(ui.category, ui.query)));
+				return;
+			}
+			items.forEach(function(item)
+			{
+				var row = el('div', 'shef-aia-roles-item' + (item.selected ? ' --selected' : ''));
+				var pick = el('button', 'shef-aia-roles-pick');
+				pick.type = 'button';
+				pick.setAttribute('aria-pressed', item.selected ? 'true' : 'false');
+				pick.appendChild(avatar(item.icon, 'shef-aia-avatar'));
+				var text = el('span', 'shef-aia-roles-item-text');
+				text.appendChild(el('span', 'shef-aia-roles-item-title', item.title));
+				if(item.description) { text.appendChild(el('span', 'shef-aia-roles-item-desc', item.description)); }
+				pick.appendChild(text);
+				pick.addEventListener('click', function() { self.closeRoles(); self.chooseRole(item.code); });
+				row.appendChild(pick);
+				var star = iconButton('shef-aia-tool shef-aia-star' + (item.favorite ? ' --active' : ''), 'o-favorite', item.favorite ? 'Убрать из избранного' : 'В избранное');
+				star.setAttribute('aria-pressed', item.favorite ? 'true' : 'false');
+				star.addEventListener('click', function() { self.toggleFavorite(item.code, !item.favorite); });
+				row.appendChild(star);
+				self.rolesList.appendChild(row);
+			});
+		},
+
+		/** Звёздочка: сразу в окне, потом сервер (право роли — на сервере, CUserOptions). */
+		toggleFavorite: function(code, on)
+		{
+			var self = this;
+			var prefs = this.info.prefs || {recent: [], favorite: []};
+			var favorite = prefs.favorite.filter(function(c) { return c !== code; });
+			if(on) { favorite.push(code); }
+			this.info.prefs = {recent: prefs.recent || [], favorite: favorite};
+			this.renderRoles();
+			BX.ajax.runAction(ACTION + 'favorite', {data: {role: code, on: on ? 'Y' : 'N'}})
+				.then(function(response)
+				{
+					if(self.info && response.data && response.data.prefs) { self.info.prefs = response.data.prefs; if(self.rolesLayer && !self.rolesLayer.hidden) { self.renderRoles(); } }
+				}, function() {});
 		},
 
 		render: function()
@@ -581,26 +895,19 @@
 			var md = NS.Markdown;
 
 			// Роли: только открытые сотруднику (сервер прислал уже отфильтрованные)
-			BX.cleanNode(this.roleSelect);
 			var roles = info && info.roles ? info.roles : [];
-			roles.forEach(function(role)
-			{
-				var option = el('option', '', role.title);
-				option.value = role.code;
-				option.title = role.description || '';
-				option.selected = info.role === role.code;
-				self.roleSelect.appendChild(option);
-			});
+			var current = View.role(roles, info && info.role);
+			this.renderRoleButton(current);
 			this.roleRow.style.display = roles.length ? '' : 'none';
-			this.roleSelect.disabled = this.busy;
+			this.roleButton.disabled = this.busy;
 			this.clearButton.style.visibility = this.messages.length ? 'visible' : 'hidden';
+			if(!this.messages.length) { this.askClear(false); }
 			this.disclaimer.textContent = 'Ответы ' + (info && info.model ? info.model : 'ИИ') + ' могут быть неточны, проверяйте важную информацию.';
 
 			var box = this.scroller;
 			BX.cleanNode(box);
 
 			var welcome = el('div', 'shef-aia-welcome');
-			welcome.appendChild(el('h2', 'shef-aia-welcome-title', this.record ? this.record.title : 'ИИ-помощник'));
 			if(!info)
 			{
 				welcome.appendChild(el('p', '', 'Загружаю…'));
@@ -615,34 +922,62 @@
 			}
 			else
 			{
-				welcome.appendChild(el('p', '', this.record && !this.record.docs
-					? 'Отвечает по истории этой записи: звонки, письма, чаты, дела, комментарии' + (info.kb ? ', и по статьям базы знаний.' : '.') + ' Например:'
-					: 'Общий чат: откройте «✦ Спросить ИИ» в строке записи, чтобы помощник ответил по её истории.' + (info.kb ? ' Статьи базы знаний — подбираются под вопрос.' : '') + ' Например:'));
-				var list = el('ul', 'shef-aia-examples');
-				(info.examples || []).forEach(function(question)
-				{
-					var item = el('li');
-					var button = el('button', 'shef-aia-example', '«' + question + '»');
-					button.type = 'button';
-					button.addEventListener('click', function() { self.send(question); });
-					item.appendChild(button);
-					list.appendChild(item);
+				// Приветственная карточка роли — как у BitrixGPT в мессенджере
+				var card = View.welcome(current, {
+					record: this.record && !this.record.docs ? this.record.title : '',
+					docs: !!(this.record && this.record.docs),
+					kb: !!info.kb,
+					examples: info.examples || []
 				});
-				welcome.appendChild(list);
+				var head = el('div', 'shef-aia-welcome-head');
+				head.appendChild(avatar(card.icon, 'shef-aia-avatar --lg'));
+				var titles = el('div', 'shef-aia-welcome-titles');
+				titles.appendChild(el('h2', 'shef-aia-welcome-title', card.title));
+				titles.appendChild(el('p', 'shef-aia-welcome-text', card.text));
+				head.appendChild(titles);
+				welcome.appendChild(head);
+				welcome.appendChild(el('p', 'shef-aia-welcome-scope', card.scope));
+				if(card.examples.length)
+				{
+					var list = el('div', 'shef-aia-examples');
+					card.examples.forEach(function(question)
+					{
+						var button = el('button', 'shef-aia-example', question);
+						button.type = 'button';
+						button.addEventListener('click', function() { self.send(question); });
+						list.appendChild(button);
+					});
+					welcome.appendChild(list);
+				}
 			}
 			box.appendChild(welcome);
 
 			this.messages.forEach(function(message, index)
 			{
+				var view = View.message(message, roles);
 				if(message.role === 'user')
 				{
-					box.appendChild(el('div', 'shef-aia-msg shef-aia-msg-user', message.text));
+					var mine = el('div', 'shef-aia-msg shef-aia-msg-user');
+					var bubble = el('div', 'shef-aia-bubble --mine');
+					bubble.innerHTML = view.html; // экранировано (view.js)
+					if(view.time) { bubble.appendChild(el('span', 'shef-aia-time', view.time)); }
+					mine.appendChild(bubble);
+					box.appendChild(mine);
 					return;
 				}
 				var answer = el('div', 'shef-aia-msg shef-aia-msg-assistant');
-				var body = el('div', 'shef-aia-md');
-				body.innerHTML = md ? md.render(message.text) : BX.util.htmlspecialchars(message.text);
-				answer.appendChild(body);
+				answer.appendChild(avatar(view.icon, 'shef-aia-avatar'));
+				var column = el('div', 'shef-aia-msg-column');
+				var author = el('div', 'shef-aia-author');
+				author.appendChild(el('span', 'shef-aia-author-name', view.author));
+				if(view.time) { author.appendChild(el('span', 'shef-aia-time', view.time)); }
+				column.appendChild(author);
+				var body = el('div', 'shef-aia-bubble shef-aia-md');
+				body.innerHTML = view.html; // Markdown.render экранирует весь ответ
+				column.appendChild(body);
+				answer.appendChild(column);
+				var row = answer;
+				answer = column;
 				if(message.cut)
 				{
 					answer.appendChild(el('p', 'shef-aia-cut', 'Ответ обрезан: модель упёрлась в лимит длины. Задайте вопрос уже или попросите продолжить.'));
@@ -674,18 +1009,17 @@
 				}
 				if(message.streaming)
 				{
-					box.appendChild(answer);
+					// Пока модель молчит — не пустой пузырь, а индикатор ниже
+					if(message.text !== '') { box.appendChild(row); }
 					return;
 				}
 				var tools = el('div', 'shef-aia-tools');
-				var copy = el('button', 'shef-aia-tool', 'Копировать');
-				copy.type = 'button';
+				var copy = iconButton('shef-aia-tool', 'o-copy', 'Копировать ответ');
 				copy.addEventListener('click', function() { self.copy(message.text, copy); });
 				tools.appendChild(copy);
 				if(index === self.messages.length - 1)
 				{
-					var again = el('button', 'shef-aia-tool', 'Ответить заново');
-					again.type = 'button';
+					var again = iconButton('shef-aia-tool', 'o-refresh', 'Ответить заново');
 					again.addEventListener('click', function() { self.retry(); });
 					tools.appendChild(again);
 				}
@@ -699,13 +1033,17 @@
 				{
 					answer.appendChild(el('p', 'shef-aia-error', message.rateError));
 				}
-				box.appendChild(answer);
+				box.appendChild(row);
 			});
 
-			var last = this.messages[this.messages.length - 1];
-			if(this.busy && !(last && last.streaming))
+			var waiting = this.busy ? (this.status && NS.ChatStatus ? NS.ChatStatus.label(this.status) : 'Думаю…') : '';
+			if(waiting)
 			{
-				box.appendChild(el('div', 'shef-aia-thinking', '✦ Думаю…'));
+				var thinking = el('div', 'shef-aia-thinking');
+				thinking.setAttribute('role', 'status');
+				thinking.appendChild(el('span', 'shef-aia-thinking-star', '✦'));
+				thinking.appendChild(el('span', 'shef-aia-thinking-text', waiting));
+				box.appendChild(thinking);
 			}
 			if(this.lastError && !this.busy)
 			{
@@ -726,30 +1064,31 @@
 		}
 	};
 
-	/** Кнопки оценки под ответом: «Полезно», «Не помогло»; после — «Спасибо». */
+	/**
+	 * Оценка под ответом (1.4.0) — иконки «полезно» / «не помогло» с
+	 * состоянием: выбранная подсвечена (aria-pressed), после оценки обе
+	 * неактивны, подсказка — «Спасибо за оценку».
+	 */
 	Chat.renderRating = function(tools, message, index)
 	{
 		var self = this;
-		if(message.rated)
+		var chosen = message.rated || (message.askComment ? 'down' : '');
+		var make = function(code, icon, title, onClick)
 		{
-			tools.appendChild(el('span', 'shef-aia-rated', message.rated === 'up' ? '👍 Спасибо за оценку' : '👎 Спасибо — учтём'));
-			return;
-		}
-		var up = el('button', 'shef-aia-tool', '👍 Полезно');
-		up.type = 'button';
-		up.disabled = !!message.rating;
-		up.addEventListener('click', function() { self.rate(index, 'up', ''); });
-		var down = el('button', 'shef-aia-tool', '👎 Не помогло');
-		down.type = 'button';
-		down.disabled = !!message.rating;
-		down.addEventListener('click', function()
+			var pressed = chosen === code;
+			var button = iconButton('shef-aia-tool' + (pressed ? ' --active' : ''), icon, message.rated && pressed ? 'Спасибо за оценку' : title);
+			button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+			button.disabled = !!message.rated || !!message.rating;
+			button.addEventListener('click', onClick);
+			tools.appendChild(button);
+		};
+		make('up', 'o-like', 'Полезно', function() { self.rate(index, 'up', ''); });
+		make('down', 'o-dislike', 'Не помогло — напишите, что не так', function()
 		{
 			delete message.rateError;
-			message.askComment = true;
+			message.askComment = !message.askComment;
 			self.render();
 		});
-		tools.appendChild(up);
-		tools.appendChild(down);
 	};
 
 	/** «Не помогло»: что не так — по желанию, потом «Отправить». */
@@ -791,7 +1130,9 @@
 				open: api('open'),
 				close: api('close'),
 				toggle: api('toggle'),
-				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); }
+				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); },
+				// Адрес карточки — этого фрейма, открываем в верхнем окне
+				openCurrent: function() { var rec = currentRecord(); if(rec) { window.ShefAiChat.open(rec); } }
 			};
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { window.ShefAiChat.open(rec); });
 			this.installStub();
@@ -867,6 +1208,8 @@
 		/** Для тестов: посредник фрейма (Frame.init(settings, topWindow)). */
 		Frame: Frame,
 		/** Для тестов: что откроет window.ShefAiChat.open() (запись CRM или справка). */
-		normalizeRecord: normalizeRecord
+		normalizeRecord: normalizeRecord,
+		/** Для тестов: запись CRM по адресу карточки (1.4.0). */
+		recordFromPath: recordFromPath
 	};
 })();

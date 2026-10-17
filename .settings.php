@@ -82,7 +82,7 @@ return [
 					'sort' => 100,
 				],
 			],
-			// Пункты в меню шестерёнки вида «ИИ» shef.toolsai: настройки и оценки (1.53.0+, 1.3.2)
+			// Пункты в меню шестерёнки вида «ИИ» shef.toolsai: настройки и оценки (1.53.0+, 1.5.1)
 			[
 				'isCompatible' => false,
 				'from' => ['module' => 'shef.toolsai', 'event' => 'OnViewSettingsMenuBuild'],

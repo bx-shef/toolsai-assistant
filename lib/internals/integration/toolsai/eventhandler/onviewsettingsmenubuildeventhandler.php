@@ -8,7 +8,7 @@ use Shef\ToolsAiAssistant\Access\UserAccess;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Обработчик shef.toolsai:OnViewSettingsMenuBuild (1.53.0, у нас 1.3.2) —
+ * Обработчик shef.toolsai:OnViewSettingsMenuBuild (1.53.0, у нас 1.5.1) —
  * пункты в меню шестерёнки вида «ИИ»: «ИИ чат с ролями: настройки» (право
  * на модуль от R, как у options.php) и «Оценки ответов» (право feedback.view).
  *
@@ -19,21 +19,33 @@ use Shef\ToolsAiAssistant\Main\Constants;
  */
 final class OnViewSettingsMenuBuildEventHandler
 {
-	public const SETTINGS_URL = '/bitrix/admin/settings.php?mid='.Constants::MODULE_ID.'&lang=ru';
-
 	public static function handle(Event $event): EventResult
 	{
+		// Право на модуль и право на оценки — порознь: сбой одного не прячет другой пункт
 		try
 		{
 			$right = (string)($GLOBALS['APPLICATION'] ?? null)?->GetGroupRight(Constants::MODULE_ID);
-			$items = static::items($right, UserAccess::current()->canViewFeedback());
 		}
 		catch(\Throwable)
 		{
-			$items = [];
+			$right = 'D';
+		}
+		try
+		{
+			$canViewFeedback = UserAccess::current()->canViewFeedback();
+		}
+		catch(\Throwable)
+		{
+			$canViewFeedback = false;
 		}
 
-		return new EventResult(EventResult::SUCCESS, ['items' => $items], Constants::MODULE_ID);
+		return new EventResult(EventResult::SUCCESS, ['items' => static::items($right, $canViewFeedback)], Constants::MODULE_ID);
+	}
+
+	/** Страница настроек модуля на языке страницы (LANGUAGE_ID). */
+	public static function settingsUrl(): string
+	{
+		return '/bitrix/admin/settings.php?mid='.Constants::MODULE_ID.'&lang='.(defined('LANGUAGE_ID') ? LANGUAGE_ID : 'ru');
 	}
 
 	/**
@@ -47,7 +59,7 @@ final class OnViewSettingsMenuBuildEventHandler
 		$items = [];
 		if($moduleRight >= 'R')
 		{
-			$items[] = ['text' => 'ИИ чат с ролями: настройки', 'url' => self::SETTINGS_URL];
+			$items[] = ['text' => 'ИИ чат с ролями: настройки', 'url' => static::settingsUrl()];
 		}
 		if($canViewFeedback)
 		{

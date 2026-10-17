@@ -51,19 +51,56 @@ class Chat extends Controller
 			'answer' => ['prefilters' => [...$filters, new ActionFilter\CloseSession()]],
 			'stream' => ['prefilters' => [...$filters, new ActionFilter\CloseSession()]],
 			'rate' => ['prefilters' => $filters],
+			'favorite' => ['prefilters' => $filters],
 		];
 	}
 
 	/** Что показать в окне. $record — {entityTypeId, id} или пусто. */
 	public function infoAction(array $record = [], string $context = ''): ?array
 	{
-		return $this->guarded(fn(): array => Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context)));
+		return $this->guarded(fn(): array => static::withPrefs(Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context)), $this->userId()));
+	}
+
+	/**
+	 * Звёздочка роли в диалоге «Выбрать роль» (1.4.0): избранное сотрудника.
+	 * Ответ — {prefs} только по открытым ролям.
+	 */
+	public function favoriteAction(string $role = '', string $on = 'Y'): ?array
+	{
+		return $this->guarded(function() use ($role, $on): array
+		{
+			$info = Container::getAnswerService()->info(UserAccess::current(), $this->userId(), null);
+			$codes = array_column($info['roles'], 'code');
+			if(!in_array($role, $codes, true))
+			{
+				throw new \Shef\ToolsAiAssistant\Chat\ChatException('Эта роль вам не открыта', 'role');
+			}
+			$prefs = \Shef\ToolsAiAssistant\Chat\RolePrefs::favorite(\Shef\ToolsAiAssistant\Chat\RolePrefsStore::load($this->userId()), $role, $on === 'Y');
+			\Shef\ToolsAiAssistant\Chat\RolePrefsStore::save($this->userId(), $prefs);
+
+			return ['prefs' => \Shef\ToolsAiAssistant\Chat\RolePrefs::filter($prefs, $codes)];
+		});
+	}
+
+	/** Недавние и избранные роли — к ответу info, только открытые (1.4.0). */
+	private static function withPrefs(array $info, int $userId): array
+	{
+		$info['prefs'] = \Shef\ToolsAiAssistant\Chat\RolePrefs::filter(\Shef\ToolsAiAssistant\Chat\RolePrefsStore::load($userId), array_column($info['roles'] ?? [], 'code'));
+
+		return $info;
 	}
 
 	/** Сменить роль в этом чате. */
 	public function roleAction(string $role = '', array $record = [], string $context = ''): ?array
 	{
-		return $this->guarded(fn(): array => Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role, ChatKey::context($context)));
+		return $this->guarded(function() use ($role, $record, $context): array
+		{
+			$result = Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role, ChatKey::context($context));
+			// Право проверено — в недавние (1.4.0)
+			\Shef\ToolsAiAssistant\Chat\RolePrefsStore::save($this->userId(), \Shef\ToolsAiAssistant\Chat\RolePrefs::touch(\Shef\ToolsAiAssistant\Chat\RolePrefsStore::load($this->userId()), (string)$result['role']));
+
+			return $result;
+		});
 	}
 
 	/**
