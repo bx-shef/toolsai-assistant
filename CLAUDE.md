@@ -21,6 +21,8 @@
   этого репозитория; не хватает API — пишем требование туда же.
 - `shef.toolsaikb` — **мягко**: `Loader::includeModule` + `class_exists`
   (`Chat\Gateway\KbSource`). Нет модуля — чат отвечает без статей.
+- `shef.toolsaieval` — **мягко** (1.12.0, `Chat\Gateway\ToolsAiEvalGateway`): оценки — в
+  общий журнал отзывов; нет модуля — в свою таблицу.
 - `shef.toolsai` про этот модуль не знает. Связь — событием
   `shef.toolsai:OnPromptRegistryBuild` (роли) и JS-глобалом `window.ShefAiChat`.
 
@@ -43,6 +45,7 @@
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate/favorite/greet`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
 | оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`); с 1.5.0 — грид и фильтр (`GridFilter`), сводка по ролям (`RoleSummary`), статус и «что должно было быть» (`Review`), кейсы проверки (`EvalCase`, `Anonymizer`), контроллер `lib/controller/feedback.php`, окно — `install/js/shef/toolsaiassistant/feedback/` |
+| общий журнал отзывов shef.toolsaieval (1.12.0): куда пишется оценка, перенос старых | `lib/feedback/feedbackrouter.php`, `evalmigration.php`, `evalbridge.php`, шлюз `lib/chat/gateway/toolsaievalgateway.php`, вид — `lib/internals/integration/toolsaieval/eventhandler/` |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |

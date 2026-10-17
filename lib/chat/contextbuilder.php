@@ -63,7 +63,9 @@ final class ContextBuilder
 	/**
 	 * Ответ сервиса поиска shef.toolsaikb — в проверенный вид. Адрес — только
 	 * путь своего портала («/…», не «//…»): ссылка уйдёт в окно чата, и
-	 * javascript: или чужой сайт там не нужны.
+	 * javascript: или чужой сайт там не нужны. Текст статьи для модели — поле
+	 * `text` (shef.toolsaikb 1.3.0: лучшие фрагменты статьи под вопрос), нет его —
+	 * `snippet` (до 1.3.0 — сниппет поиска, 300 символов).
 	 *
 	 * @return list<array{id: string, title: string, url: string, snippet: string}>
 	 */
@@ -86,7 +88,7 @@ final class ContextBuilder
 				'id' => mb_substr(is_scalar($item['id'] ?? null) ? (string)$item['id'] : '', 0, 64),
 				'title' => mb_substr($title, 0, 200),
 				'url' => static::isLocalUrl($url) ? $url : '',
-				'snippet' => mb_substr(trim(is_string($item['snippet'] ?? null) ? $item['snippet'] : ''), 0, self::SNIPPET_MAX),
+				'snippet' => mb_substr(trim(is_string($item['text'] ?? null) && trim($item['text']) !== '' ? $item['text'] : (is_string($item['snippet'] ?? null) ? $item['snippet'] : '')), 0, self::SNIPPET_MAX),
 			];
 			if(count($out) >= $limit)
 			{

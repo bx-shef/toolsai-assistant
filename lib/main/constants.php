@@ -17,6 +17,13 @@ final class Constants
 	/** Публичный сервис поиска статей shef.toolsaikb (контракт линейки). */
 	public const KB_SEARCH_CLASS = '\\Shef\\ToolsAiKb\\Public\\Service\\KbSearchService';
 
+	/** Мягкая зависимость (1.12.0): единый журнал отзывов линейки. */
+	public const EVAL_MODULE_ID = 'shef.toolsaieval';
+	/** Публичный сервис отзывов shef.toolsaieval (контракт линейки). */
+	public const EVAL_SERVICE_CLASS = '\\Shef\\ToolsAiEval\\Public\\Service\\FeedbackService';
+	/** Вид отзыва чата в общем журнале: «shef.toolsaiassistant:chat», задача проверки chat. */
+	public const EVAL_KIND = 'chat';
+
 	/** Страница «Права доступа» (публичная часть, install/public). */
 	public const RIGHTS_URL = '/shef/toolsaiassistant/rights/';
 	/** Страница «Оценки ответов» (1.1.0, Feedback\FeedbackPage). */

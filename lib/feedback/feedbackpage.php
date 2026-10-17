@@ -48,6 +48,7 @@ final class FeedbackPage
 		}
 		try
 		{
+			echo static::evalNotice();
 			static::output($rights);
 		}
 		catch(\Throwable $throwable)
@@ -55,6 +56,58 @@ final class FeedbackPage
 			Container::getLogger(self::class)?->error($throwable);
 			echo static::alert('Не удалось прочитать оценки — подробности в журнале модуля.');
 		}
+	}
+
+	/**
+	 * Есть shef.toolsaieval (1.12.0): новые оценки пишутся туда, старые
+	 * переносятся (EvalMigration); здесь — история своей таблицы и ссылка на
+	 * общий журнал. Нет модуля — пусто, страница как раньше.
+	 */
+	private static function evalNotice(): string
+	{
+		$eval = new \Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway();
+		if(!$eval->isAvailable())
+		{
+			return '';
+		}
+		try
+		{
+			EvalMigration::run($eval, null, 1);
+			$left = EvalMigration::left();
+		}
+		catch(\Throwable $throwable)
+		{
+			Container::getLogger(self::class)?->error($throwable);
+			$left = -1;
+		}
+
+		return static::noticeHtml(static::evalUrl(), $left);
+	}
+
+	/** Адрес страницы отзывов shef.toolsaieval. */
+	private static function evalUrl(): string
+	{
+		$class = \Shef\ToolsAiAssistant\Main\Constants::EVAL_SERVICE_CLASS;
+
+		return method_exists($class, 'pageUrl') ? (string)$class::pageUrl() : '/shef/toolsaieval/feedback/';
+	}
+
+	/**
+	 * Подсказка о переходе на общий журнал. Чистая часть.
+	 *
+	 * @param int $left сколько оценок ещё не перенесено; -1 — перенос не удался
+	 */
+	public static function noticeHtml(string $url, int $left): string
+	{
+		$h = static fn(mixed $v): string => htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+		$state = match(true) {
+			$left < 0 => ' Перенос старых оценок не удался — подробности в журнале модуля, агент повторит.',
+			$left > 0 => ' Старые оценки переносятся туда частями, осталось: '.$left.'.',
+			default => ' Старые оценки перенесены туда же.',
+		};
+		$link = str_starts_with($url, '/') && !str_starts_with($url, '//') ? '<a href="'.$h($url).'">общем журнале отзывов</a>' : 'общем журнале отзывов';
+
+		return '<div class="ui-alert ui-alert-primary"><span class="ui-alert-message">Новые оценки и их разбор — в '.$link.' (shef.toolsaieval).'.$h($state).' Ниже — история оценок этого модуля.</span></div>';
 	}
 
 	/** Фильтр, сводка, грид и данные окна оценки. */

@@ -82,14 +82,32 @@ final class FeedbackStore implements FeedbackStoreInterface
 	}
 
 	/**
-	 * Агент: удалить оценки старше срока хранения (настройка
+	 * Агент: перенести новые оценки в shef.toolsaieval, если он есть (1.12.0,
+	 * EvalMigration), и удалить оценки старше срока хранения (настройка
 	 * CHAT_feedbackdays, по умолчанию 90 дней) — в оценках фрагменты CRM.
 	 */
 	public static function cleanAgent(): string
 	{
+		$pending = false;
 		try
 		{
-			static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
+			// Сначала перенос в общий журнал (1.12.0): до удаления по сроку
+			$eval = new \Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway();
+			EvalMigration::run($eval);
+			$pending = $eval->isAvailable() && EvalMigration::left() > 0;
+		}
+		catch(\Throwable $throwable)
+		{
+			\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->error($throwable);
+			$pending = true;
+		}
+		try
+		{
+			// Перенос не закончен — не удалять: непереносённое старше срока пропало бы
+			if(!$pending)
+			{
+				static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
+			}
 		}
 		catch(\Throwable $throwable)
 		{
@@ -263,6 +281,18 @@ final class FeedbackStore implements FeedbackStoreInterface
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Оценки с ID больше $lastId по возрастанию — перенос в shef.toolsaieval (1.12.0).
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function after(int $lastId, int $limit): array
+	{
+		static::ensure();
+
+		return FeedbackTable::getList(['select' => self::SELECT, 'filter' => ['>ID' => $lastId], 'order' => ['ID' => 'ASC'], 'limit' => $limit])->fetchAll();
 	}
 
 	/** Даты фильтра — строками Y-m-d H:i:s — в DateTime ядра. */
