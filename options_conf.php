@@ -29,7 +29,7 @@ $options->addTab(
 		->setTitle(Loc::getMessage($options->moduleId.'_TAB_PANEL_TITLE'))
 		->addOption(
 			(new Options\RowInfo('RIGHTS'))
-				->setDescription(Loc::getMessage($options->moduleId.'_TAB_PANEL_RIGHTS', ['#URL#' => Constants::RIGHTS_URL]))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_PANEL_RIGHTS', ['#URL#' => Constants::RIGHTS_URL, '#FEEDBACK_URL#' => Constants::FEEDBACK_URL]))
 				->setType(Options\TypeUIAlert::Note)
 		)
 		->addOption(
@@ -39,6 +39,8 @@ $options->addTab(
 		)
 		->addOption(
 			(new Options\TextArea('paths'))
+				->setRows(8)
+				->setCols(80)
 				->setTitle(Loc::getMessage($options->moduleId.'_TAB_PANEL_paths'))
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_PANEL_paths_descr'))
 		)

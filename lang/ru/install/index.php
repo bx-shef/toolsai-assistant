@@ -1,5 +1,5 @@
 <?php
-$MESS['shef.toolsaiassistant_MODULE_NAME'] = '[SH] ИИ-помощник: чат с ролями';
+$MESS['shef.toolsaiassistant_MODULE_NAME'] = '[SH] ИИ чат с ролями';
 $MESS['shef.toolsaiassistant_MODULE_DESC'] = 'Чат ИИ-помощника панелью справа в CRM: роли (помощник менеджера, контроль руководителя, качество сделки, узкие места, наставник, клиентский опыт), ответы по истории записи и статьям базы знаний. Модель, квота и расход — shef.toolsai.';
 $MESS['shef.toolsaiassistant_PARTNER_NAME'] = 'ИП Шевчик И.С.';
 $MESS['shef.toolsaiassistant_PARTNER_URI'] = 'https://bx-shef.by';

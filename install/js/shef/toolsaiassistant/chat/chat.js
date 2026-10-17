@@ -10,9 +10,10 @@
  *
  * Окно — вместо фрейма сайта документации (Nuxt, HdChatOverlay.vue): роли
  * (переключатель — только открытые сотруднику), готовые вопросы, ответы
- * markdown, статьи базы знаний, «Копировать», «Повторить». Сервер —
- * BX.ajax.runAction('shef:toolsaiassistant.chat.info|role|answer'). Переписка
- * каждой записи — своя, в localStorage браузера.
+ * markdown, статьи базы знаний, «Копировать», «Повторить», оценка «Полезно /
+ * Не помогло» (1.1.0). Сервер — BX.ajax.runAction('shef:toolsaiassistant.chat.
+ * info|role|rate'); ответ печатается по ходу — поток действия stream
+ * (stream.js, 1.1.0). Переписка каждой записи — своя, в localStorage браузера.
  */
 (function()
 {
@@ -66,6 +67,10 @@
 		busy: false,
 		lastError: '',
 		requestId: 0,
+		/** Идущий поток ответа ({abort}) — обрываем при смене чата и очистке. */
+		pending: null,
+		/** Перерисовка по кускам потока — не чаще кадра. */
+		frame: 0,
 
 		/** Запуск на странице: один раз и только в верхнем окне. */
 		init: function(settings)
@@ -244,6 +249,7 @@
 			this.info = null;
 			this.lastError = '';
 			this.requestId++;
+			this.stopStream();
 			this.busy = false;
 			this.messages = this.loadMessages();
 			this.render();
@@ -272,7 +278,7 @@
 			try
 			{
 				var list = JSON.parse(get(this.storageKey()) || '[]');
-				return Array.isArray(list) ? list.filter(function(m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string'; }) : [];
+				return Array.isArray(list) ? list.filter(function(m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && !m.streaming; }) : [];
 			}
 			catch(e)
 			{
@@ -282,11 +288,20 @@
 
 		saveMessages: function()
 		{
-			put(this.storageKey(), JSON.stringify(this.messages.slice(-HISTORY_KEEP)));
+			// Временное (идёт поток, отправка оценки, ошибка оценки) не храним
+			put(this.storageKey(), JSON.stringify(this.messages.filter(function(m) { return !m.streaming; }).slice(-HISTORY_KEEP).map(function(m)
+			{
+				var copy = {};
+				Object.keys(m).forEach(function(k) { if(k !== 'rating' && k !== 'rateError' && k !== 'askComment') { copy[k] = m[k]; } });
+				return copy;
+			})));
 		},
 
 		clear: function()
 		{
+			this.requestId++;
+			this.stopStream();
+			this.busy = false;
 			this.messages = [];
 			this.lastError = '';
 			drop(this.storageKey());
@@ -325,29 +340,113 @@
 			this.ask();
 		},
 
-		/** Запрос ответа по текущей переписке (и для «Повторить»). */
+		/**
+		 * Запрос ответа по текущей переписке (и для «Повторить»): поток — текст
+		 * печатается по мере прихода. Отказ (до потока или посреди) — как раньше:
+		 * недописанный ответ убираем, показываем ошибку и «Повторить».
+		 */
 		ask: function()
 		{
 			var self = this;
 			var requestId = ++this.requestId;
+			var message = null;
+			var stale = function() { return requestId !== self.requestId; };
+			this.stopStream();
 			this.busy = true;
 			this.render();
-			BX.ajax.runAction(ACTION + 'answer', {data: {
+			this.pending = NS.Stream.request(ACTION + 'stream', {
 				messages: this.messages.map(function(m) { return {role: m.role, text: m.text}; }),
 				record: this.record ? {entityTypeId: this.record.entityTypeId, id: this.record.id} : {},
 				role: this.info && this.info.role ? this.info.role : ''
-			}}).then(function(response)
+			}, {
+				onStart: function(event)
+				{
+					if(stale()) { return; }
+					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true};
+					self.messages.push(message);
+					self.scheduleRender();
+				},
+				onDelta: function(text)
+				{
+					if(stale() || !message) { return; }
+					message.text += text;
+					self.scheduleRender();
+				},
+				onFinish: function(event)
+				{
+					if(stale() || !message) { return; }
+					self.pending = null;
+					self.busy = false;
+					delete message.streaming;
+					message.cut = event.finishReason === 'length';
+					self.saveMessages();
+					self.render();
+				},
+				onError: function(response)
+				{
+					if(stale()) { return; }
+					self.pending = null;
+					self.busy = false;
+					if(message)
+					{
+						self.messages = self.messages.filter(function(m) { return m !== message; });
+					}
+					self.lastError = errorText(response, 'Не удалось выполнить запрос');
+					self.render();
+				}
+			});
+		},
+
+		stopStream: function()
+		{
+			if(this.pending)
 			{
-				if(requestId !== self.requestId) { return; }
-				self.busy = false;
-				self.messages.push({role: 'assistant', text: String(response.data.text || ''), sources: response.data.sources || [], cut: response.data.finishReason === 'length'});
+				this.pending.abort();
+				this.pending = null;
+			}
+		},
+
+		scheduleRender: function()
+		{
+			var self = this;
+			if(this.frame) { return; }
+			var run = function() { self.frame = 0; self.render(); };
+			this.frame = window.requestAnimationFrame ? window.requestAnimationFrame(run) : setTimeout(run, 50);
+		},
+
+		/**
+		 * Оценка ответа «полезно / не помогло» (1.1.0). Вопрос — ближайший выше,
+		 * роль — в которой ответили. Оценённый ответ помечаем в переписке.
+		 */
+		rate: function(index, rating, comment)
+		{
+			var self = this;
+			var message = this.messages[index];
+			if(!message || message.role !== 'assistant' || message.rated || message.rating) { return; }
+			var question = '';
+			for(var i = index - 1; i >= 0; i--)
+			{
+				if(this.messages[i].role === 'user') { question = this.messages[i].text; break; }
+			}
+			message.rating = rating;
+			this.render();
+			BX.ajax.runAction(ACTION + 'rate', {data: {
+				rating: rating,
+				role: message.roleCode || (this.info && this.info.role) || '',
+				record: this.record ? {entityTypeId: this.record.entityTypeId, id: this.record.id} : {},
+				question: question,
+				answer: message.text,
+				comment: comment || ''
+			}}).then(function()
+			{
+				delete message.rating;
+				message.rated = rating;
 				self.saveMessages();
 				self.render();
 			}, function(response)
 			{
-				if(requestId !== self.requestId) { return; }
-				self.busy = false;
-				self.lastError = errorText(response, 'Не удалось выполнить запрос');
+				delete message.rating;
+				message.rateError = errorText(response, 'Не удалось сохранить оценку');
 				self.render();
 			});
 		},
@@ -489,6 +588,11 @@
 					sources.appendChild(ul);
 					answer.appendChild(sources);
 				}
+				if(message.streaming)
+				{
+					box.appendChild(answer);
+					return;
+				}
 				var tools = el('div', 'shef-aia-tools');
 				var copy = el('button', 'shef-aia-tool', 'Копировать');
 				copy.type = 'button';
@@ -501,11 +605,21 @@
 					again.addEventListener('click', function() { self.retry(); });
 					tools.appendChild(again);
 				}
+				self.renderRating(tools, message, index);
 				answer.appendChild(tools);
+				if(message.askComment && !message.rated)
+				{
+					answer.appendChild(self.commentForm(message, index));
+				}
+				if(message.rateError)
+				{
+					answer.appendChild(el('p', 'shef-aia-error', message.rateError));
+				}
 				box.appendChild(answer);
 			});
 
-			if(this.busy)
+			var last = this.messages[this.messages.length - 1];
+			if(this.busy && !(last && last.streaming))
 			{
 				box.appendChild(el('div', 'shef-aia-thinking', '✦ Думаю…'));
 			}
@@ -526,6 +640,50 @@
 			this.sendButton.disabled = this.busy || !info || !!info.error || !roles.length;
 			box.scrollTop = box.scrollHeight;
 		}
+	};
+
+	/** Кнопки оценки под ответом: «Полезно», «Не помогло»; после — «Спасибо». */
+	Chat.renderRating = function(tools, message, index)
+	{
+		var self = this;
+		if(message.rated)
+		{
+			tools.appendChild(el('span', 'shef-aia-rated', message.rated === 'up' ? '👍 Спасибо за оценку' : '👎 Спасибо — учтём'));
+			return;
+		}
+		var up = el('button', 'shef-aia-tool', '👍 Полезно');
+		up.type = 'button';
+		up.disabled = !!message.rating;
+		up.addEventListener('click', function() { self.rate(index, 'up', ''); });
+		var down = el('button', 'shef-aia-tool', '👎 Не помогло');
+		down.type = 'button';
+		down.disabled = !!message.rating;
+		down.addEventListener('click', function()
+		{
+			delete message.rateError;
+			message.askComment = true;
+			self.render();
+		});
+		tools.appendChild(up);
+		tools.appendChild(down);
+	};
+
+	/** «Не помогло»: что не так — по желанию, потом «Отправить». */
+	Chat.commentForm = function(message, index)
+	{
+		var self = this;
+		var form = el('div', 'shef-aia-rate-form');
+		var input = el('textarea', 'shef-aia-rate-comment');
+		input.rows = 2;
+		input.maxLength = 1000;
+		input.placeholder = 'Что не так с ответом? (по желанию)';
+		var send = el('button', 'ui-btn ui-btn-xs ui-btn-light-border', 'Отправить');
+		send.type = 'button';
+		send.disabled = !!message.rating;
+		send.addEventListener('click', function() { delete message.askComment; self.rate(index, 'down', input.value); });
+		form.appendChild(input);
+		form.appendChild(send);
+		return form;
 	};
 
 	NS.Chat = {

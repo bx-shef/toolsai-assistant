@@ -9,6 +9,7 @@ namespace Shef\ToolsAiAssistant\Access;
  *
  *   chat.use           — пользоваться чатом: кнопка «✦ ИИ: чат», панель справа,
  *                        действие строки «✦ Спросить ИИ»;
+ *   feedback.view      — смотреть оценки ответов (страница «Оценки ответов», 1.1.0);
  *   role:<код промпта> — какая роль помощника (роль реестра промптов
  *                        shef.toolsai) доступна сотруднику. Продавцу не дают
  *                        «Контроль руководителя» — он её не увидит в
@@ -24,6 +25,8 @@ namespace Shef\ToolsAiAssistant\Access;
 final class Actions
 {
 	public const CHAT_USE = 'chat.use';
+	/** Смотреть оценки ответов «полезно / не помогло» (1.1.0). */
+	public const FEEDBACK_VIEW = 'feedback.view';
 	public const ROLE_PREFIX = 'role:';
 
 	/** Код промпта реестра shef.toolsai — тот же шаблон, что Prompt\Definition::fromArray(). */
@@ -49,6 +52,11 @@ final class Actions
 				'title' => 'Пользоваться чатом',
 				'group' => self::GROUP_CHAT,
 				'hint' => 'Кнопка «✦ ИИ: чат», панель справа и «✦ Спросить ИИ» в строках списка. Каждый ответ тратит месячную квоту shef.toolsai. Отвечает только в ролях, открытых ниже.',
+			],
+			self::FEEDBACK_VIEW => [
+				'title' => 'Смотреть оценки ответов',
+				'group' => self::GROUP_CHAT,
+				'hint' => 'Страница «Оценки ответов»: кто и в какой роли отметил ответ «полезно» или «не помогло», вопрос и ответ кратко, комментарий. Администратору портала открыта всегда.',
 			],
 		];
 	}

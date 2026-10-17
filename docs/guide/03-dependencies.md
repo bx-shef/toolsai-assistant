@@ -1,6 +1,6 @@
 # 03. Зависимости и API shef.toolsai
 
-> Последняя сверка: 2026-10-16
+> Последняя сверка: 2026-10-17
 
 | модуль | как | зачем |
 |---|---|---|
@@ -27,7 +27,8 @@ shef.toolsai от этого модуля не зависит: связь — с
 | `PromptService::compose($role, PromptService::PLACE_ASSISTANT, $entityTypeId, $allowed)` | текст роли (+ её навык) | там же |
 | `PromptService::forget()` | перечитать реестр после установки | `install/index.php` |
 | `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM | `Chat\Gateway\ToolsAiRecordSource` |
-| `Public\Service\LlmService::complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId)` | модель «Чат ИИ-помощника»; квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |
+| `Public\Service\LlmService::stream(LlmService::CATEGORY_ASSISTANT, $messages, $onDelta, $userId)` | ответ потоком (окно, 1.1.0); квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |
+| `Public\Service\LlmService::complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId)` | ответ одним куском (действие `answer`) | `Chat\Gateway\ToolsAiModelGateway` |
 | `LlmService::model(CATEGORY_ASSISTANT)` (`''` — заглушка) | подпись под окном; заглушка — подсказка без вызова | там же |
 | `LlmResponse` (`isSuccess()`, `getText()`, `getFinishReason()`, `getErrorCode()`), коды `ERROR_QUOTA`, `ERROR_NO_MODEL`, `ERROR_EMPTY`, `ERROR_PROVIDER` | ответ и отказы → `ChatException` (`quota`, `model`) | там же |
 
@@ -45,5 +46,4 @@ shef.toolsai), создаётся роль доступа «Чат (перено
 
 ## Чего ещё не хватает
 
-1. **Поток в окне чата**: `LlmService::stream()` есть, но контроллер отвечает
-   JSON — для потока нужен свой ответ (SSE) и окно с разбором потока.
+Поток в окне сделан в 1.1.0 (`LlmService::stream()`) — из этого списка убран.

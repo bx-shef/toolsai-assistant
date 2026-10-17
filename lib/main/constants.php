@@ -19,6 +19,8 @@ final class Constants
 
 	/** Страница «Права доступа» (публичная часть, install/public). */
 	public const RIGHTS_URL = '/shef/toolsaiassistant/rights/';
+	/** Страница «Оценки ответов» (1.1.0, Feedback\FeedbackPage). */
+	public const FEEDBACK_URL = '/shef/toolsaiassistant/feedback/';
 	/** Компонент страницы прав: ui.accessrights.v2 сохраняет через его ajax.php. */
 	public const RIGHTS_COMPONENT = 'shef:toolsaiassistant.rights';
 

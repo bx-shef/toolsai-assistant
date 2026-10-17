@@ -90,7 +90,7 @@ class shef_toolsaiassistant extends CModule
 		$this->MODULE_DESCRIPTION = Loc::getMessage('shef.toolsaiassistant_MODULE_DESC');
 
 		$sort = 'MODULE_SORT';
-		$this->{$sort} = (int)'1020';
+		$this->{$sort} = (int)'1006';
 
 		$this->PARTNER_NAME = Loc::getMessage('shef.toolsaiassistant_PARTNER_NAME');
 		$this->PARTNER_URI = Loc::getMessage('shef.toolsaiassistant_PARTNER_URI');
@@ -112,6 +112,7 @@ class shef_toolsaiassistant extends CModule
 
 		\Shef\ToolsAiAssistant\Access\RoleStore::install();
 		\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::install();
+		\Shef\ToolsAiAssistant\Feedback\FeedbackStore::install();
 		\Shef\ToolsAiAssistant\Access\RoleStore::seed();
 		// Права чата shef.toolsai до 1.50.0 (assistant.use / assistant.panel) — в своё право
 		\Shef\ToolsAiAssistant\Access\LegacyRights::migrate();
@@ -135,6 +136,7 @@ class shef_toolsaiassistant extends CModule
 			{
 				\Bitrix\Main\Loader::includeModule($this->MODULE_ID);
 				\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::uninstall();
+				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::uninstall();
 				\Shef\ToolsAiAssistant\Access\RoleStore::uninstall();
 			}
 			catch(\Throwable)

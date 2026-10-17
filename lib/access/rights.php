@@ -32,7 +32,7 @@ final class Rights
 	{
 		if($isAdmin)
 		{
-			return new self(true, [Actions::CHAT_USE]);
+			return new self(true, [Actions::CHAT_USE, Actions::FEEDBACK_VIEW]);
 		}
 
 		$userCodes = array_fill_keys(array_map('strval', $userCodes), true);
@@ -58,10 +58,16 @@ final class Rights
 		return new self(false, []);
 	}
 
-	/** Есть ли право (Actions::CHAT_USE или role:<код>). Администратору — chat.use; роли администратора — canRole(). */
+	/** Есть ли право (Actions::CHAT_USE, FEEDBACK_VIEW или role:<код>). Администратору — постоянные; роли администратора — canRole(). */
 	public function can(string $action): bool
 	{
-		return ($this->isAdmin && $action === Actions::CHAT_USE) || in_array($action, $this->actions, true);
+		return ($this->isAdmin && isset(Actions::getList()[$action])) || in_array($action, $this->actions, true);
+	}
+
+	/** Смотреть оценки ответов (1.1.0). */
+	public function canViewFeedback(): bool
+	{
+		return $this->can(Actions::FEEDBACK_VIEW);
 	}
 
 	/** Пользоваться чатом: кнопка, панель, ответы. */

@@ -58,7 +58,9 @@ final class Config
 	}
 
 	/**
-	 * Разбор сохранённых значений. Пусто — умолчание.
+	 * Разбор сохранённых значений. Пусто — умолчание; кроме адресов панели:
+	 * сохранённое пустое «Где показывать чат» — чат нигде (1.1.0), умолчание —
+	 * только когда настройки нет вовсе (ключ не передан).
 	 *
 	 * @param array<string, string> $values код опции => значение из формы
 	 */
@@ -79,14 +81,14 @@ final class Config
 
 		return new self(
 			enabled: $enabled,
-			paths: $paths !== [] ? $paths : self::DEFAULT_PATHS,
+			paths: array_key_exists(self::OPTION_PATHS, $values) ? $paths : self::DEFAULT_PATHS,
 			history: static::int($values[self::OPTION_HISTORY] ?? '', self::DEFAULT_HISTORY, 2, self::HISTORY_MAX),
 			kbLimit: static::int($values[self::OPTION_KB_LIMIT] ?? '', self::DEFAULT_KB_LIMIT, 0, self::KB_LIMIT_MAX),
 			rateLimit: static::int($values[self::OPTION_RATE_LIMIT] ?? '', self::DEFAULT_RATE_LIMIT, 0, self::RATE_LIMIT_MAX),
 		);
 	}
 
-	/** Открыта ли панель на странице с этим путём. */
+	/** Открыта ли панель на странице с этим путём; список адресов пуст — нигде. */
 	public function matchesPath(string $path): bool
 	{
 		foreach($this->paths as $prefix)

@@ -8,6 +8,9 @@ use Bitrix\Main\Error;
 use Shef\ToolsAiAssistant\Access\UserAccess;
 use Shef\ToolsAiAssistant\Chat\ChatException;
 use Shef\ToolsAiAssistant\Chat\ChatRequest;
+use Shef\ToolsAiAssistant\Chat\PreparedAnswer;
+use Shef\ToolsAiAssistant\Chat\StreamEvents;
+use Shef\ToolsAiAssistant\Chat\StreamResponse;
 use Shef\ToolsAiAssistant\Chat\Record;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Container;
@@ -17,12 +20,18 @@ use Shef\ToolsAiAssistant\Container;
  *
  *   info   — открытые роли, выбранная роль, готовые вопросы, модель;
  *   role   — сменить роль в чате (запоминается на сотрудника и чат);
- *   answer — ответ помощника.
+ *   stream — ответ помощника потоком (1.1.0, окно печатает текст по ходу);
+ *   answer — тот же ответ одним JSON (совместимость с 1.0.0);
+ *   rate   — оценка ответа «полезно / не помогло» (1.1.0).
  *
  * Все — только POST, авторизация и sessid (фильтры ядра). Права модуля и
- * право роли проверяет Chat\AnswerService на каждом вызове. Ответ — одним
- * JSON (не потоком): сессию отпускаем до вызова модели, чтобы другие вкладки
- * портала не ждали ответа (ActionFilter\CloseSession).
+ * право роли проверяет Chat\AnswerService на каждом вызове. Ответ и поток
+ * отпускают сессию до вызова модели, чтобы другие вкладки портала не ждали
+ * (ActionFilter\CloseSession).
+ *
+ * Поток: все проверки (права, роль, частота, запись) — до него, отказ —
+ * обычной ошибкой ajax (JSON, как у answer); дальше действие возвращает
+ * Chat\StreamResponse — события Chat\StreamEvents.
  */
 class Chat extends Controller
 {
@@ -39,6 +48,8 @@ class Chat extends Controller
 			'info' => ['prefilters' => $filters],
 			'role' => ['prefilters' => $filters],
 			'answer' => ['prefilters' => [...$filters, new ActionFilter\CloseSession()]],
+			'stream' => ['prefilters' => [...$filters, new ActionFilter\CloseSession()]],
+			'rate' => ['prefilters' => $filters],
 		];
 	}
 
@@ -67,8 +78,58 @@ class Chat extends Controller
 		));
 	}
 
+	/**
+	 * Ответ потоком. Параметры — как у answer. Отказ до вызова модели — ошибка
+	 * ajax; после — событие error в потоке.
+	 */
+	public function streamAction(array $messages = [], array $record = [], string $role = ''): StreamResponse|null
+	{
+		$service = Container::getAnswerService();
+		$userId = $this->userId();
+		$prepared = $this->run(fn(): PreparedAnswer => $service->prepare(
+			UserAccess::current(),
+			$userId,
+			ChatRequest::parse($messages, $record, $role, Config::current()->history)
+		));
+		if(!$prepared instanceof PreparedAnswer)
+		{
+			return null;
+		}
+
+		return new StreamResponse(static function(callable $emit) use ($service, $prepared): void
+		{
+			$emit(StreamEvents::start($prepared->role, $prepared->sources));
+			try
+			{
+				$answer = $service->stream($prepared, static fn(string $delta) => $emit(StreamEvents::delta($delta)));
+				$emit(StreamEvents::finish($answer['finishReason']));
+			}
+			catch(ChatException $exception)
+			{
+				$emit(StreamEvents::error($exception->errorCode, $exception->getMessage()));
+			}
+			catch(\Throwable $throwable)
+			{
+				Container::getLogger(static::class)?->error($throwable);
+				$emit(StreamEvents::error('internal', 'Чат временно недоступен — подробности в журнале модуля'));
+			}
+		});
+	}
+
+	/**
+	 * Оценка ответа. $rating — up | down; $role — роль, в которой ответили;
+	 * $question и $answer — что спросили и что ответил помощник (хранится
+	 * кратко); $comment — по желанию.
+	 */
+	public function rateAction(string $rating = '', string $role = '', array $record = [], string $question = '', string $answer = '', string $comment = ''): ?array
+	{
+		return $this->run(fn(): array => Container::getAnswerService()->rate(UserAccess::current(), $this->userId(), [
+			'rating' => $rating, 'role' => $role, 'record' => $record, 'question' => $question, 'answer' => $answer, 'comment' => $comment,
+		]));
+	}
+
 	/** Отказ сценария — ошибкой ответа с кодом; прочий сбой — в лог, наружу общий текст. */
-	private function run(callable $action): ?array
+	private function run(callable $action): mixed
 	{
 		try
 		{

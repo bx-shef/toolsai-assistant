@@ -55,6 +55,35 @@ Check::same('провайдер — MODEL, без текста провайде�
 Check::same('прочее — MODEL', $fail(LlmResponse::failed(LlmService::ERROR_INTERNAL, 'x'))[0], ChatException::MODEL);
 Check::same('у каждого кода сервиса, кроме внутренних, — текст', array_keys(ToolsAiModelGateway::ERRORS), [LlmService::ERROR_QUOTA, LlmService::ERROR_NO_MODEL, LlmService::ERROR_EMPTY, LlmService::ERROR_PROVIDER]);
 
+Check::group('поток');
+
+LlmService::$deltas = ['При', '', 'вет'];
+LlmService::$next = new LlmResponse('Привет', '');
+LlmService::$calls = [];
+$got = [];
+$result = (new ToolsAiModelGateway())->stream([['role' => 'user', 'content' => '?']], static function(string $d) use (&$got): void { $got[] = $d; }, 7);
+Check::same('куски — как пришли, пустые не шлём; итог — полный текст', [$got, $result], [['При', 'вет'], ['text' => 'Привет', 'finishReason' => 'stop']]);
+Check::same('поток — категория assistant, сотрудник', LlmService::$calls, [['stream:assistant', 1, 7]]);
+$streamFail = static function(array $deltas, LlmResponse $next): array
+{
+	LlmService::$deltas = $deltas;
+	LlmService::$next = $next;
+	try
+	{
+		(new ToolsAiModelGateway())->stream([], static function(): void {});
+
+		return ['ok', ''];
+	}
+	catch(ChatException $exception)
+	{
+		return [$exception->errorCode, $exception->getMessage()];
+	}
+};
+Check::same('сбой после кусков — «оборвался»', $streamFail(['часть'], LlmResponse::failed(LlmService::ERROR_PROVIDER, 'x')), [ChatException::MODEL, ToolsAiModelGateway::BROKEN_TEXT]);
+Check::same('сбой до кусков — обычный текст', $streamFail([], LlmResponse::failed(LlmService::ERROR_PROVIDER, 'x'))[1], ToolsAiModelGateway::ERRORS[LlmService::ERROR_PROVIDER][1]);
+Check::same('квота — QUOTA и в потоке', $streamFail([], LlmResponse::failed(LlmService::ERROR_QUOTA, 'q'))[0], ChatException::QUOTA);
+LlmService::$deltas = [];
+
 Check::group('заглушка');
 
 LlmService::$model = '';

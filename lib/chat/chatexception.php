@@ -16,6 +16,7 @@ final class ChatException extends \RuntimeException
 	public const RATE = 'rate';
 	public const RECORD = 'record';
 	public const MODEL = 'model';
+	public const FEEDBACK = 'feedback';
 
 	/** Текст — для сотрудника; $errorCode — константа класса (уходит кодом ошибки ajax). */
 	public function __construct(string $message, public readonly string $errorCode, ?\Throwable $previous = null)

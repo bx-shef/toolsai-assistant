@@ -43,6 +43,9 @@ Check::group('где показывать');
 Check::same('сделки — в CRM', $empty->matchesPath('/crm/deal/list/'), true);
 Check::same('вид «ИИ»', $empty->matchesPath('/shef/toolsai/view/'), true);
 Check::same('живая лента — нет', $empty->matchesPath('/stream/'), false);
+$nowhere = Config::fromValues([Config::OPTION_PATHS => '']);
+Check::same('сохранено пустое — чат нигде (1.1.0)', [$nowhere->paths, $nowhere->matchesPath('/crm/deal/list/')], [[], false]);
+Check::same('сохранён только мусор — тоже нигде', Config::fromValues([Config::OPTION_PATHS => "https://evil.example/\n"])->paths, []);
 
 Check::group('умолчания и страница настроек');
 
@@ -66,6 +69,9 @@ foreach($tabs as $tab)
 sort($codes);
 $expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT];
 sort($expected);
+$pathsField = null;
+foreach($tabs as $tab) { foreach($tab->getOptionList() as $option) { if($tab->getCode().'_'.$option->getCode() === Config::OPTION_PATHS) { $pathsField = $option; } } }
+Check::same('поле «Где показывать чат» — крупное: 8 строк, 80 знаков', [$pathsField?->getRows(), $pathsField?->getCols()], [8, 80]);
 Check::same('страница настроек сохраняет ровно то, что читает Config', $codes, $expected);
 $defaultKeys = array_keys($shef_toolsaiassistant_default_option);
 sort($defaultKeys);

@@ -132,6 +132,10 @@ namespace Shef\Options\Main\Options
 			$this->cols = $value;
 			return $this;
 		}
+
+		public function getRows(): int { return $this->rows; }
+
+		public function getCols(): int { return $this->cols; }
 	}
 
 	class Checkbox extends AOption {}

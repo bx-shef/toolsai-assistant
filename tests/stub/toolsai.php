@@ -45,6 +45,8 @@ namespace Shef\ToolsAi\Public\Service
 		public static ?LlmResponse $next = null;
 		public static string $model = 'gpt-test';
 		public static array $calls = [];
+		/** Куски, которые stream() отдаст в $onDelta до итога $next. */
+		public static array $deltas = [];
 
 		public function model(string $category): string
 		{
@@ -54,6 +56,17 @@ namespace Shef\ToolsAi\Public\Service
 		public function complete(string $category, array $messages, ?int $userId = null): LlmResponse
 		{
 			static::$calls[] = [$category, count($messages), $userId];
+
+			return static::$next;
+		}
+
+		public function stream(string $category, array $messages, callable $onDelta, ?int $userId = null): LlmResponse
+		{
+			static::$calls[] = ['stream:'.$category, count($messages), $userId];
+			foreach(static::$deltas as $delta)
+			{
+				$onDelta($delta);
+			}
 
 			return static::$next;
 		}
