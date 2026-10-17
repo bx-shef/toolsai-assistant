@@ -119,12 +119,12 @@ class Chat extends Controller
 	 * Ответ помощника. $messages — [{role: user|assistant, text}], последний —
 	 * вопрос; $role — код роли (пусто — запомненная или по умолчанию).
 	 */
-	public function answerAction(array $messages = [], array $record = [], string $role = '', string $context = ''): ?array
+	public function answerAction(array $messages = [], array $record = [], string $role = '', string $context = '', string $page = ''): ?array
 	{
 		return $this->guarded(fn(): array => Container::getAnswerService()->answer(
 			UserAccess::current(),
 			$this->userId(),
-			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context)
+			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context, $page)
 		));
 	}
 
@@ -132,14 +132,14 @@ class Chat extends Controller
 	 * Ответ потоком. Параметры — как у answer. Отказ до вызова модели — ошибка
 	 * ajax; после — событие error в потоке.
 	 */
-	public function streamAction(array $messages = [], array $record = [], string $role = '', string $context = ''): StreamResponse|null
+	public function streamAction(array $messages = [], array $record = [], string $role = '', string $context = '', string $page = ''): StreamResponse|null
 	{
 		$service = Container::getAnswerService();
 		$userId = $this->userId();
 		$prepared = $this->guarded(fn(): PreparedAnswer => $service->prepare(
 			UserAccess::current(),
 			$userId,
-			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context)
+			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context, $page)
 		));
 		if(!$prepared instanceof PreparedAnswer)
 		{
