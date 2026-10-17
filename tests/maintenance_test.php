@@ -55,6 +55,8 @@ namespace
 	EventManager::$registered = [];
 	$tables = 0;
 	$agents = 0;
+	Option::set('shef.toolsaiassistant', 'LEGACY_migrated', 'Y');
+	Option::set('shef.toolsaiassistant', 'CHAT_feedbackdays', '30');
 	$report = Maintenance::ensure('/srv/portal', $root, static function() use (&$tables): void { $tables++; }, static function() use (&$agents): void { $agents++; });
 	Check::same('файлы — свои каталоги, с заменой', array_map(static fn(array $c): array => [str_replace($root, '', $c[0]), $c[1], $c[2]], $GLOBALS['copied']), [
 		['/install/js/shef/toolsaiassistant', '/srv/portal/bitrix/js/shef/toolsaiassistant', true],
@@ -62,6 +64,8 @@ namespace
 		['/install/public/shef/toolsaiassistant', '/srv/portal/shef/toolsaiassistant', true],
 	]);
 	Check::same('подписки — все из installEvents', count(EventManager::$registered), count($settings['installEvents']['value']));
+	Check::same('отметка переноса из shef.toolsai удалена, прочие опции целы', [Option::get('shef.toolsaiassistant', 'LEGACY_migrated', null), Option::get('shef.toolsaiassistant', 'CHAT_feedbackdays')], [null, '30']);
+	Check::same('установщик больше не переносит права', str_contains((string)file_get_contents($root.'/install/index.php'), 'LegacyRights'), false);
 	Check::same('таблицы и агент', [$tables, $agents], [1, 1]);
 	Check::same('всё получилось — версия записана', [in_array(false, $report, true), Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, Maintenance::moduleVersion($root)]);
 

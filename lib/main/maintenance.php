@@ -19,7 +19,8 @@ use Bitrix\Main\EventManager;
  *   - создаёт недостающие таблицы;
  *   - ставит подписки installEvents (registerEventHandler ядра идемпотентен:
  *     INSERT IGNORE по UNIQUE_ID, main/lib/eventmanager.php);
- *   - ставит агент очистки оценок.
+ *   - ставит агент очистки оценок;
+ *   - удаляет устаревшие опции (OBSOLETE_OPTIONS).
  *
  * Версия файлов, до которой довели, — опция FILES_version. Совпала с версией
  * модуля — ничего не делаем (одно чтение опции из кеша ядра). Не всё
@@ -29,6 +30,9 @@ use Bitrix\Main\EventManager;
 final class Maintenance
 {
 	public const OPTION_VERSION = 'FILES_version';
+
+	/** Опции, которые больше не нужны (1.2.0: отметка переноса прав из shef.toolsai). */
+	public const OBSOLETE_OPTIONS = ['LEGACY_migrated'];
 
 	/** Куда installDir может писать: свои подкаталоги, не чужие. */
 	public const ALLOWED_TARGETS = ['/bitrix/js/shef/toolsaiassistant', '/local/components/shef/toolsaiassistant.', '/shef/toolsaiassistant'];
@@ -100,6 +104,13 @@ final class Maintenance
 			'agents' => $agents ?? static function(): void
 			{
 				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::installAgent();
+			},
+			'options' => static function(): void
+			{
+				foreach(self::OBSOLETE_OPTIONS as $name)
+				{
+					Option::delete(Constants::MODULE_ID, ['name' => $name]);
+				}
 			},
 		];
 		foreach($steps as $name => $step)

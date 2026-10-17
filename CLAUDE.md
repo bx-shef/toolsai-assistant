@@ -49,8 +49,8 @@
 - **От shef.toolsai — только `Shef\ToolsAi\Public\…`** (1.50.0): `LlmService`,
   `PromptService` (место `PLACE_ASSISTANT`), `RecordService`, событие
   `OnViewRowActionsBuild`. Внутренние классы shef.toolsai не трогаем.
-- **Права чата shef.toolsai до 1.50.0** переносятся при установке один раз
-  (`Access\LegacyRights`).
+- **Переноса прав из shef.toolsai нет** (убран в 1.2.0): опцию `LEGACY_migrated`
+  удаляет `Main\Maintenance`; роль «Чат (перенос из shef.toolsai)» не трогаем.
 - **Ответ — потоком** (1.1.0): действие `stream` возвращает `Chat\StreamResponse`
   (наследник `HttpResponse` со своим `send()` — так ядро отдаёт `File`/`Zip`).
   Все проверки — до потока, отказ — обычным JSON ajax; сессия отпускается до
