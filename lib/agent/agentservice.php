@@ -67,7 +67,7 @@ final class AgentService
 		$tools = $this->tools($userId);
 		$messages = $prepared->messages;
 		$messages[0]['content'] .= "\n\n".ToolProtocol::instructions($tools);
-		$hints = ($request->page ?? ($request->record !== null ? new PageContext(PageContext::RECORD, '', $request->record->entityTypeId, $request->record->id) : null))?->agentHints($tools, $request->record) ?? [];
+		$hints = PageContext::hints($request->page, $request->record, $tools);
 		if($hints !== [])
 		{
 			$messages[0]['content'] .= "\n".implode("\n", $hints);
