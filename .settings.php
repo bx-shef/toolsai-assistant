@@ -115,6 +115,17 @@ return [
 					'sort' => 100,
 				],
 			],
+			// Права на отзывы чата в общем журнале shef.toolsaieval (1.11.0)
+			[
+				'isCompatible' => false,
+				'from' => ['module' => 'shef.toolsaieval', 'event' => 'OnFeedbackAccessCheck'],
+				'to' => [
+					'module' => 'shef.toolsaiassistant',
+					'class' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAiEval\\EventHandler\\OnFeedbackAccessCheckEventHandler',
+					'function' => 'handle',
+					'sort' => 100,
+				],
+			],
 			// Панель чата справа: расширение и кнопка — тем, кому открыт чат
 			[
 				'isCompatible' => true,

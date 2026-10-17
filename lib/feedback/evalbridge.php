@@ -58,6 +58,14 @@ final class EvalBridge
 		];
 	}
 
+	/**
+	 * Право на отзывы чата в общем журнале: разбирать — W, смотреть — R, нет — ''.
+	 */
+	public static function right(\Shef\ToolsAiAssistant\Access\Rights $rights): string
+	{
+		return $rights->canEditFeedback() ? 'W' : ($rights->canViewFeedback() ? 'R' : '');
+	}
+
 	/** Вид отзыва для события shef.toolsaieval:OnFeedbackKindsCollect. @return list<array{code: string, title: string, task: string}> */
 	public static function kinds(): array
 	{

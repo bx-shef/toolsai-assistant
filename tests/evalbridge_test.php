@@ -11,6 +11,8 @@ $root = dirname(__DIR__);
 require_once $root.'/tests/stub/autoload.php';
 require_once $root.'/tests/assert.php';
 
+use Shef\ToolsAiAssistant\Access\Actions;
+use Shef\ToolsAiAssistant\Access\Rights;
 use Shef\ToolsAiAssistant\Chat\Gateway\EvalGatewayInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\FeedbackStoreInterface;
 use Shef\ToolsAiAssistant\Feedback\EvalBridge;
@@ -133,11 +135,20 @@ Check::same('перенесено — ссылка и «перенесены»',
 Check::same('осталось и сбой', [str_contains(FeedbackPage::noticeHtml('/x/', 12), 'осталось: 12'), str_contains(FeedbackPage::noticeHtml('/x/', -1), 'не удался')], [true, true]);
 Check::same('чужой адрес — без ссылки', str_contains(FeedbackPage::noticeHtml('//evil.example/', 0), '<a '), false);
 
+Check::group('права на отзывы чата в журнале');
+
+
+Check::same('разбирать — W, смотреть — R, нет — пусто', [
+	EvalBridge::right(Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => [Actions::FEEDBACK_EDIT]]])),
+	EvalBridge::right(Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => [Actions::FEEDBACK_VIEW]]])),
+	EvalBridge::right(Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => [Actions::CHAT_USE]]])),
+], ['W', 'R', '']);
+
 Check::group('подписка');
 
 $settings = require $root.'/.settings.php';
 $events = array_column(array_column($settings['installEvents']['value'], 'from'), 'event', 'event');
 Check::same('событие видов shef.toolsaieval — в installEvents', isset($events['OnFeedbackKindsCollect']), true);
-Check::same('обработчик существует', method_exists('Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAiEval\\EventHandler\\OnFeedbackKindsCollectEventHandler', 'handle'), true);
+Check::same('обработчики существуют', [method_exists('Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAiEval\\EventHandler\\OnFeedbackKindsCollectEventHandler', 'handle'), method_exists('Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAiEval\\EventHandler\\OnFeedbackAccessCheckEventHandler', 'handle'), isset($events['OnFeedbackAccessCheck'])], [true, true, true]);
 
 Check::finish();

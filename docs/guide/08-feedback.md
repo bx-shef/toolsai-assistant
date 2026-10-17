@@ -36,6 +36,11 @@ AI-агентов, habr 1004296): плохой ответ → человек п�
 - Своя таблица не удаляется: эта страница остаётся историей оценок модуля, с
   подсказкой и ссылкой на общий журнал. Удалить таблицу — решение владельца
   после проверки на портале.
+- **Права переходят сами** (решение владельца 2026-10-17): право «Разбирать
+  оценки ответов» даёт W на отзывы чата в общем журнале, «Смотреть оценки
+  ответов» — R (событие `shef.toolsaieval:OnFeedbackAccessCheck`,
+  `OnFeedbackAccessCheckEventHandler`). Настраивать права в shef.toolsaieval
+  для этого не нужно; права меняются здесь — меняются и там.
 - Вид отзыва модуль отдаёт событием `shef.toolsaieval:OnFeedbackKindsCollect`
   (`Internals\Integration\ToolsAiEval\EventHandler\OnFeedbackKindsCollectEventHandler`).
 
