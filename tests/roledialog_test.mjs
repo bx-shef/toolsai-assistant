@@ -39,7 +39,9 @@ same('недавние — первыми', ids(M.categories(roles, { recent: ['
 same('закрытая роль в недавних не считается', ids(M.categories(roles, { recent: ['zzz'], favorite: [] }))[0], 'favorite');
 same('одна группа — групп не показываем', ids(M.categories(roles.map((r) => ({ ...r, group: 'Х' })), {})), ['favorite', 'all']);
 same('счётчики', M.categories(roles, { recent: [], favorite: ['a', 'zzz'] }).map((c) => c.count), [1, 3, 2, 1]);
-same('по умолчанию — недавние, если есть', [M.defaultCategory(roles, { recent: ['a'] }), M.defaultCategory(roles, {})], ['recent', 'all']);
+// Живая проверка 3.72: недавняя одна («ИИ-помощник модуля») — диалог показывал только её
+same('по умолчанию — все роли, даже если есть недавние (1.7.1)', [M.defaultCategory(roles, { recent: ['a'] }), M.defaultCategory(roles, {})], ['all', 'all']);
+same('одна недавняя — в «Все роли» видны все открытые', M.items(roles, { recent: ['a'] }, M.defaultCategory(roles, { recent: ['a'] }), '', 'a').length, roles.length);
 
 console.log('\nроли справа');
 same('все', codes(M.items(roles, {}, 'all', '', 'a')), ['a', 'b', 'c']);

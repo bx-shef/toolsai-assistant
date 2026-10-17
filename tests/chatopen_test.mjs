@@ -96,6 +96,59 @@ same('после загрузки — настоящий чат, не заглу
 frameWindow.ShefAiChat.close();
 same('дальше — сразу, без загрузки', [loads.length, calls[calls.length - 1][0], frameWindow.ShefAiChat.isOpen()], [1, 'close', false]);
 
+console.log('\nверхнее окно: inert слайдера и автооткрытие (1.7.1)');
+// Минимальный DOM: любой узел принимает любые вызовы; атрибуты и классы запоминаем
+function fakeNode(tag) {
+  const attrs = {};
+  const classes = new Set();
+  const node = {
+    tagName: tag, attrs, children: [], style: { setProperty() {} }, dataset: {},
+    classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c), toggle: (c, on) => { (on ?? !classes.has(c)) ? classes.add(c) : classes.delete(c); } },
+    setAttribute: (k, v) => { attrs[k] = String(v); }, getAttribute: (k) => attrs[k] ?? null, removeAttribute: (k) => { delete attrs[k]; },
+    appendChild: (c) => { node.children.push(c); return c; }, addEventListener() {}, removeEventListener() {}, focus() {}, querySelector: () => null, querySelectorAll: () => [],
+    getBoundingClientRect: () => ({ left: 0, right: 0, width: 0, top: 0, bottom: 0 }), offsetWidth: 0,
+  };
+  return new Proxy(node, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' && /^(insert|replace|remove|scroll|select)/.test(k) ? () => {} : undefined)), set: (t, k, v) => { t[k] = v; return true; } });
+}
+function runTop(session, local) {
+  const ns2 = {};
+  const body = fakeNode('body');
+  const byId = {};
+  const doc = {
+    body, createElement: (t) => fakeNode(t), createTextNode: (t) => ({ textContent: t }),
+    getElementById: (id) => byId[id] || null, addEventListener() {}, removeEventListener() {}, querySelectorAll: () => [],
+  };
+  body.appendChild = (c) => { if (c.id) { byId[c.id] = c; } body.children.push(c); return c; };
+  const store = (data) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } });
+  const win = { innerWidth: 1600, localStorage: store(local), sessionStorage: store(session), addEventListener() {} };
+  win.top = win;
+  const BX2 = {
+    namespace: () => ns2, ready: () => {}, addCustomEvent() {}, cleanNode() {},
+    ajax: { runAction: () => ({ then() {} }) },
+  };
+  vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/chat.js'), 'utf8'), { BX: BX2, window: win, document: doc, setTimeout: () => 0, Date, JSON, Object, Array, String, Number, Math });
+  ns2.Chat.init({ button: 'btn', z: 990, min: 380, max: 900, def: 440 });
+  return { panel: byId['shef-aia-chat'], win, session, local };
+}
+{
+  const t = runTop({}, { 'shef-ai-chat-open': '1' });
+  same('панель не делается inert слайдером (data-a11y-ignore-inert)', t.panel && t.panel.getAttribute(chat.INERT_OPT_OUT), 'true');
+  same('атрибут — штатный ui.a11y FocusTrap', chat.INERT_OPT_OUT, 'data-a11y-ignore-inert');
+  same('метка «открыт» 1.7.0 в localStorage — не открывает и стирается', [t.win.ShefAiChat.isOpen(), 'shef-ai-chat-open' in t.local], [false, false]);
+  t.win.ShefAiChat.open(null);
+  same('открыли — метка в этой вкладке (sessionStorage)', [t.win.ShefAiChat.isOpen(), t.session['shef-ai-chat-open'], 'shef-ai-chat-open' in t.local], [true, '1', false]);
+  t.panel.setAttribute('inert', 'true');
+  t.win.ShefAiChat.close();
+  t.win.ShefAiChat.open(null);
+  same('открытие снимает inert, если его уже поставили', t.panel.getAttribute('inert'), null);
+  t.win.ShefAiChat.close();
+  same('закрыли — метка «0»', t.session['shef-ai-chat-open'], '0');
+}
+{
+  const t = runTop({ 'shef-ai-chat-open': '1' }, {});
+  same('эта вкладка открывала чат — после перезагрузки открыт', t.win.ShefAiChat.isOpen(), true);
+}
+
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) {
   process.exit(1);
