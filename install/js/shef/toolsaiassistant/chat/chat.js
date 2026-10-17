@@ -85,7 +85,7 @@
 	}
 
 	/**
-	 * Запись CRM по адресу карточки (1.3.2, пункт «✦ Спросить ИИ» меню карточки):
+	 * Запись CRM по адресу карточки (1.3.2, кнопка «✦ Спросить ИИ» в шапке карточки):
 	 * /crm/deal/details/5/, /crm/lead|contact|company|quote/details/ID/,
 	 * /crm/type/<entityTypeId>/details/ID/ (смарт-процессы, счета). Новая
 	 * запись (ID 0) и чужие адреса — null.
@@ -179,7 +179,7 @@
 				close: function() { self.close(); },
 				toggle: function(rec) { self.isOpen() ? self.close() : self.open(rec); },
 				isOpen: function() { return self.isOpen(); },
-				/** Чат по карточке CRM, открытой в этом окне (1.3.2): меню карточки. */
+				/** Чат по карточке CRM, открытой в этом окне (1.3.2): кнопка в шапке карточки. */
 				openCurrent: function() { var rec = currentRecord(); if(rec) { self.open(rec); } }
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])

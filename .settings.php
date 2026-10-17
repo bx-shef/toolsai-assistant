@@ -82,17 +82,6 @@ return [
 					'sort' => 100,
 				],
 			],
-			// «✦ Спросить ИИ» в меню-шестерёнке карточки CRM (1.3.2)
-			[
-				'isCompatible' => false,
-				'from' => ['module' => 'intranet', 'event' => 'onBuildBindingMenu'],
-				'to' => [
-					'module' => 'shef.toolsaiassistant',
-					'class' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\Intranet\\EventHandler\\OnBuildBindingMenuEventHandler',
-					'function' => 'handle',
-					'sort' => 100,
-				],
-			],
 			// Панель чата справа: расширение и кнопка — тем, кому открыт чат
 			[
 				'isCompatible' => true,

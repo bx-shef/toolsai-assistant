@@ -33,8 +33,11 @@ final class SidePanel
 	public const VIEW_PATH = '/shef/toolsai/view/';
 	/** id кнопки в виде «ИИ» — свой, не BUTTON_ID: клик уже в onclick, повторная привязка chat.js не нужна. */
 	public const VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
-	/** Пункт меню-шестерёнки карточки CRM (1.3.2, intranet:onBuildBindingMenu). */
-	public const DETAIL_MENU_TEXT = '✦ Спросить ИИ';
+	/** Кнопка в шапке карточки CRM (1.3.2): чат по этой записи. */
+	public const DETAIL_BUTTON_TEXT = '✦ Спросить ИИ';
+	public const DETAIL_BUTTON_ID = 'shef-ai-chat-record-btn';
+	/** Карточки CRM: /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). Как DETAIL_TYPES в chat.js. */
+	public const DETAIL_TYPES = ['lead' => 1, 'deal' => 2, 'contact' => 3, 'company' => 4, 'quote' => 7];
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
 	/** Запасная ширина: без layout.js. Обычно ширину считает layout.js — clamp(420, 36% окна, 480) (1.3.2). */
@@ -71,13 +74,33 @@ final class SidePanel
 	}
 
 	/**
-	 * JS пункта меню карточки CRM: чат по карточке, открытой в этом окне
-	 * (во фрейме слайдера — его адрес; chat.js, openCurrent()). Панели на
-	 * странице нет (место не в настройке или нет права) — уведомление.
+	 * Запись CRM по адресу карточки: /crm/deal/details/5/,
+	 * /crm/type/<entityTypeId>/details/ID/; новая (ID 0) и другие адреса — null.
+	 * Тот же разбор, что recordFromPath() в chat.js.
+	 *
+	 * @return array{entityTypeId: int, id: int}|null
+	 */
+	public static function detailRecord(string $requestUri): ?array
+	{
+		$path = (string)parse_url($requestUri, PHP_URL_PATH);
+		if(!preg_match('~^/crm/(?:type/(\d+)|([a-z]+))/details/(\d+)/~', $path, $m))
+		{
+			return null;
+		}
+		$type = $m[1] !== '' ? (int)$m[1] : (self::DETAIL_TYPES[$m[2]] ?? 0);
+		$id = (int)$m[3];
+
+		return $type > 0 && $id > 0 ? ['entityTypeId' => $type, 'id' => $id] : null;
+	}
+
+	/**
+	 * JS кнопки карточки CRM: чат по карточке, открытой в этом окне
+	 * (во фрейме слайдера — его адрес; chat.js, openCurrent()). Панели нет
+	 * (расширение не успело загрузиться) — уведомление.
 	 */
 	public static function openCurrentJs(): string
 	{
-		$text = (string)json_encode('Чат ИИ здесь недоступен: нет права или страница не входит в «Где показывать чат».', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+		$text = (string)json_encode('Чат ИИ ещё загружается или недоступен — попробуйте через секунду.', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
 		return 'if(window.ShefAiChat&&window.ShefAiChat.openCurrent){window.ShefAiChat.openCurrent();}'
 			.'else if(BX.UI&&BX.UI.Notification){BX.UI.Notification.Center.notify({content:'.$text.'});}';

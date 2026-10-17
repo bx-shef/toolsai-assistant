@@ -178,18 +178,8 @@ class shef_toolsaiassistant extends CModule
 		{
 			\Shef\ToolsAi\Public\Service\PromptService::forget();
 		}
-		$this->clearBindingMenuCache();
 
 		return true;
-	}
-
-	/** Меню-шестерёнка карточки CRM кешируется (intranet, тег intranet_menu_binding) — сбросить: пункт «✦ Спросить ИИ» (1.3.2). */
-	private function clearBindingMenuCache(): void
-	{
-		if(defined('BX_COMP_MANAGED_CACHE'))
-		{
-			\Bitrix\Main\Application::getInstance()->getTaggedCache()->clearByTag('intranet_menu_binding');
-		}
 	}
 
 	/** Снять те же подписки — с тем же назначением (class, method). */
@@ -209,7 +199,6 @@ class shef_toolsaiassistant extends CModule
 				);
 			}
 		}
-		$this->clearBindingMenuCache();
 
 		return true;
 	}

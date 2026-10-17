@@ -13,6 +13,12 @@ window.ShefAiChat.isOpen();                                             // от�
 window.ShefAiChat.openCurrent();                                        // чат по карточке CRM этого окна (1.3.2)
 ```
 
+Кнопка «✦ Спросить ИИ» в шапке карточки CRM (1.3.2) зовёт именно `openCurrent()`.
+Её ставит `OnProlog` штатным `Toolbar::addButton(..., ButtonLocation::RIGHT)` —
+раньше кода карточки, поэтому она первая в правом ряду (левее шестерёнки).
+Карточка ставит свои кнопки тем же API (`crm/install/components/bitrix/crm.toolbar/class.php`,
+`crm/lib/component/entitydetails/factorybased.php`, `getToolbarParameters()`).
+
 `openCurrent()` берёт запись из адреса карточки: `/crm/deal|lead|contact|company|quote/details/ID/`
 и `/crm/type/<entityTypeId>/details/ID/`, заголовок — `document.title` (`recordFromPath()`
 в `chat.js`, `tests/chatopen_test.mjs`). Во фрейме слайдера — адрес фрейма, чат открывается
