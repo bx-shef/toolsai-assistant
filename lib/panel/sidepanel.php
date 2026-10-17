@@ -21,7 +21,18 @@ namespace Shef\ToolsAiAssistant\Panel;
 final class SidePanel
 {
 	public const BUTTON_ID = 'shef-ai-chat-btn';
-	public const BUTTON_TEXT = 'ИИ: чат';
+	/** Текст кнопки — со звёздочкой в самом тексте (1.3.1): скрипт кнопку тулбара не правит. */
+	public const BUTTON_TEXT = '✦ ИИ: чат';
+	/**
+	 * Иконка кнопки в свёрнутом тулбаре (data-toolbar-collapsed-icon) —
+	 * значение Bitrix\UI\Buttons\Icon::AI (ui/lib/buttons/icon.php); без неё
+	 * BX.UI.Toolbar пишет предупреждение в консоль (ui.toolbar, src/toolbar.js).
+	 */
+	public const COLLAPSED_ICON = 'ui-btn-icon-ai ui-icon-set__scope';
+	/** Путь вида «ИИ» shef.toolsai: там кнопку ставит событие OnViewToolbarBuild (1.3.1). */
+	public const VIEW_PATH = '/shef/toolsai/view/';
+	/** id кнопки в виде «ИИ» — свой, не BUTTON_ID: клик уже в onclick, повторная привязка chat.js не нужна. */
+	public const VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
 	public const WIDTH_DEFAULT = 400;
@@ -101,6 +112,35 @@ final class SidePanel
 		}
 
 		return $files;
+	}
+
+	/**
+	 * Кнопка «✦ ИИ: чат» для shef.toolsai:OnViewToolbarBuild (1.53.0):
+	 * ['text', 'onclick', 'id'] по контракту ViewToolbarBuildEvent. Иконку
+	 * свёрнутого режима ставит сам вид.
+	 *
+	 * @return array{text: string, onclick: string, id: string}
+	 */
+	public static function viewToolbarButton(): array
+	{
+		return [
+			'text' => self::BUTTON_TEXT,
+			'onclick' => 'window.ShefAiChat&&window.ShefAiChat.toggle(null)',
+			'id' => self::VIEW_BUTTON_ID,
+		];
+	}
+
+	/**
+	 * Ставить ли кнопку тулбара самим (OnProlog). В виде «ИИ» при shef.toolsai
+	 * с событием OnViewToolbarBuild — нет: кнопку ставит вид по событию, а
+	 * своя кнопка там терялась при сборке шапки. Без события (toolsai < 1.53) —
+	 * как раньше.
+	 */
+	public static function needsOwnToolbarButton(string $requestUri, bool $viewEventAvailable): bool
+	{
+		$path = (string)parse_url($requestUri, PHP_URL_PATH);
+
+		return !($viewEventAvailable && str_starts_with($path, self::VIEW_PATH));
 	}
 
 	/** Скрипт запуска панели — для Asset::addString(). */

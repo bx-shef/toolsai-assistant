@@ -55,14 +55,21 @@ final class ChatPanel
 		Asset::getInstance()->addString(SidePanel::initScript(SidePanel::settings($context, SidePanel::BUTTON_ID, $assets)));
 	}
 
-	/** Кнопка «✦ ИИ: чат» в верхней панели страницы (ui.toolbar). */
+	/**
+	 * Кнопка «✦ ИИ: чат» в верхней панели страницы — штатно, Toolbar API на
+	 * PHP, с иконкой свёрнутого режима (dataset toolbar-collapsed-icon, 1.3.1).
+	 */
 	public static function addToolbarButton(): void
 	{
 		if(!Loader::includeModule('ui') || !class_exists(\Bitrix\UI\Toolbar\Facade\Toolbar::class))
 		{
 			return;
 		}
-		$button = new \Bitrix\UI\Buttons\Button(['text' => SidePanel::BUTTON_TEXT, 'color' => \Bitrix\UI\Buttons\Color::LIGHT_BORDER]);
+		$button = new \Bitrix\UI\Buttons\Button([
+			'text' => SidePanel::BUTTON_TEXT,
+			'color' => \Bitrix\UI\Buttons\Color::LIGHT_BORDER,
+			'dataset' => ['toolbar-collapsed-icon' => defined(\Bitrix\UI\Buttons\Icon::class.'::AI') ? \Bitrix\UI\Buttons\Icon::AI : SidePanel::COLLAPSED_ICON],
+		]);
 		$button->addAttribute('id', SidePanel::BUTTON_ID);
 		\Bitrix\UI\Toolbar\Facade\Toolbar::addButton($button);
 	}

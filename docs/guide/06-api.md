@@ -85,7 +85,10 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 `openRecordJs()` экранирует данные для атрибута и `<script>`. Повторный `load()`
 безвреден. На страницах из настройки «Где показывать чат» кнопку и панель модуль
 добавляет сам, а «✦ Спросить ИИ» в вид «ИИ» shef.toolsai — событием
-`OnViewRowActionsBuild` ([04-events.md](04-events.md)).
+`OnViewRowActionsBuild` ([04-events.md](04-events.md)). Кнопка — штатная кнопка
+тулбара с иконкой свёрнутого режима (`data-toolbar-collapsed-icon`, 1.3.1); скрипт
+её не правит. В шапку вида «ИИ» (shef.toolsai 1.53+) кнопку ставит сам вид по
+событию `OnViewToolbarBuild`.
 
 ## Ajax-действия
 

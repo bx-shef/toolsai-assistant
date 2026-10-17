@@ -71,6 +71,17 @@ return [
 					'sort' => 100,
 				],
 			],
+			// «✦ ИИ: чат» в шапке вида «ИИ» shef.toolsai штатным Toolbar API (1.53.0+, 1.3.1)
+			[
+				'isCompatible' => false,
+				'from' => ['module' => 'shef.toolsai', 'event' => 'OnViewToolbarBuild'],
+				'to' => [
+					'module' => 'shef.toolsaiassistant',
+					'class' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAi\\EventHandler\\OnViewToolbarBuildEventHandler',
+					'function' => 'handle',
+					'sort' => 100,
+				],
+			],
 			// Панель чата справа: расширение и кнопка — тем, кому открыт чат
 			[
 				'isCompatible' => true,

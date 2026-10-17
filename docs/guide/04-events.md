@@ -9,7 +9,8 @@
 |---|---|---|
 | `shef.toolsai:OnPromptRegistryBuild` (D7) | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler::handle(Event): EventResult` | отдаёт шесть ролей: `EventResult(SUCCESS, ['prompts' => Roles::raw()], 'shef.toolsaiassistant')` |
 | `shef.toolsai:OnViewRowActionsBuild` (D7, 1.50.0) | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler::handle(Event): EventResult` | пункт «✦ Спросить ИИ» в меню строки вида «ИИ»: `['actions' => [['text', 'onclick']]]`, только при праве на чат |
-| `main:OnProlog` (compatible, без параметров) | `Internals\Integration\Main\EventHandler\OnPrologEventHandler::handle()` | на страницах из настройки «Где показывать чат» — кнопка «✦ ИИ: чат» и панель; страница в слайдере (`IFRAME=Y`) — тоже, чат откроется в верхнем окне (1.3.0) |
+| `shef.toolsai:OnViewToolbarBuild` (D7, 1.53.0; у нас 1.3.1) | `Internals\Integration\ToolsAi\EventHandler\OnViewToolbarBuildEventHandler::handle(Event): EventResult` | кнопка «✦ ИИ: чат» в шапке вида «ИИ»: `['buttons' => [['text', 'onclick', 'id']]]` — если чат включён, вид входит в «Где показывать чат» и у сотрудника есть право. Вид ставит её штатным Toolbar API с иконкой свёрнутого режима. Без shef.toolsai 1.53 событие не приходит — кнопку ставит `OnProlog`, как раньше |
+| `main:OnProlog` (compatible, без параметров) | `Internals\Integration\Main\EventHandler\OnPrologEventHandler::handle()` | на страницах из настройки «Где показывать чат» — кнопка «✦ ИИ: чат» (Toolbar API на PHP, `dataset` `toolbar-collapsed-icon`; в виде «ИИ» при событии `OnViewToolbarBuild` — только панель) и панель; страница в слайдере (`IFRAME=Y`) — тоже, чат откроется в верхнем окне (1.3.0) |
 
 Контракт `OnPromptRegistryBuild` задаёт shef.toolsai (`lib/prompt/registryservice.php`,
 `RegistryService::defaults()`): коды промптов обязаны начинаться с ID модуля —
