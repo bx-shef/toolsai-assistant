@@ -35,6 +35,14 @@ final class WidgetCatalog
 		'funnel' => 'Воронка с конверсией по стадиям: {"title": "…", "unit": "…", "items": [{"label": "стадия", "value": число}]} — стадии по порядку, конверсию окно считает само.',
 		'score' => 'Оценка работы: {"title": "…", "value": число, "max": 100, "label": "…", "summary": "…", "criteria": [{"label": "…", "passed": true, "note": "…"}]} — до 20 критериев.',
 		'missedcall' => 'Пропущенный звонок с кнопкой «Перезвонить»: {"phone": "…", "name": "…", "time": "…", "waiting": "…", "entityTypeId": число, "id": число, "note": "…"}. Только звонки из данных выше.',
+		'tasks' => 'Список задач: {"title": "…", "items": [{"id": число, "title": "…", "deadline": "…", "overdue": true, "responsible": "…", "status": "…", "urgent": true, "note": "…"}]} — до 20; название ведёт в задачу.',
+		'task' => 'Карточка задачи: {"id": число, "title": "…", "status": "…", "deadline": "…", "overdue": false, "responsible": "…", "creator": "…", "description": "…", "checklist": [{"label": "…", "done": true}], "entityTypeId": число, "entityId": число, "entityTitle": "…"}.',
+		'today' => 'Главное на сегодня: {"title": "…", "items": [{"kind": "task|call|meeting|deal|lead|email|chat|booking", "title": "…", "time": "ЧЧ:ММ", "urgent": true, "note": "…", "taskId": число, "entityTypeId": число, "id": число}]} — до 15; urgent = горит, идёт первым.',
+		'support' => 'Обращения клиентов (саппорт): {"title": "…", "items": [{"title": "…", "client": "…", "channel": "…", "waiting": "…", "status": "…", "sla": "breach|risk|ok", "entityTypeId": число, "id": число, "url": "/…"}]} — до 20.',
+		'birthday' => 'День рождения сотрудника: {"userId": число, "name": "…", "position": "…", "date": "…", "message": "текст поздравления"} — сотрудник правит текст и сам отправляет его в личный чат.',
+		'doc' => 'Страницы документации: {"title": "…", "items": [{"title": "…", "url": "/… или https://…", "summary": "…", "section": "…", "updated": "…", "tags": ["…"]}]} — до 8; только страницы из данных выше.',
+		'schedule' => 'Расписание дня как в календаре: {"date": "…", "now": "ЧЧ:ММ", "events": [{"title": "…", "from": "ЧЧ:ММ", "to": "ЧЧ:ММ", "kind": "meeting|call|task|deal|booking", "place": "…", "allDay": false, "eventId": число, "bookingId": число, "taskId": число}]} — до 30.',
+		'booking' => 'Записи на приём (онлайн-запись): {"date": "…", "waitlist": число, "items": [{"id": число, "from": "ЧЧ:ММ", "to": "ЧЧ:ММ", "resource": "специалист или кабинет", "client": "…", "phone": "…", "service": "…", "confirmed": true, "visit": "unknown|visited|notVisited", "note": "…", "entityTypeId": число, "entityId": число}]} — до 20.',
 		'actions' => 'Кнопки следующего шага: {"items": [{"label": "…", "prompt": "текст запроса", "send": false}]} — до 6; send = true отправит запрос сразу.',
 	];
 

@@ -152,6 +152,7 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 | `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` — одним куском (совместимость с 1.0.0) |
 | `stream` | как у `answer` | поток `text/event-stream` (1.1.0) — см. ниже |
 | `favorite` | `role`, `on: Y\|N` | `{prefs: {recent, favorite}}` — звёздочка роли в диалоге (1.4.0); роль не открыта — ошибка `role` |
+| `greet` | `userId`, `text` | `{sent: true}` — поздравление сотруднику в личный чат от текущего сотрудника (1.11.0, виджет `birthday`, после подтверждения в окне); право «Пользоваться чатом», `\CIMMessage::Add()`; получатель — активный сотрудник, не сам себе, текст до 2000 знаков; отказ — ошибка `greeting` |
 | `rate` | `rating: up\|down`, `role`, `record`, `question`, `answer`, `comment` | `{id}` (1.1.0) |
 
 `info` с 1.10.0 отдаёт и `agent: {enabled, connected, server}`; действия агента —

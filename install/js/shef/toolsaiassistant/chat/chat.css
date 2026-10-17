@@ -257,6 +257,45 @@ a.shef-aiw-action { display: inline-block; text-decoration: none; }
 .shef-aiw-missed-note { margin: 4px 0 0 42px; font-size: 13px; }
 .shef-aiw-missed .shef-aiw-actions { margin: 10px 0 0 42px; }
 
+/* 1.11.0: задачи, главное на сегодня, саппорт, день рождения, документация */
+.shef-aiw-task-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--ui-color-base-10, #edeef0); }
+.shef-aiw-task-row:last-child { border-bottom: 0; }
+.shef-aiw-task-row.--urgent { margin: 0 -6px; padding: 6px; border-radius: 8px; background: #fff4f0; }
+.shef-aiw-fire { flex: none; }
+.shef-aiw-task-main { flex: 1; min-width: 0; }
+.shef-aiw-task-title { font-weight: 600; }
+.shef-aiw-task-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-task-note { margin-top: 2px; font-size: 13px; }
+.shef-aiw-due.--overdue { color: #c62828; font-weight: 600; }
+.shef-aiw-kind { color: var(--shef-aia-accent); font-weight: 600; }
+.shef-aiw-badge { display: inline-block; padding: 0 8px; border-radius: 10px; background: var(--ui-color-base-05, #f1f2f4); font-size: 12px; color: var(--ui-color-base-90, #333); }
+.shef-aiw-taskcard .shef-aiw-task-meta { margin: 4px 0 6px; }
+.shef-aiw-taskcard-desc { margin-top: 8px; font-size: 13px; white-space: pre-line; }
+.shef-aiw-check-sum { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--ui-color-base-70, #525c69); }
+.shef-aiw-checklist { list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px; }
+.shef-aiw-checklist li.--done { color: var(--ui-color-base-50, #828b95); text-decoration: line-through; }
+.shef-aiw-today-head { margin: 8px 0 2px; font-size: 12px; font-weight: 600; color: var(--ui-color-base-70, #525c69); text-transform: uppercase; }
+.shef-aiw-today-head:first-child { margin-top: 0; }
+.shef-aiw-today-head.--hot { color: #d84315; }
+.shef-aiw-support-head { margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.shef-aiw-support-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--ui-color-base-10, #edeef0); }
+.shef-aiw-support-row:last-child { border-bottom: 0; }
+.shef-aiw-sla { flex: none; width: 92px; padding: 1px 6px; border-radius: 10px; font-size: 11px; text-align: center; background: var(--ui-color-base-05, #f1f2f4); }
+.shef-aiw-sla.--breach { background: #fdecec; color: #c62828; font-weight: 600; }
+.shef-aiw-sla.--risk { background: #fff4e0; color: #b26a00; }
+.shef-aiw-sla.--ok { background: #e8f5e9; color: #2e7d32; }
+.shef-aiw-bday-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #fff4e0; font-size: 16px; }
+.shef-aiw-bday-text { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--ui-color-base-20, #dfe0e3); border-radius: 8px; font: inherit; font-size: 13px; resize: vertical; }
+.shef-aiw-birthday .shef-aiw-actions { margin-top: 8px; }
+.shef-aiw-action:disabled { opacity: .6; cursor: default; }
+.shef-aiw-bday-status { margin-top: 6px; font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-bday-status:empty { display: none; }
+.shef-aiw-doc { padding: 6px 0; border-bottom: 1px solid var(--ui-color-base-10, #edeef0); }
+.shef-aiw-doc:last-child { border-bottom: 0; }
+.shef-aiw-doc-title { font-weight: 600; }
+.shef-aiw-doc-summary { margin-top: 2px; font-size: 13px; }
+.shef-aiw-doc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
 /* Файлы к вопросу (1.8.0): чипы над полем, в своём сообщении — имена */
 .shef-aia-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .shef-aia-attachments[hidden] { display: none; }
@@ -286,3 +325,32 @@ a.shef-aiw-action { display: inline-block; text-decoration: none; }
 .shef-aia-agent-pending-args { display: block; max-height: 240px; overflow: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; background: #f5f7f8; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
 .shef-aia-agent-pending-buttons { display: flex; gap: 8px; }
 .shef-aia-agent-pending-done { font-size: 12px; color: #6a737f; }
+
+/* 1.11.0: расписание дня — сетка часов, события колонками, линия «сейчас» */
+.shef-aiw-sched-date { margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.shef-aiw-sched-allday { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px 46px; }
+.shef-aiw-sched-chip { padding: 2px 8px; border-radius: 6px; font-size: 12px; background: #e8f0fe; color: #1a3e8c; }
+.shef-aiw-sched-grid { position: relative; margin-top: 8px; }
+.shef-aiw-sched-hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--ui-color-base-10, #edeef0); }
+.shef-aiw-sched-time { position: absolute; top: -8px; left: 0; width: 40px; font-size: 11px; color: var(--ui-color-base-50, #828b95); background: var(--ui-color-background-primary, #fff); }
+.shef-aiw-sched-lanes { position: absolute; top: 0; bottom: 0; left: 46px; right: 0; }
+.shef-aiw-sched-event { position: absolute; box-sizing: border-box; overflow: hidden; padding: 2px 6px; border: 1px solid #fff; border-left: 3px solid #1a73e8; border-radius: 6px; background: #e8f0fe; font-size: 12px; line-height: 1.3; }
+.shef-aiw-sched-event.--call { border-left-color: #0b8043; background: #e6f4ea; }
+.shef-aiw-sched-event.--task { border-left-color: #8e52ec; background: #f3ecfe; }
+.shef-aiw-sched-event.--deal, .shef-aiw-sched-event.--lead { border-left-color: #f09300; background: #fef3e0; }
+.shef-aiw-sched-event.--booking { border-left-color: #00897b; background: #e0f2f1; }
+.shef-aiw-sched-title { display: block; overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-color-base-90, #222); }
+.shef-aiw-sched-link { text-decoration: none; }
+.shef-aiw-sched-link:hover { text-decoration: underline; }
+.shef-aiw-sched-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ui-color-base-70, #525c69); }
+.shef-aiw-sched-now { position: absolute; left: 40px; right: 0; height: 2px; background: #ea4335; }
+.shef-aiw-sched-now::before { content: ''; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: #ea4335; }
+
+/* 1.11.0: записи на приём (модуль booking) */
+.shef-aiw-booking-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--ui-color-base-10, #edeef0); }
+.shef-aiw-booking-time { flex: none; width: 82px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.shef-aiw-badge.--ok { background: #e8f5e9; color: #2e7d32; }
+.shef-aiw-badge.--warn { background: #fff4e0; color: #b26a00; }
+.shef-aiw-badge.--fail { background: #fdecec; color: #c62828; }
+.shef-aiw-icon-btn { flex: none; width: 30px; height: 30px; border: 1px solid var(--shef-aia-accent); border-radius: 50%; background: transparent; color: var(--shef-aia-accent); cursor: pointer; }
+.shef-aiw-booking-foot { margin-top: 8px; font-size: 13px; }

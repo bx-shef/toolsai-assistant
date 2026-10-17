@@ -33,13 +33,13 @@ function node(tag, cls, text) {
   return n;
 }
 const calls = [];
-const ctx = { el: node, prefill: t => calls.push(['prefill', t]), send: t => calls.push(['send', t]), recordUrl: W.recordUrl, safeUrl: u => (/^\/(?![\/\\])/.test(u) ? u : null), call: (n, b) => calls.push(['call', n, b]) };
+const ctx = { el: node, prefill: t => calls.push(['prefill', t]), send: t => calls.push(['send', t]), recordUrl: W.recordUrl, safeUrl: u => (/^\/(?![\/\\])/.test(u) ? u : null), call: (n, b) => calls.push(['call', n, b]), userId: 5, greet: (u, t) => { calls.push(['greet', u, t]); return { then(ok) { ok(true); } }; } };
 const mount = (type, data) => W.mount(node('div', 'shef-aia-widget'), { type, data: { type, ...data } }, ctx);
 const texts = n => [n.textContent, ...n.children.flatMap(texts)].filter(Boolean);
 const find = (n, tag) => [...(n.tag === tag ? [n] : []), ...n.children.flatMap(c => find(c, tag))];
 
 console.log('\nвстроенные');
-same('типы', W.builtins(), ['kpi', 'table', 'bars', 'record', 'funnel', 'score', 'missedcall', 'actions']);
+same('типы', W.builtins(), ['kpi', 'table', 'bars', 'record', 'funnel', 'score', 'missedcall', 'tasks', 'task', 'today', 'support', 'birthday', 'doc', 'schedule', 'booking', 'actions']);
 const kpi = mount('kpi', { title: 'Итог', items: [{ label: 'Сделок', value: 12, trend: 'up' }, { label: '<img src=x onerror=1>', value: '5' }, 'мусор'] });
 same('kpi: заголовок, значения и подписи текстом, мусор пропущен', texts(kpi), ['Итог', '12', ' ▲', 'Сделок', '5', '<img src=x onerror=1>']);
 const table = mount('table', { columns: ['Сделка', 'Сумма'], rows: [['А', 100, 'лишняя'], ['Б', { x: 1 }]] });
@@ -75,6 +75,46 @@ const mc = mount('missedcall', { phone: '+375 (29) 123-45-67', name: 'Иван',
 find(mc, 'button').forEach(b => b.listeners.click());
 same('missedcall: перезвонить по номеру с привязкой, карточка, подготовка', [find(mc, 'button').map(b => b.textContent), find(mc, 'a')[0].attrs.href, calls], [['Перезвонить', 'Подготовиться к звонку'], '/crm/deal/details/118/', [['call', '+375291234567', { entityTypeId: 2, id: 118 }], ['prefill', 'Подготовь меня к звонку: Иван, +375291234567']]]);
 same('missedcall: негодный номер — без «Перезвонить», без записи — без карточки', [find(mount('missedcall', { phone: '12; alert(1)' }), 'button').map(b => b.textContent), find(mount('missedcall', { phone: '12; alert(1)' }), 'a').length], [['Подготовиться к звонку'], 0]);
+
+console.log('\n1.11.0: задачи, сегодня, саппорт, день рождения, документация, расписание, запись');
+const hrefs = n => find(n, 'a').map(a => a.attrs.href);
+const tl = mount('tasks', { items: [{ id: 7, title: 'КП Альфе', deadline: '15.10', overdue: true, responsible: 'Петров', urgent: true }, { id: 'x', title: 'Без ID' }, 'мусор'] });
+same('tasks: ссылка на задачу текущего сотрудника, мусорный ID — без ссылки', hrefs(tl), ['/company/personal/user/5/tasks/task/view/7/']);
+same('tasks: горит — 🔥, просрочка — красным', [texts(tl).includes('🔥'), cls(tl, 'shef-aiw-due')[0].className, cls(tl, 'shef-aiw-due')[0].textContent], [true, 'shef-aiw-due --overdue', 'просрочена · 15.10']);
+const tc = mount('task', { id: 9, title: 'Договор', status: 'В работе', entityTypeId: 2, entityId: 118, entityTitle: 'Поставка', checklist: [{ label: 'Счёт', done: true }, { label: 'Акт' }] });
+same('task: задача, привязка CRM, чек-лист', [hrefs(tc), cls(tc, 'shef-aiw-check-sum')[0].textContent, find(tc, 'li').map(l => l.className)], [['/company/personal/user/5/tasks/task/view/9/', '/crm/deal/details/118/'], 'Чек-лист: 1 из 2', ['--done', '']]);
+const td = mount('today', { items: [{ kind: 'call', title: 'Позвонить Альфе', time: '11:00', entityTypeId: 2, id: 1 }, { kind: 'task', title: 'Счёт', urgent: true, taskId: 3 }, { kind: 'meeting', title: 'Планёрка', url: '//evil' }] });
+same('today: горит — первым, разделитель, ссылки по типу', [cls(td, 'shef-aiw-today-head').map(h => h.textContent), cls(td, 'shef-aiw-task-title').map(t => t.textContent), hrefs(td)], [['Горит: 1', 'Остальное'], ['Счёт', 'Позвонить Альфе', 'Планёрка'], ['/company/personal/user/5/tasks/task/view/3/', '/crm/deal/details/1/']]);
+const sp = mount('support', { items: [{ title: 'А', sla: 'ok' }, { title: 'Б', sla: 'breach', entityTypeId: 1, id: 4 }, { title: 'В', sla: 'risk' }, { title: 'Г', sla: 'meh' }] });
+same('support: нарушен срок — сверху, счётчики', [cls(sp, 'shef-aiw-task-title').map(t => t.textContent), cls(sp, 'shef-aiw-support-head')[0].textContent, hrefs(sp)], [['Б', 'В', 'А', 'Г'], 'Обращений: 4 · нарушен срок: 1 · на грани: 1', ['/crm/lead/details/4/']]);
+calls.length = 0;
+const bd = mount('birthday', { userId: 12, name: 'Анна', position: 'Бухгалтер', message: 'С днём рождения!' });
+const [sendBtn, genBtn] = find(bd, 'button');
+const area = find(bd, 'textarea')[0];
+sendBtn.listeners.click();
+same('birthday: первое нажатие — только подтверждение', [calls, sendBtn.textContent], [[], 'Точно отправить Анна?']);
+sendBtn.listeners.click();
+await new Promise(r => setTimeout(r, 0));
+same('birthday: второе — отправка, профиль сотрудника', [calls, sendBtn.textContent, hrefs(bd)], [[['greet', 12, 'С днём рождения!']], 'Отправлено ✓', ['/company/personal/user/12/']]);
+calls.length = 0;
+genBtn.listeners.click();
+same('birthday: «Сгенерировать» — запрос модели', [calls.length, calls[0][0], calls[0][1].includes('userId 12')], [1, 'send', true]);
+calls.length = 0;
+const bd2 = mount('birthday', { userId: 12, name: 'Анна' });
+find(bd2, 'button')[0].listeners.click();
+same('birthday: пустой текст — не отправляется', [calls, cls(bd2, 'shef-aiw-bday-status')[0].textContent], [[], 'Напишите поздравление или нажмите «Сгенерировать»']);
+const dc = mount('doc', { items: [{ title: 'Права', url: '/shef/toolsai/kb/rights/', summary: 'Кто что видит', tags: ['права'] }, { title: 'Чужая', url: 'javascript:alert(1)' }] });
+same('doc: путь портала — ссылка, javascript: — нет', [hrefs(dc), cls(dc, 'shef-aiw-doc-summary')[0].textContent], [['/shef/toolsai/kb/rights/'], 'Кто что видит']);
+same('расписание: пересечения — колонками, освободившаяся колонка занимается снова', W.layoutDay([{ from: 540, to: 600 }, { from: 570, to: 630 }, { from: 660, to: 690 }, { from: 545, to: 560 }]), [{ col: 0, cols: 2 }, { col: 1, cols: 2 }, { col: 0, cols: 1 }, { col: 1, cols: 2 }]);
+const sch = mount('schedule', { now: '10:30', events: [{ title: 'Планёрка', from: '09:00', to: '10:00', eventId: 44 }, { title: 'Иванов', from: '09:30', to: '10:30', kind: 'booking', bookingId: 8 }, { title: 'Отпуск Пети', allDay: true }, { title: 'Мусор', from: '25:99' }] });
+const evs = cls(sch, 'shef-aiw-sched-event');
+same('schedule: от 08:00, по 44px в час, колонки, «сейчас»', [evs.map(e => [e.style.top, e.style.height, e.style.left, e.style.width]), cls(sch, 'shef-aiw-sched-now')[0].style.top, cls(sch, 'shef-aiw-sched-chip').length], [[['44px', '42px', '0%', '50%'], ['66px', '42px', '50%', '50%']], '110px', 1]);
+same('schedule: событие календаря и запись — ссылками', hrefs(sch), ['/company/personal/user/5/calendar/?EVENT_ID=44', '/booking/detail/8/']);
+calls.length = 0;
+const bk = mount('booking', { date: '17.10', waitlist: 2, items: [{ id: 31, from: '14:00', to: '15:00', client: 'Сидоров', resource: 'Кабинет 2', confirmed: false, phone: '+375291112233', entityTypeId: 3, entityId: 5 }, { id: 30, from: '09:00', to: '09:30', client: 'Анна', visit: 'visited', confirmed: true }] });
+find(bk, 'button')[0].listeners.click();
+same('booking: по времени, слайдер записи, CRM, журнал', [cls(bk, 'shef-aiw-task-title').map(t => t.textContent), hrefs(bk)], [['Анна', 'Сидоров'], ['/booking/detail/30/', '/booking/detail/31/', '/crm/contact/details/5/', '/booking/']]);
+same('booking: шапка, отметки, звонок клиенту', [cls(bk, 'shef-aiw-support-head')[0].textContent, cls(bk, 'shef-aiw-badge').map(b => b.textContent), calls], ['17.10 · записей: 2 · не подтверждено: 1', ['подтверждена', 'пришёл', 'не подтверждена'], [['call', '+375291112233', { entityTypeId: 3, id: 5 }]]]);
 
 console.log('\nмодули и сбои');
 same('свой тип модуля регистрируется', W.register('my.mod:weather', { render: (d, c) => c.el('div', '', d.city) }), true);

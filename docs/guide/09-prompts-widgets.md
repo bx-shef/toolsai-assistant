@@ -53,6 +53,14 @@ shef.toolsai меню промптов не появляется, виджеты
 | `funnel` | воронка (1.11.0): `items: [{label, value}]` по порядку стадий, `unit`; конверсию из предыдущей стадии, от начала и итоговую окно считает само |
 | `score` | оценка работы (1.11.0): `value`, `max` (100), `label`, `summary`, `criteria: [{label, passed, note}]` до 20; цвет — до 50% красный, до 80% жёлтый, выше — зелёный |
 | `missedcall` | пропущенный звонок (1.11.0): `phone`, `name`, `time`, `waiting`, `entityTypeId`, `id`, `note`; кнопки «Перезвонить», «Открыть карточку», «Подготовиться к звонку» |
+| `tasks` | список задач (1.11.0): `items: [{id, title, deadline, overdue, responsible, status, urgent, note}]` до 20; название — задача в слайдере, просрочка красным, горит — 🔥 |
+| `task` | карточка задачи (1.11.0): `id`, `title`, `status`, `deadline`, `overdue`, `responsible`, `creator`, `description`, `checklist: [{label, done}]`, привязка `entityTypeId` + `entityId` + `entityTitle` |
+| `today` | главное на сегодня (1.11.0): `items: [{kind, title, time, urgent, note, taskId \| entityTypeId+id \| url}]` до 15; «горит» (`urgent`) — первым блоком |
+| `support` | саппорт — обращения клиентов (1.11.0): `items: [{title, client, channel, waiting, status, sla: breach\|risk\|ok, entityTypeId+id \| url}]` до 20; нарушен срок — сверху |
+| `birthday` | день рождения сотрудника (1.11.0): `userId`, `name`, `position`, `date`, `message`; текст правится в поле, «Сгенерировать» просит модель, «Отправить в чат» — с подтверждением вторым нажатием |
+| `doc` | страницы документации (1.11.0): `items: [{title, url, summary, section, updated, tags}]` до 8; портал — слайдером, внешний сайт — вкладкой |
+| `schedule` | расписание дня как в Google Календаре (1.11.0): `date`, `now`, `events: [{title, from, to, kind, place, allDay, eventId \| bookingId \| taskId \| entityTypeId+id \| url}]` до 30; сетка часов, пересечения — колонками, «сейчас» — красной линией |
+| `booking` | записи на приём, модуль booking (1.11.0): `date`, `waitlist`, `items: [{id, from, to, resource, client, phone, service, confirmed, visit: unknown\|visited\|notVisited, note, entityTypeId, entityId}]` до 20; запись — слайдер `/booking/detail/{ID}/`, звонок клиенту, «Журнал записи» |
 | `actions` | кнопки следующего шага: `items: [{label, prompt, send}]` — вставить запрос в поле или отправить |
 
 У любого виджета может быть `title`.
@@ -61,6 +69,17 @@ shef.toolsai меню промптов не появляется, виджеты
 привязан к лиду, сделке, контакту или компании виджета); телефонии нет — ссылка
 `tel:` (софтфон или телефон). Номер — только цифры и ведущий «+», 5–20 цифр;
 негодный — кнопки нет. Привязка звонка к записи на портале не проверена.
+
+**Поздравление.** Отправляет сервер (`shef:toolsaiassistant.chat.greet`) от имени
+сотрудника, который нажал кнопку, — личным сообщением модуля im. Окно спрашивает
+подтверждение вторым нажатием; сервер проверяет право «Пользоваться чатом»,
+получателя (активный сотрудник, не сам себе) и текст (до 2000 знаков).
+
+**Ссылки на портале.** Задача — `/company/personal/user/<текущий>/tasks/task/view/<ID>/`,
+событие календаря — `/company/personal/user/<текущий>/calendar/?EVENT_ID=<ID>`,
+запись на приём — `/booking/detail/<ID>/` (страница модуля booking в слайдере),
+профиль — `/company/personal/user/<ID>/`. Все открываются слайдером. На портале
+адреса задач и календаря не проверены.
 
 **Безопасность.** Всё, что прислала модель, — данные: виджеты рисуют узлы с
 `textContent`, без `innerHTML`; ссылка — только на карточку записи своего портала
@@ -84,7 +103,9 @@ shef.toolsai меню промптов не появляется, виджеты
    });
    ```
 
-   `ctx`: `el(tag, cls, text)`, `prefill(text)`, `send(text)`, `recordUrl(entityTypeId, id)`.
+   `ctx`: `el(tag, cls, text)`, `prefill(text)`, `send(text)`, `recordUrl(entityTypeId, id)`;
+   с 1.11.0 ещё `safeUrl(url)`, `call(phone, {entityTypeId, id})`, `userId` (текущий сотрудник),
+   `greet(userId, text)` → Promise.
 
 2. Обработчиком `shef.toolsaiassistant:OnChatWidgetsCollect` сообщить тип, расширение
    и описание данных для модели:

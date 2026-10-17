@@ -1498,7 +1498,20 @@
 				send: function(text) { self.send(text); },
 				safeUrl: function(url) { return NS.Markdown ? NS.Markdown.safeUrl(url) : null; },
 				recordUrl: NS.Widgets.recordUrl,
-				call: function(number, binding) { callPhone(number, binding); }
+				call: function(number, binding) { callPhone(number, binding); },
+				userId: Number(BX.message('USER_ID')) || 0,
+				// Поздравление (1.11.0, виджет birthday): виджет уже спросил подтверждение
+				greet: function(userId, text)
+				{
+					return new Promise(function(resolve, reject)
+					{
+						BX.ajax.runAction(ACTION + 'greet', {data: {userId: String(userId), text: text}}).then(function() { resolve(true); }, function(response)
+						{
+							var error = response && response.errors && response.errors[0];
+							reject((error && error.message) || 'Не отправилось — попробуйте ещё раз');
+						});
+					});
+				}
 			};
 			var hosts = body.querySelectorAll('[data-shef-widget]');
 			for(var i = 0; i < hosts.length; i++)

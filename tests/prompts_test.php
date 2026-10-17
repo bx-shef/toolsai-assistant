@@ -87,7 +87,7 @@ if($definition !== null)
 }
 
 Check::group('каталог виджетов');
-Check::same('встроенные — те же, что рисует widgets.js', array_keys(WidgetCatalog::BUILTIN), ['kpi', 'table', 'bars', 'record', 'funnel', 'score', 'missedcall', 'actions']);
+Check::same('встроенные — те же, что рисует widgets.js', array_keys(WidgetCatalog::BUILTIN), ['kpi', 'table', 'bars', 'record', 'funnel', 'score', 'missedcall', 'tasks', 'task', 'today', 'support', 'birthday', 'doc', 'schedule', 'booking', 'actions']);
 $foreign = WidgetCatalog::fromModule(['widgets' => [
 	['type' => 'weather', 'extension' => 'my.mod.widgets', 'description' => 'Погода: <b>{"city": "…"}</b>'],
 	['type' => 'Bad Type', 'extension' => 'x', 'description' => 'd'],

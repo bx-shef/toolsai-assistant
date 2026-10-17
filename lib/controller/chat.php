@@ -25,7 +25,8 @@ use Shef\ToolsAiAssistant\Container;
  *   role   — сменить роль в чате (запоминается на сотрудника и чат);
  *   stream — ответ помощника потоком (1.1.0, окно печатает текст по ходу);
  *   answer — тот же ответ одним JSON (совместимость с 1.0.0);
- *   rate   — оценка ответа «полезно / не помогло» (1.1.0).
+ *   rate   — оценка ответа «полезно / не помогло» (1.1.0);
+ *   greet  — поздравление сотруднику в личку из виджета birthday (1.11.0).
  *
  * Все — только POST, авторизация и sessid (фильтры ядра). Права модуля и
  * право роли проверяет Chat\AnswerService на каждом вызове. Ответ и поток
@@ -54,6 +55,7 @@ class Chat extends Controller
 			'stream' => ['prefilters' => [...$filters, new ActionFilter\CloseSession()]],
 			'rate' => ['prefilters' => $filters],
 			'favorite' => ['prefilters' => $filters],
+			'greet' => ['prefilters' => $filters],
 		];
 	}
 
@@ -170,6 +172,26 @@ class Chat extends Controller
 		return $this->guarded(fn(): array => Container::getAnswerService()->rate(UserAccess::current(), $this->userId(), [
 			'rating' => $rating, 'role' => $role, 'record' => $record, 'question' => $question, 'answer' => $answer, 'comment' => $comment, 'context' => $context,
 		]));
+	}
+
+	/**
+	 * Поздравить сотрудника (1.11.0, виджет birthday): личное сообщение от
+	 * текущего сотрудника. Окно отправляет только после подтверждения; право —
+	 * «Пользоваться чатом».
+	 */
+	public function greetAction(string $userId = '', string $text = ''): ?array
+	{
+		return $this->guarded(function() use ($userId, $text): array
+		{
+			if(!UserAccess::current()->canUseChat())
+			{
+				throw new ChatException('Нет доступа к чату ИИ-помощника — обратитесь к администратору портала', ChatException::ACCESS);
+			}
+			$greeting = \Shef\ToolsAiAssistant\Chat\Greeting::parse($this->userId(), $userId, $text);
+			Container::getMessenger()->send($this->userId(), $greeting->toUserId, $greeting->text);
+
+			return ['sent' => true];
+		});
 	}
 
 	/** Отказ сценария — ошибкой ответа с кодом; прочий сбой — в лог, наружу общий текст. */

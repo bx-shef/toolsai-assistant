@@ -94,13 +94,14 @@ $errors = static fn(Chat $c): array => array_map(static fn($e): array => [$e->ge
 Check::group('фильтры');
 
 $config = (new Chat())->configureActions();
-Check::same('шесть действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate', 'favorite']);
+Check::same('семь действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate', 'favorite', 'greet']);
 $classes = static fn(array $filters): array => array_map(static fn(object $f): string => (new \ReflectionClass($f))->getShortName(), $filters);
 Check::same('info: авторизация, POST, sessid', $classes($config['info']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 Check::same('answer: ещё и отпустить сессию', $classes($config['answer']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf', 'CloseSession']);
 Check::same('stream: как answer — с CloseSession', $classes($config['stream']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf', 'CloseSession']);
 Check::same('rate: авторизация, POST, sessid', $classes($config['rate']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 Check::same('только POST', $config['role']['prefilters'][1]->methods, [ActionFilter\HttpMethod::METHOD_POST]);
+Check::same('greet: авторизация, POST, sessid', $classes($config['greet']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 
 Check::group('права — из UserAccess');
 
@@ -170,6 +171,42 @@ Check::same('мусор — ошибка feedback', [$chat->rateAction('meh', Ro
 $GLOBALS['USER'] = new CUser(0, false);
 $chat = new Chat();
 Check::same('без права — access', [$chat->rateAction('up', Roles::MANAGER, [], 'q', 'a'), $errors($chat)[0][0] ?? null], [null, 'access']);
+
+Check::group('поздравление сотрудника (1.11.0)');
+
+$messenger = new class implements \Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface
+{
+	public array $sent = [];
+	public bool $fail = false;
+	public function send(int $fromUserId, int $toUserId, string $text): void
+	{
+		if($this->fail)
+		{
+			throw new \Shef\ToolsAiAssistant\Chat\ChatException('Сотрудник не найден или уволен', \Shef\ToolsAiAssistant\Chat\ChatException::GREETING);
+		}
+		$this->sent[] = [$fromUserId, $toUserId, $text];
+	}
+};
+Container::setMessenger($messenger);
+$GLOBALS['USER'] = new CUser(5, true);
+\Bitrix\Main\Engine\Controller::$user = new \Bitrix\Main\Engine\CurrentUser(5, true);
+$chat = new Chat();
+Check::same('отправлено от текущего сотрудника, текст без пробелов по краям', [$chat->greetAction('12', "  С днём рождения!\r\nУдачи  "), $messenger->sent], [['sent' => true], [[5, 12, "С днём рождения!\nУдачи"]]]);
+$codes = [];
+foreach([['0', 'Привет'], ['12x', 'Привет'], ['5', 'Привет'], ['12', '   '], ['12', str_repeat('я', 2001)]] as [$to, $text])
+{
+	$chat = new Chat();
+	$codes[] = [$chat->greetAction($to, $text), $errors($chat)[0][0] ?? null];
+}
+Check::same('кому непонятно, себе, пусто, длиннее 2000 — greeting, ничего не ушло', [$codes, count($messenger->sent)], [array_fill(0, 5, [null, 'greeting']), 1]);
+$messenger->fail = true;
+$chat = new Chat();
+Check::same('мессенджер отказал — текст отказа сотруднику', [$chat->greetAction('12', 'Привет'), $errors($chat)[0] ?? null], [null, ['greeting', 'Сотрудник не найден или уволен']]);
+$messenger->fail = false;
+$GLOBALS['USER'] = new CUser(0, false);
+$chat = new Chat();
+Check::same('без права на чат — access, ничего не ушло', [$chat->greetAction('12', 'Привет'), $errors($chat)[0][0] ?? null, count($messenger->sent)], [null, 'access', 1]);
+Container::setMessenger(null);
 
 Check::group('контроллер разбора оценок (1.5.0)');
 

@@ -29,6 +29,19 @@ use Shef\ToolsAiAssistant\Mcp\TokenStore;
 final class Container
 {
 	private static ?AnswerService $answerService = null;
+	private static ?\Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface $messenger = null;
+
+	/** Мессенджер портала для поздравлений (1.11.0) или подмена теста. */
+	public static function getMessenger(): \Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface
+	{
+		return self::$messenger ?? new \Shef\ToolsAiAssistant\Chat\Gateway\ImMessenger();
+	}
+
+	/** Подменить мессенджер (тесты контроллера); null — вернуть настоящий. */
+	public static function setMessenger(?\Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface $messenger): void
+	{
+		self::$messenger = $messenger;
+	}
 
 	/** Сценарий чата с настройками портала (или подменённый тестом). */
 	public static function getAnswerService(): AnswerService
