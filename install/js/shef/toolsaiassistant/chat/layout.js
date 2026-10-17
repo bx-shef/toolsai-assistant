@@ -1,12 +1,16 @@
 /**
- * Размер и место панели чата (1.4.0) — чистые функции, без DOM
- * (tests/layout_test.mjs).
+ * Размер и место панели чата — чистые функции, без DOM (tests/layout_test.mjs).
  *
- * Панель лежит поверх страницы и слайдеров (overlay), страницу не сдвигает.
- * Справа оставляем место полосе мессенджера портала (#right-bar шаблона):
- * панель встаёт левее неё, полоса остаётся у края. Слайдер BX.SidePanel
- * считает свою ширину сам (intranet/sidepanel/air: getRightBoundary() — по
- * #right-bar), мы в этот расчёт не вмешиваемся.
+ * С 1.9.0 два места:
+ * - «air» — правая колонка шаблона Air (#app__right-panel), как чат Марты:
+ *   страницу сужает сетка шаблона, слайдер открывается левее колонки
+ *   (intranet/sidepanel/air: getRightBoundary() — по #app__right-panel).
+ *   Ширину ведёт ядро (RightPanel: --air-right-panel-width, своя ручка,
+ *   CUserOptions intranet/right_panel_width), здесь не считаем.
+ * - «overlay» — шаблон не Air или узкий экран (меньше 768, как в ядре —
+ *   там колонка скрыта): фиксированная панель у правого края левее полосы
+ *   мессенджера (#right-bar). На широком экране колонка контента старого
+ *   шаблона сужается на ширину панели (push()), слайдер — поверх чата.
  */
 (function()
 {
@@ -21,6 +25,8 @@
 		DEFAULT_RATIO: 0.36,
 		/** Уже этого (свободного места) — узкий экран: панель на всю ширину. */
 		NARROW: 760,
+		/** Уже этого окна правой колонки Air нет (root.css ядра: max-width 767px). */
+		AIR_MIN: 768,
 		/** Сколько оставить слева при ручном растягивании (полоса левого меню). */
 		LEFT_GAP: 65,
 		/** Полоса справа шире этого — не полоса мессенджера, не учитываем. */
@@ -78,6 +84,30 @@
 			}
 
 			return {width: Math.max(min, Math.min(max, width)), right: inset, narrow: false};
+		},
+
+		/**
+		 * Где показать панель: «air» — в правой колонке шаблона (есть
+		 * публичный BX.Intranet.Bitrix24.Template.getRightPanel() и окно не
+		 * уже 768), иначе «overlay».
+		 *
+		 * @param {number} viewport ширина окна
+		 * @param {boolean} hasAirPanel есть правая колонка шаблона Air
+		 */
+		mode: function(viewport, hasAirPanel)
+		{
+			return hasAirPanel && Number(viewport) >= this.AIR_MIN ? 'air' : 'overlay';
+		},
+
+		/**
+		 * На сколько сузить колонку контента старого шаблона: ширина панели и
+		 * полосы справа; узкий экран (панель на всю ширину) — 0.
+		 *
+		 * @param {{width: number, right: number, narrow: boolean}} layout compute()
+		 */
+		push: function(layout)
+		{
+			return layout && !layout.narrow ? Math.max(0, layout.width + layout.right) : 0;
 		},
 
 		/** Ширина при растягивании мышью: от курсора до левого края полосы мессенджера. */
