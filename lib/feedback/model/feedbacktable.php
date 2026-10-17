@@ -15,11 +15,30 @@ use Bitrix\Main\ORM\Fields\TextField;
  * Chat\ChatKey: «general» или «record:<entityTypeId>:<id>»), вопрос и ответ
  * кратко (Feedback\Rating), оценка 1 / -1, комментарий, время. Список — на
  * странице «Оценки ответов» (Feedback\FeedbackPage), право feedback.view.
+ *
+ * Разбор (1.5.0, право feedback.edit): STATUS — Feedback\Review (new /
+ * reviewed / eval / rejected), EXPECTED — «что должно было быть» (факты по
+ * строке, Feedback\Review::facts()), REVIEWED_BY и REVIEWED_AT — кто и когда
+ * разобрал. Колонки на портале добавляет Feedback\FeedbackStore::install()
+ * (Main\Maintenance при смене версии, установщик там не запускается).
  */
 class FeedbackTable extends DataManager
 {
-	/** Индекс по времени: список идёт от свежих. */
-	public const INDEXES = ['IX_SHEF_TAIA_FEEDBACK_AT' => ['columns' => ['CREATED_AT'], 'unique' => false]];
+	/**
+	 * Индексы под запросы страницы:
+	 *   CREATED_AT — грид от свежих, период фильтра, сводка по ролям за период, агент очистки;
+	 *   STATUS + CREATED_AT (1.5.0) — главный разбор «новые за период, от свежих»:
+	 *     равенство по статусу, дальше диапазон и сортировка по дате из того же индекса.
+	 * ROLE_CODE + CREATED_AT не берём: фильтр по роли — редкий, а сводка по ролям
+	 * всё равно читает весь период (GROUP BY по ROLE_CODE, RATING).
+	 */
+	public const INDEXES = [
+		'IX_SHEF_TAIA_FEEDBACK_AT' => ['columns' => ['CREATED_AT'], 'unique' => false],
+		'IX_SHEF_TAIA_FEEDBACK_ST' => ['columns' => ['STATUS', 'CREATED_AT'], 'unique' => false],
+	];
+
+	/** Колонки разбора (1.5.0): их нет в таблицах, созданных до 1.5.0. */
+	public const REVIEW_COLUMNS = ['STATUS', 'EXPECTED', 'REVIEWED_BY', 'REVIEWED_AT'];
 
 	/** Имя таблицы в базе. */
 	public static function getTableName(): string
@@ -27,7 +46,7 @@ class FeedbackTable extends DataManager
 		return 'shef_toolsaiassistant_feedback';
 	}
 
-	/** Поля: ID, CREATED_AT, USER_ID, ROLE_CODE, CHAT_KEY, QUESTION, ANSWER, RATING, COMMENT. */
+	/** Поля: ID, CREATED_AT, USER_ID, ROLE_CODE, CHAT_KEY, QUESTION, ANSWER, RATING, COMMENT; разбор — STATUS, EXPECTED, REVIEWED_BY, REVIEWED_AT. */
 	public static function getMap(): array
 	{
 		return [
@@ -40,6 +59,10 @@ class FeedbackTable extends DataManager
 			(new TextField('ANSWER'))->configureRequired(),
 			(new IntegerField('RATING'))->configureRequired(),
 			(new TextField('COMMENT'))->configureNullable(),
+			(new StringField('STATUS'))->configureRequired()->configureSize(16)->configureDefaultValue(\Shef\ToolsAiAssistant\Feedback\Review::NEW),
+			(new TextField('EXPECTED'))->configureNullable(),
+			(new IntegerField('REVIEWED_BY'))->configureNullable(),
+			(new DatetimeField('REVIEWED_AT'))->configureNullable(),
 		];
 	}
 }

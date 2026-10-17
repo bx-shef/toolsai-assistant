@@ -13,6 +13,7 @@
 | [05-roles.md](guide/05-roles.md) | шесть ролей помощника |
 | [06-api.md](guide/06-api.md) | API: JS, PHP, ajax-действия |
 | [07-settings.md](guide/07-settings.md) | настройки модуля |
+| [08-feedback.md](guide/08-feedback.md) | оценки ответов: разбор и кейсы проверки промптов shef.toolsai |
 
 ## Внутреннее (`private/`)
 
