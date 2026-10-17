@@ -17,7 +17,7 @@ final class Constants
 	/** Публичный сервис поиска статей shef.toolsaikb (контракт линейки). */
 	public const KB_SEARCH_CLASS = '\\Shef\\ToolsAiKb\\Public\\Service\\KbSearchService';
 
-	/** Мягкая зависимость (1.11.0): единый журнал отзывов линейки. */
+	/** Мягкая зависимость (1.12.0): единый журнал отзывов линейки. */
 	public const EVAL_MODULE_ID = 'shef.toolsaieval';
 	/** Публичный сервис отзывов shef.toolsaieval (контракт линейки). */
 	public const EVAL_SERVICE_CLASS = '\\Shef\\ToolsAiEval\\Public\\Service\\FeedbackService';

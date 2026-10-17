@@ -6,10 +6,10 @@ use Shef\ToolsAiAssistant\Chat\Gateway\EvalGatewayInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\FeedbackStoreInterface;
 
 /**
- * Куда пишется оценка ответа (1.11.0): есть shef.toolsaieval — в общий
+ * Куда пишется оценка ответа (1.12.0): есть shef.toolsaieval — в общий
  * журнал отзывов линейки (разбор и выгрузка кейсов — там); нет или он не
  * записал (в том числе по своему пределу частоты) — в свою таблицу, как до
- * 1.11.0: оценка не теряется, перенос доставит её позже. Частоту оценок
+ * 1.12.0: оценка не теряется, перенос доставит её позже. Частоту оценок
  * ограничивает свой RateLimit до записи. Отметки частоты — свои.
  */
 final class FeedbackRouter implements FeedbackStoreInterface

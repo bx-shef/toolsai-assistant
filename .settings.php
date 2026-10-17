@@ -104,7 +104,7 @@ return [
 					'sort' => 100,
 				],
 			],
-			// Вид отзыва в общем журнале shef.toolsaieval (1.11.0)
+			// Вид отзыва в общем журнале shef.toolsaieval (1.12.0)
 			[
 				'isCompatible' => false,
 				'from' => ['module' => 'shef.toolsaieval', 'event' => 'OnFeedbackKindsCollect'],
@@ -115,7 +115,7 @@ return [
 					'sort' => 100,
 				],
 			],
-			// Права на отзывы чата в общем журнале shef.toolsaieval (1.11.0)
+			// Права на отзывы чата в общем журнале shef.toolsaieval (1.12.0)
 			[
 				'isCompatible' => false,
 				'from' => ['module' => 'shef.toolsaieval', 'event' => 'OnFeedbackAccessCheck'],

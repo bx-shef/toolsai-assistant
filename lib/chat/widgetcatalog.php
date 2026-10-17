@@ -29,9 +29,20 @@ final class WidgetCatalog
 	/** Встроенные типы: тип => описание данных для модели. */
 	public const BUILTIN = [
 		'kpi' => 'Показатели плитками: {"title": "…", "items": [{"label": "…", "value": "…", "hint": "…", "trend": "up|down"}]} — до 8 штук.',
-		'table' => 'Таблица: {"title": "…", "columns": ["…"], "rows": [["…"]]} — до 12 столбцов и 50 строк.',
+		'table' => 'Таблица: {"title": "…", "columns": ["…"], "rows": [["…"]]} — до 12 столбцов и 50 строк; ячейка-ссылка — {"text", "entityTypeId", "id"} или {"text", "url": "/…"}.',
 		'bars' => 'Полосы (простой график): {"title": "…", "unit": "…", "items": [{"label": "…", "value": число}]}.',
 		'record' => 'Карточка записи CRM со ссылкой: {"entityTypeId": число, "id": число, "title": "…", "subtitle": "…", "stage": "…", "fields": [{"label": "…", "value": "…"}]}. Только записи из данных выше.',
+		'funnel' => 'Воронка: {"title", "unit", "items": [{"label": стадия, "value": число}]} по порядку стадий; конверсию считает окно.',
+		'score' => 'Оценка: {"title", "value": число, "max": 100, "label", "summary", "criteria": [{"label", "passed": bool, "note"}]}.',
+		'missedcall' => 'Пропущенный звонок: {"phone", "name", "time", "waiting", "entityTypeId", "id", "note"}.',
+		'tasks' => 'Задачи: {"title", "items": [{"id", "title", "deadline", "overdue": bool, "responsible", "status", "urgent": bool}]}.',
+		'task' => 'Задача: {"id", "title", "status", "deadline", "overdue", "responsible", "creator", "description", "checklist": [{"label", "done"}], "entityTypeId", "entityId", "entityTitle"}.',
+		'today' => 'Главное на сегодня: {"items": [{"kind": "task|call|meeting|deal|lead|email|chat|booking", "title", "time", "urgent": bool, "note", "taskId" | "entityTypeId"+"id"}]}.',
+		'support' => 'Обращения: {"items": [{"title", "client", "channel", "waiting", "status", "sla": "breach|risk|ok", "entityTypeId", "id"}]}.',
+		'birthday' => 'День рождения сотрудника: {"userId", "name", "position", "date", "message": поздравление}; отправляет сам сотрудник.',
+		'doc' => 'Документация: {"items": [{"title", "url", "summary", "section", "updated", "tags": []}]}.',
+		'schedule' => 'Расписание дня: {"date", "now": "ЧЧ:ММ", "events": [{"title", "from": "ЧЧ:ММ", "to", "kind", "place", "allDay", "eventId" | "bookingId" | "taskId"}]}.',
+		'booking' => 'Записи на приём: {"date", "waitlist": число, "items": [{"id", "from", "to", "resource", "client", "phone", "service", "confirmed": bool, "visit": "unknown|visited|notVisited", "entityTypeId", "entityId"}]}.',
 		'actions' => 'Кнопки следующего шага: {"items": [{"label": "…", "prompt": "текст запроса", "send": false}]} — до 6; send = true отправит запрос сразу.',
 	];
 
@@ -83,6 +94,7 @@ final class WidgetCatalog
 			'{"type": "kpi", "items": [{"label": "Сделок в работе", "value": 12}]}',
 			'```',
 			'Один блок — один виджет, внутри только JSON. Данные — только из блоков ниже, не выдумывай. Не больше трёх виджетов в ответе; короткий текст рядом всё равно пиши.',
+			'Задачи, расписание, записи, звонки, обращения, дни рождения — только если они есть в данных; нет данных — не рисуй виджет, скажи, чего не хватает.',
 			'Типы:',
 		];
 		foreach(self::BUILTIN as $type => $description)

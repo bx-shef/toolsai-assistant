@@ -82,7 +82,7 @@ final class FeedbackStore implements FeedbackStoreInterface
 	}
 
 	/**
-	 * Агент: перенести новые оценки в shef.toolsaieval, если он есть (1.11.0,
+	 * Агент: перенести новые оценки в shef.toolsaieval, если он есть (1.12.0,
 	 * EvalMigration), и удалить оценки старше срока хранения (настройка
 	 * CHAT_feedbackdays, по умолчанию 90 дней) — в оценках фрагменты CRM.
 	 */
@@ -91,7 +91,7 @@ final class FeedbackStore implements FeedbackStoreInterface
 		$pending = false;
 		try
 		{
-			// Сначала перенос в общий журнал (1.11.0): до удаления по сроку
+			// Сначала перенос в общий журнал (1.12.0): до удаления по сроку
 			$eval = new \Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway();
 			EvalMigration::run($eval);
 			$pending = $eval->isAvailable() && EvalMigration::left() > 0;
@@ -284,7 +284,7 @@ final class FeedbackStore implements FeedbackStoreInterface
 	}
 
 	/**
-	 * Оценки с ID больше $lastId по возрастанию — перенос в shef.toolsaieval (1.11.0).
+	 * Оценки с ID больше $lastId по возрастанию — перенос в shef.toolsaieval (1.12.0).
 	 *
 	 * @return list<array<string, mixed>>
 	 */

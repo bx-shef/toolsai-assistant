@@ -8,7 +8,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Перенос оценок из своей таблицы в общий журнал shef.toolsaieval (1.11.0).
+ * Перенос оценок из своей таблицы в общий журнал shef.toolsaieval (1.12.0).
  *
  * Пачками по ID: дата, разбор («что должно было быть», статус, кто разобрал)
  * и номер оценки уходят в FeedbackService::import(); повторный перенос того

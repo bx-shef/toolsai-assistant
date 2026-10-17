@@ -215,8 +215,10 @@ Check::same('мусор — null', McpClient::parseBody('<html>'), null);
 
 Check::group('шифрование токенов');
 $crypto = new TokenCrypto(TokenCrypto::newKey());
-$secret = $crypto->encrypt('a1');
-Check::same('шифротекст не содержит токена, расшифровывается', [str_contains($secret, 'a1'), $crypto->decrypt($secret)], [false, 'a1']);
+// Токен длинный: короткий («a1») случайно встречался в base64 шифротекста — тест мигал на CI
+$token = 'mcp-access-token-7f3c9e2b5a1d4086';
+$secret = $crypto->encrypt($token);
+Check::same('шифротекст не содержит токена, расшифровывается', [str_contains($secret, $token), $crypto->decrypt($secret)], [false, $token]);
 Check::same('другим ключом — null (подключиться заново)', (new TokenCrypto(TokenCrypto::newKey()))->decrypt($secret), null);
 Check::same('испорченный — null', $crypto->decrypt(substr($secret, 0, -2).'xx'), null);
 

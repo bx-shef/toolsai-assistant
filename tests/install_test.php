@@ -85,7 +85,7 @@ namespace
 	}
 	Check::same('каждый обработчик — статический метод существующего класса', $missing, []);
 	Check::same(
-		'подписки: реестр промптов, места промптов (1.7.0) и вид «ИИ» shef.toolsai, вид отзыва и права shef.toolsaieval (1.11.0), панель',
+		'подписки: реестр промптов, места промптов (1.7.0) и вид «ИИ» shef.toolsai, вид отзыва и права shef.toolsaieval (1.12.0), панель',
 		array_map(static fn(array $e): string => $e['from']['module'].':'.$e['from']['event'], $settings['installEvents']['value']),
 		['shef.toolsai:OnPromptRegistryBuild', 'shef.toolsai:OnPromptPlacesCollect', 'shef.toolsai:OnViewRowActionsBuild', 'shef.toolsai:OnViewToolbarBuild', 'shef.toolsai:OnViewSettingsMenuBuild', 'shef.toolsaieval:OnFeedbackKindsCollect', 'shef.toolsaieval:OnFeedbackAccessCheck', 'main:OnProlog']
 	);

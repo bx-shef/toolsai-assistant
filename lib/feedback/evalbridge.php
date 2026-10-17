@@ -5,7 +5,7 @@ namespace Shef\ToolsAiAssistant\Feedback;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Оценка чата → отзыв общего журнала shef.toolsaieval (1.11.0): поля
+ * Оценка чата → отзыв общего журнала shef.toolsaieval (1.12.0): поля
  * Shef\ToolsAiEval\Feedback\Entry из разобранной оценки (Rating::parse()) и
  * из строки своей таблицы — для переноса.
  *

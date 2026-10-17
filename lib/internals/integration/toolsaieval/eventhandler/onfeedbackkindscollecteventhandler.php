@@ -8,7 +8,7 @@ use Shef\ToolsAiAssistant\Feedback\EvalBridge;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Обработчик shef.toolsaieval:OnFeedbackKindsCollect (1.11.0): вид отзыва
+ * Обработчик shef.toolsaieval:OnFeedbackKindsCollect (1.12.0): вид отзыва
  * «Ответ чата помощника», задача проверки промптов — chat. Модуль вида — в
  * ответе события (третий аргумент EventResult). Без shef.toolsaieval событие
  * просто не придёт.

@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Chat\Gateway;
 
 /**
- * Единый журнал отзывов линейки — shef.toolsaieval (1.11.0). Реализация —
+ * Единый журнал отзывов линейки — shef.toolsaieval (1.12.0). Реализация —
  * ToolsAiEvalGateway (публичный FeedbackService модуля), в тестах — подмена.
  */
 interface EvalGatewayInterface

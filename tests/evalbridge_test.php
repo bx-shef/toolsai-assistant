@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 /**
- * Общий журнал отзывов shef.toolsaieval (1.11.0): оценка → отзыв (EvalBridge),
+ * Общий журнал отзывов shef.toolsaieval (1.12.0): оценка → отзыв (EvalBridge),
  * куда пишется оценка (FeedbackRouter), перенос старых оценок пачками
  * (EvalMigration::step), подсказка на странице, вид отзыва для события.
  */

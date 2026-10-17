@@ -6,9 +6,9 @@ use Bitrix\Main\Loader;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * Отзывы — в общий журнал shef.toolsaieval (1.11.0): мягко,
+ * Отзывы — в общий журнал shef.toolsaieval (1.12.0): мягко,
  * Loader::includeModule + class_exists. Нет модуля — isAvailable() false, и
- * отзывы пишутся в свою таблицу, как до 1.11.0.
+ * отзывы пишутся в свою таблицу, как до 1.12.0.
  */
 final class ToolsAiEvalGateway implements EvalGatewayInterface
 {
