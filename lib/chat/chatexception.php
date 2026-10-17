@@ -19,6 +19,8 @@ final class ChatException extends \RuntimeException
 	public const FEEDBACK = 'feedback';
 	/** Режим «Агент»: ждущее действие устарело, инструмент пропал (1.10.0). Отказы MCP — коды Mcp\McpException (mcp_auth …). */
 	public const AGENT = 'agent';
+	/** Поздравление из виджета birthday: кому, текст, отправка (1.11.0). */
+	public const GREETING = 'greeting';
 
 	/** Текст — для сотрудника; $errorCode — константа класса (уходит кодом ошибки ajax). */
 	public function __construct(string $message, public readonly string $errorCode, ?\Throwable $previous = null)

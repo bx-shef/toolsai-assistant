@@ -5,7 +5,10 @@ namespace Shef\ToolsAiAssistant;
 use Psr\Log\LoggerInterface;
 use Shef\ToolsAiAssistant\Chat\AnswerService;
 use Shef\ToolsAiAssistant\Chat\WidgetCatalog;
+use Shef\ToolsAiAssistant\Chat\Gateway\ImMessenger;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSource;
+use Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface;
+use Shef\ToolsAiAssistant\Chat\Gateway\RateStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiModelGateway;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiRecordSource;
@@ -29,6 +32,35 @@ use Shef\ToolsAiAssistant\Mcp\TokenStore;
 final class Container
 {
 	private static ?AnswerService $answerService = null;
+	private static ?MessengerInterface $messenger = null;
+	private static ?RateStoreInterface $greetRates = null;
+	private static ?\DateTimeImmutable $now = null;
+
+	/** Мессенджер портала для поздравлений (1.11.0) или подмена теста. */
+	public static function getMessenger(): MessengerInterface
+	{
+		return self::$messenger ?? new ImMessenger();
+	}
+
+	/** Отметки отправленных поздравлений сотрудника — для RateLimit (1.11.0). */
+	public static function getGreetRates(): RateStoreInterface
+	{
+		return self::$greetRates ?? new UserOptionRateStore('rate_greet');
+	}
+
+	/** Сейчас — время сервера или подмена теста. */
+	public static function now(): \DateTimeImmutable
+	{
+		return self::$now ?? new \DateTimeImmutable();
+	}
+
+	/** Подменить мессенджер, отметки и время (тесты контроллера); null — вернуть настоящие. */
+	public static function setGreetDeps(?MessengerInterface $messenger, ?RateStoreInterface $rates = null, ?\DateTimeImmutable $now = null): void
+	{
+		self::$messenger = $messenger;
+		self::$greetRates = $rates;
+		self::$now = $now;
+	}
 
 	/** Сценарий чата с настройками портала (или подменённый тестом). */
 	public static function getAnswerService(): AnswerService

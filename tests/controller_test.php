@@ -94,13 +94,14 @@ $errors = static fn(Chat $c): array => array_map(static fn($e): array => [$e->ge
 Check::group('фильтры');
 
 $config = (new Chat())->configureActions();
-Check::same('шесть действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate', 'favorite']);
+Check::same('семь действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate', 'favorite', 'greet']);
 $classes = static fn(array $filters): array => array_map(static fn(object $f): string => (new \ReflectionClass($f))->getShortName(), $filters);
 Check::same('info: авторизация, POST, sessid', $classes($config['info']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 Check::same('answer: ещё и отпустить сессию', $classes($config['answer']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf', 'CloseSession']);
 Check::same('stream: как answer — с CloseSession', $classes($config['stream']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf', 'CloseSession']);
 Check::same('rate: авторизация, POST, sessid', $classes($config['rate']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 Check::same('только POST', $config['role']['prefilters'][1]->methods, [ActionFilter\HttpMethod::METHOD_POST]);
+Check::same('greet: авторизация, POST, sessid', $classes($config['greet']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 
 Check::group('права — из UserAccess');
 
@@ -170,6 +171,78 @@ Check::same('мусор — ошибка feedback', [$chat->rateAction('meh', Ro
 $GLOBALS['USER'] = new CUser(0, false);
 $chat = new Chat();
 Check::same('без права — access', [$chat->rateAction('up', Roles::MANAGER, [], 'q', 'a'), $errors($chat)[0][0] ?? null], [null, 'access']);
+
+Check::group('поздравление сотрудника (1.11.0)');
+
+$messenger = new class implements \Shef\ToolsAiAssistant\Chat\Gateway\MessengerInterface
+{
+	public array $sent = [];
+	public bool $fail = false;
+	public array $users = [
+		12 => ['name' => 'Анна Сидорова', 'position' => 'Бухгалтер', 'birthday' => '1990-10-19', 'employee' => true],
+		13 => ['name' => 'Пётр Иванов', 'position' => '', 'birthday' => '1985-06-01', 'employee' => true],
+		14 => ['name' => 'Бот открытой линии', 'position' => '', 'birthday' => '1990-10-17', 'employee' => false],
+	];
+	public function recipient(int $userId): ?array
+	{
+		return $this->users[$userId] ?? null;
+	}
+	public function send(int $fromUserId, int $toUserId, string $text): void
+	{
+		if($this->fail)
+		{
+			throw new \Shef\ToolsAiAssistant\Chat\ChatException('Сообщение не отправилось — попробуйте ещё раз', \Shef\ToolsAiAssistant\Chat\ChatException::GREETING);
+		}
+		$this->sent[] = [$fromUserId, $toUserId, $text];
+	}
+};
+$greetRates = new class implements RateStoreInterface
+{
+	public array $stamps = [];
+	public function get(int $userId): array { return $this->stamps[$userId] ?? []; }
+	public function put(int $userId, array $stamps): void { $this->stamps[$userId] = $stamps; }
+};
+Container::setGreetDeps($messenger, $greetRates, new \DateTimeImmutable('2026-10-17 12:00:00'));
+$GLOBALS['USER'] = new CUser(5, true);
+\Bitrix\Main\Engine\Controller::$user = new \Bitrix\Main\Engine\CurrentUser(5, true);
+$chat = new Chat();
+Check::same('шаг 1: настоящее имя с портала, текст очищен, ничего не ушло', [$chat->greetAction('12', "  С днём рождения! [URL=https://evil.example]Подарок[/URL]\r\nУдачи  "), $messenger->sent], [['name' => 'Анна Сидорова', 'position' => 'Бухгалтер', 'text' => "С днём рождения! Подарок\nУдачи", 'sent' => false], []]);
+$chat = new Chat();
+Check::same('шаг 2 (confirm=Y): отправлено от текущего сотрудника, BB-коды вырезаны', [$chat->greetAction('12', 'С днём рождения! [USER=1]Шеф[/USER]', 'Y')['sent'] ?? null, $messenger->sent], [true, [[5, 12, 'С днём рождения! Шеф']]]);
+$codes = [];
+foreach([['0', 'Привет'], ['12x', 'Привет'], ['5', 'Привет'], ['12', '   '], ['12', '[URL=x][/URL]'], ['12', str_repeat('я', 2001)], ['99', 'Привет'], ['14', 'Привет'], ['13', 'Привет']] as [$to, $text])
+{
+	$chat = new Chat();
+	$codes[] = [$chat->greetAction($to, $text, 'Y'), $errors($chat)[0][0] ?? null];
+}
+Check::same('кому непонятно, себе, пусто, одни BB-коды, длинно, нет такого, не сотрудник, не день рождения — greeting, ничего не ушло', [$codes, count($messenger->sent)], [array_fill(0, 9, [null, 'greeting']), 1]);
+$chat = new Chat();
+$chat->greetAction('13', 'Привет');
+Check::same('не день рождения — текст называет настоящего получателя', $errors($chat)[0][1] ?? '', 'У Пётр Иванов сейчас не день рождения — поздравление не отправлено');
+$codes = [];
+for($i = 0; $i < 5; $i++)
+{
+	$chat = new Chat();
+	$codes[] = $chat->greetAction('12', 'Ещё раз', 'Y')['sent'] ?? $errors($chat)[0][0];
+}
+Check::same('частота: в минуту не больше 5 отправок (одна уже была), проверка получателя лимит не тратит', [$codes, count($messenger->sent)], [[true, true, true, true, 'rate'], 5]);
+$greetRates->stamps = [];
+$messenger->fail = true;
+$chat = new Chat();
+Check::same('мессенджер отказал — текст отказа сотруднику', [$chat->greetAction('12', 'Привет', 'Y'), $errors($chat)[0] ?? null], [null, ['greeting', 'Сообщение не отправилось — попробуйте ещё раз']]);
+$messenger->fail = false;
+$GLOBALS['USER'] = new CUser(0, false);
+$chat = new Chat();
+Check::same('без права на чат — access, ничего не ушло', [$chat->greetAction('12', 'Привет', 'Y'), $errors($chat)[0][0] ?? null, count($messenger->sent)], [null, 'access', 5]);
+Container::setGreetDeps(null);
+
+Check::group('день рождения рядом (Greeting::isNearBirthday)');
+$near = static fn(?string $b, string $today): bool => \Shef\ToolsAiAssistant\Chat\Greeting::isNearBirthday($b, new \DateTimeImmutable($today));
+Check::same('±3 дня, через Новый год, 29 февраля, мусор', [
+	$near('1990-10-17', '2026-10-17'), $near('1990-10-20', '2026-10-17'), $near('1990-10-21', '2026-10-17'), $near('1990-10-14', '2026-10-17'), $near('1990-10-13', '2026-10-17'),
+	$near('1990-01-01', '2026-12-30'), $near('1990-12-30', '2027-01-02'), $near('1992-02-29', '2027-02-28'), $near('1992-02-29', '2027-03-04'),
+	$near(null, '2026-10-17'), $near('1990-13-40', '2026-10-17'), $near('17.10.1990', '2026-10-17'),
+], [true, true, false, true, false, true, true, true, false, false, false, false]);
 
 Check::group('контроллер разбора оценок (1.5.0)');
 

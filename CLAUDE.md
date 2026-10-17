@@ -40,7 +40,7 @@
 | ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.4.0) | `install/js/shef/toolsaiassistant/chat/layout.js` |
 | вид переписки (карточка роли, пузыри, время; 1.4.0) | `install/js/shef/toolsaiassistant/chat/view.js` |
 | диалог «Выбрать роль» (модель — `roledialog.js`, вид — `chat.js` `openRoles()`), недавние/избранное | `lib/chat/roleprefs.php`, `roleprefsstore.php` (CUserOptions), иконка роли — `lib/chat/roleicon.php` |
-| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate/favorite`) |
+| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate/favorite/greet`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
 | оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`); с 1.5.0 — грид и фильтр (`GridFilter`), сводка по ролям (`RoleSummary`), статус и «что должно было быть» (`Review`), кейсы проверки (`EvalCase`, `Anonymizer`), контроллер `lib/controller/feedback.php`, окно — `install/js/shef/toolsaiassistant/feedback/` |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
@@ -48,6 +48,7 @@
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
 | меню промптов в поле ввода (1.7.0): места окна, типовые запросы, группы | `lib/prompt/chatplaces.php`, `lib/prompt/typicalprompts.php`, `install/js/.../chat/promptmenu.js`, глава 09 |
 | виджеты в ответах (1.7.0): блок ```widget, реестр, событие `OnChatWidgetsCollect` | `markdown.js` (`renderFull`), `install/js/.../chat/widgets.js`, `lib/chat/widgetcatalog.php`, глава 09 |
+| виджеты 1.11.0: воронка, оценка, пропущенный звонок, задачи, сегодня, саппорт, день рождения (`greet`, `Chat\Greeting`, `Chat\Gateway\ImMessenger`), документация, расписание дня, записи на приём (модуль booking) | `widgets.js`, `lib/chat/widgetcatalog.php`, глава 09 |
 | файлы в чате (1.8.0): текст из PDF/DOCX/XLSX/PPTX/CSV/TXT в браузере, пределы на сервере | `install/js/.../chat/files.js`, `lib/chat/chatfiles.php`, глава 09 |
 | режим «Агент» (1.10.0): цикл инструментов MCP, подтверждение записи, события модулей | `lib/agent/` (`AgentService`, `ToolProtocol`, `ToolCatalog`, `AgentEvents`), окно — `install/js/.../chat/agent.js`, контроллер `lib/controller/agent.php`, глава 10 |
 | чат как клиент MCP-сервера toolsai-mcp (1.10.0): OAuth с PKCE, токены сотрудника зашифрованы | `lib/mcp/` (`McpConnection`, `OAuthClient`, `McpClient`, `TokenStore`), возврат входа — `/shef/toolsaiassistant/mcp/` |
@@ -123,6 +124,10 @@
   (`TokenStore::locked`): сервер вращает refresh. Протокол вызова — свой блок ```tool, а не tool
   calling провайдера: `LlmService` shef.toolsai — текст. Свои инструменты модули
   добавляют в MCP-сервер (манифест), а не сюда; здесь — только правила событием.
+- **Поздравлять коллегу может каждый с «Пользоваться чатом»** (владелец, 2026-10-17;
+  отдельного права нет). Защиты — на сервере (`greet`): настоящий получатель с
+  портала в подтверждении, только сотрудник с днём рождения ±3 дня, без BB-кодов,
+  5 в минуту. Типы виджетов по ролям — отдельной задачей (bx-shef/toolsai-assistant#21).
 - Фильтры контроллеров — через `configureActions()`, не атрибутами: модуль
   ставится на main от 22.600.
 
