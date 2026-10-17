@@ -82,11 +82,21 @@ final class FeedbackStore implements FeedbackStoreInterface
 	}
 
 	/**
-	 * Агент: удалить оценки старше срока хранения (настройка
+	 * Агент: перенести новые оценки в shef.toolsaieval, если он есть (1.11.0,
+	 * EvalMigration), и удалить оценки старше срока хранения (настройка
 	 * CHAT_feedbackdays, по умолчанию 90 дней) — в оценках фрагменты CRM.
 	 */
 	public static function cleanAgent(): string
 	{
+		try
+		{
+			// Сначала перенос в общий журнал (1.11.0): до удаления по сроку
+			EvalMigration::run();
+		}
+		catch(\Throwable $throwable)
+		{
+			\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->error($throwable);
+		}
 		try
 		{
 			static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
@@ -263,6 +273,18 @@ final class FeedbackStore implements FeedbackStoreInterface
 		}
 
 		return $status;
+	}
+
+	/**
+	 * Оценки с ID больше $lastId по возрастанию — перенос в shef.toolsaieval (1.11.0).
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function after(int $lastId, int $limit): array
+	{
+		static::ensure();
+
+		return FeedbackTable::getList(['select' => self::SELECT, 'filter' => ['>ID' => $lastId], 'order' => ['ID' => 'ASC'], 'limit' => $limit])->fetchAll();
 	}
 
 	/** Даты фильтра — строками Y-m-d H:i:s — в DateTime ядра. */

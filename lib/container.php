@@ -8,9 +8,11 @@ use Shef\ToolsAiAssistant\Chat\WidgetCatalog;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiModelGateway;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
+use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiRecordSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\UserOptionRateStore;
 use Shef\ToolsAiAssistant\Chat\RoleChoiceStore;
+use Shef\ToolsAiAssistant\Feedback\FeedbackRouter;
 use Shef\ToolsAiAssistant\Feedback\FeedbackStore;
 use Shef\ToolsAiAssistant\Main\Constants;
 use Shef\ToolsAiAssistant\Agent\AgentEvents;
@@ -42,7 +44,7 @@ final class Container
 			new UserOptionRateStore(),
 			Config::current(),
 			null,
-			new FeedbackStore(),
+			new FeedbackRouter(new FeedbackStore(), new ToolsAiEvalGateway()),
 			WidgetCatalog::instructions(WidgetCatalog::collect()),
 		);
 	}
