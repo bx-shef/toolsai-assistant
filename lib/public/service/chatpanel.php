@@ -68,9 +68,38 @@ final class ChatPanel
 		$button = new \Bitrix\UI\Buttons\Button([
 			'text' => SidePanel::BUTTON_TEXT,
 			'color' => \Bitrix\UI\Buttons\Color::LIGHT_BORDER,
-			'dataset' => ['toolbar-collapsed-icon' => defined(\Bitrix\UI\Buttons\Icon::class.'::AI') ? \Bitrix\UI\Buttons\Icon::AI : SidePanel::COLLAPSED_ICON],
+			'dataset' => ['toolbar-collapsed-icon' => static::collapsedIcon()],
 		]);
 		$button->addAttribute('id', SidePanel::BUTTON_ID);
 		\Bitrix\UI\Toolbar\Facade\Toolbar::addButton($button);
+	}
+
+	/**
+	 * Кнопка «✦ Спросить ИИ» в шапке карточки CRM (1.4.0) — тем же штатным
+	 * Toolbar API, которым карточка ставит свои кнопки (crm.toolbar,
+	 * Toolbar::addButton, ButtonLocation::RIGHT). Ставим в OnProlog, раньше
+	 * кода карточки, поэтому кнопка — первая в правом ряду, слева от
+	 * шестерёнки и «Документ». Клик — чат по записи из адреса карточки.
+	 */
+	public static function addRecordToolbarButton(): void
+	{
+		if(!Loader::includeModule('ui') || !class_exists(\Bitrix\UI\Toolbar\Facade\Toolbar::class))
+		{
+			return;
+		}
+		$button = new \Bitrix\UI\Buttons\Button([
+			'text' => SidePanel::DETAIL_BUTTON_TEXT,
+			'color' => \Bitrix\UI\Buttons\Color::LIGHT_BORDER,
+			'dataset' => ['toolbar-collapsed-icon' => static::collapsedIcon()],
+			'click' => new \Bitrix\UI\Buttons\JsCode(SidePanel::openCurrentJs()),
+		]);
+		$button->addAttribute('id', SidePanel::DETAIL_BUTTON_ID);
+		$button->addAttribute('title', 'Открыть чат ИИ по этой записи');
+		\Bitrix\UI\Toolbar\Facade\Toolbar::addButton($button, \Bitrix\UI\Toolbar\ButtonLocation::RIGHT);
+	}
+
+	private static function collapsedIcon(): string
+	{
+		return defined(\Bitrix\UI\Buttons\Icon::class.'::AI') ? \Bitrix\UI\Buttons\Icon::AI : SidePanel::COLLAPSED_ICON;
 	}
 }

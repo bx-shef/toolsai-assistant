@@ -22,6 +22,9 @@ final class ToolsAiPromptSource implements PromptSourceInterface
 			'code' => (string)$role['code'],
 			'title' => (string)$role['title'],
 			'description' => (string)($role['description'] ?? ''),
+			// Необязательные поля реестра (1.4.0): иконка ui.icon-set и группа для диалога ролей
+			'icon' => \Shef\ToolsAiAssistant\Chat\RoleIcon::of((string)$role['code'], $role['icon'] ?? null),
+			'group' => mb_substr(trim((string)($role['group'] ?? '')), 0, 60),
 		], PromptService::roles($allowed));
 	}
 
