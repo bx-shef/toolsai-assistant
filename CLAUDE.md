@@ -42,6 +42,7 @@
 | ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.4.0) | `install/js/shef/toolsaiassistant/chat/layout.js` |
 | вид переписки (карточка роли, пузыри, время; 1.4.0) | `install/js/shef/toolsaiassistant/chat/view.js` |
 | диалог «Выбрать роль» (модель — `roledialog.js`, вид — `chat.js` `openRoles()`), недавние/избранное | `lib/chat/roleprefs.php`, `roleprefsstore.php` (CUserOptions), иконка роли — `lib/chat/roleicon.php` |
+| что открыто у сотрудника (1.13.0): путь слайдера или окна → блок «ЧТО ОТКРЫТО» и подсказки агенту по инструментам MCP | `lib/chat/pagecontext.php`, окно — `chat.js` `pageOf()`, глава 10 |
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate/favorite/greet`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
 | оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`); с 1.5.0 — грид и фильтр (`GridFilter`), сводка по ролям (`RoleSummary`), статус и «что должно было быть» (`Review`), кейсы проверки (`EvalCase`, `Anonymizer`), контроллер `lib/controller/feedback.php`, окно — `install/js/shef/toolsaiassistant/feedback/` |

@@ -6,7 +6,7 @@ namespace Shef\ToolsAiAssistant\Chat;
  * Запрос на ответ от окна чата: переписка, запись CRM, выбранная роль.
  *
  * Браузер шлёт messages: [{role: 'user'|'assistant', text}], record:
- * {entityTypeId, id} и role — код роли (пусто — запомненная или по
+ * {entityTypeId, id}, page — путь открытой страницы (1.13.0) и role — код роли (пусто — запомненная или по
  * умолчанию). Берутся последние $history сообщений, вопрос — последнее
  * сообщение сотрудника. Перенос логики Kb\ChatStream::parse() shef.toolsai —
  * под простой формат окна модуля (без частей AI SDK).
@@ -30,12 +30,14 @@ final class ChatRequest
 		public readonly string $context = '',
 		/** 1.8.0: текст файлов сотрудника из сообщений переписки (ChatFiles, общий предел). */
 		public readonly array $files = [],
+		/** 1.13.0: страница основного окна или слайдера (PageContext). */
+		public readonly ?PageContext $page = null,
 	)
 	{
 	}
 
 	/** Разбор параметров действия. */
-	public static function parse(mixed $messages, mixed $record, mixed $role, int $history, mixed $context = ''): self
+	public static function parse(mixed $messages, mixed $record, mixed $role, int $history, mixed $context = '', mixed $page = null): self
 	{
 		$list = [];
 		foreach(is_array($messages) ? $messages : [] as $message)
@@ -78,6 +80,6 @@ final class ChatRequest
 		$files = ChatFiles::limit(array_column($list, 'files'));
 		$list = array_map(static fn(array $m): array => ['role' => $m['role'], 'content' => $m['content']], $list);
 
-		return new self($list, $question, Record::fromArray($record), $role, ChatKey::context($context), $files);
+		return new self($list, $question, Record::fromArray($record), $role, ChatKey::context($context), $files, PageContext::fromPath($page));
 	}
 }

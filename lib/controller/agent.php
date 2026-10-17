@@ -83,12 +83,12 @@ class Agent extends Controller
 	 * Ответ агента. Параметры — как у chat.answer, плюс $confirm — решение по
 	 * ждущему действию {id, decision: yes|no}.
 	 */
-	public function runAction(array $messages = [], array $record = [], string $role = '', string $context = '', array $confirm = []): ?array
+	public function runAction(array $messages = [], array $record = [], string $role = '', string $context = '', array $confirm = [], string $page = ''): ?array
 	{
 		return $this->guarded(fn(): array => Container::getAgentService()->run(
 			UserAccess::current(),
 			$this->userId(),
-			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context),
+			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context, $page),
 			$confirm !== [] ? $confirm : null,
 		));
 	}

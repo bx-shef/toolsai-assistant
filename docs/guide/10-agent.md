@@ -56,7 +56,8 @@
 ## Как устроено
 
 ```
-окно чата ──agent.run──▶ AgentService ──prepare()──▶ роль, запись CRM, статьи (как обычный ответ)
+окно чата ──agent.run──▶ AgentService ──prepare()──▶ роль, что открыто, запись CRM (короче), статьи
+                              ├─ подсказки по открытому (PageContext) — под списком инструментов
                               │
                               ├─ McpConnection.tools() ── tools/list ──▶ MCP-сервер (токен сотрудника)
                               ├─ событие OnAgentToolsCollect: правила модулей
@@ -92,6 +93,24 @@
 - **Обновление токена — под блокировкой сотрудника**: сервер вращает refresh, и
   второй параллельный обмен иначе стёр бы подключение. Подключение удаляется
   только при ответе OAuth `invalid_grant`/`invalid_client`, 429 и сбои сети — нет.
+- **Что открыто — подсказкой к инструментам** (1.13.0, `Chat\PageContext::agentHints()`).
+  Агент получает ту же строку «что открыто», что и обычный ответ, и под списком
+  инструментов — готовые вызовы для открытого:
+  - карточка CRM: `crm_item_get {"entity": "deal", "id": 5}`, `crm_fields`,
+    `crm_stages`, `crm_activity_list`; у смарт-процесса `entity` — числом, а
+    `crm_activity_list` не предлагается (инструмент знает только сделку, лид, контакт
+    и компанию);
+  - список или канбан CRM: `crm_item_list` с воронкой, `crm_funnel`, `crm_stages`;
+  - задача: `task_get`, `task_comments`, `task_checklist`;
+  - список задач: `task_list`; календарь: `calendar_events`.
+
+  Подсказка выводится, только если инструмент есть у сотрудника. Если сотрудник открыл
+  карточку в слайдере, а чат общий, подсказка строится по карточке из слайдера. Лента
+  записи от `RecordService` в агенте не длиннее 4000 знаков
+  (`ContextBuilder::AGENT_RECORD_MAX`); дальше — инструментами. Права проверяются
+  дважды: `RecordService` проверяет права CRM, а сервер MCP работает от OAuth-токена
+  сотрудника. Сами ID из подсказки модель может подменить, но вызов всё равно идёт
+  с правами сотрудника.
 - **Результат инструмента — данные, не инструкции**: модель получает его с этой
   пометкой, длинный — обрезанным до `AGENT_resultmax`.
 
@@ -148,7 +167,7 @@ EventManager::getInstance()->addEventHandler('shef.toolsaiassistant', 'OnBeforeA
 | `status` | — | `{enabled, connected, server}` (то же приходит в `chat.info` полем `agent`) |
 | `connect` | — | `{url}` — адрес входа MCP; портал должен быть открыт по https |
 | `disconnect` | — | `{connected: false}` |
-| `run` | как `chat.answer` + `confirm: {id, decision: yes\|no}` | `{text, role, sources, steps, pending: {id, tool, title, readOnly, arguments, preview} \| null, finishReason}` |
+| `run` | как `chat.answer` (с `page`, 1.13.0) + `confirm: {id, decision: yes\|no}` | `{text, role, sources, steps, pending: {id, tool, title, readOnly, arguments, preview} \| null, finishReason}` |
 
 Коды ошибок сверх чата: `agent` (действие устарело, инструмент пропал),
 `mcp_auth` (нужно подключиться), `mcp_network`, `mcp_server`, `mcp_tool`,

@@ -131,11 +131,12 @@ final class AnswerService
 	 * Все проверки до вызова модели (1.1.0: их же ждёт поток — отказ уходит
 	 * обычной ошибкой ajax, а не посреди потока). Порядок: право на чат →
 	 * вопрос → роль → заглушка → частота → запись CRM → текст роли → отметка
-	 * частоты → статьи базы знаний.
+	 * частоты → статьи базы знаний. Что открыто у сотрудника (1.13.0) — строкой
+	 * PageContext; $agent — лента записи короче (дальше — инструментами MCP).
 	 *
 	 * @throws ChatException отказ с текстом для сотрудника
 	 */
-	public function prepare(Rights $rights, int $userId, ChatRequest $request): PreparedAnswer
+	public function prepare(Rights $rights, int $userId, ChatRequest $request, bool $agent = false): PreparedAnswer
 	{
 		$this->assertChat($rights);
 		if($request->question === '')
@@ -165,6 +166,7 @@ final class AnswerService
 		}
 
 		$recordText = null;
+		$record = null;
 		if($request->record !== null)
 		{
 			$record = $this->records->get($request->record->entityTypeId, $request->record->id, $userId);
@@ -172,8 +174,9 @@ final class AnswerService
 			{
 				throw new ChatException('Запись не найдена или нет доступа к ней в CRM', ChatException::RECORD);
 			}
-			$recordText = $record['text'];
+			$recordText = $agent ? ContextBuilder::compactRecord($record['text']) : $record['text'];
 		}
+		$page = PageContext::line($request->page, $request->record, $record);
 
 		$composed = $this->prompts->compose($role, $request->record?->entityTypeId, $userId);
 		if(($composed['role'] ?? null) !== $role)
@@ -184,7 +187,7 @@ final class AnswerService
 		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
 
-		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages(trim($composed['system']."\n\n".$this->widgetHint), $recordText, $articles, $request->history, $request->files), ContextBuilder::sources($articles));
+		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages(trim($composed['system']."\n\n".$this->widgetHint), $recordText, $articles, $request->history, $request->files, $page), ContextBuilder::sources($articles));
 	}
 
 	/**

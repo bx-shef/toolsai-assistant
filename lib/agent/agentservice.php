@@ -7,6 +7,7 @@ use Shef\ToolsAiAssistant\Chat\AnswerService;
 use Shef\ToolsAiAssistant\Chat\ChatException;
 use Shef\ToolsAiAssistant\Chat\ChatRequest;
 use Shef\ToolsAiAssistant\Chat\Gateway\ModelGatewayInterface;
+use Shef\ToolsAiAssistant\Chat\PageContext;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Mcp\McpException;
 
@@ -23,7 +24,8 @@ use Shef\ToolsAiAssistant\Mcp\McpException;
  * собранному.
  *
  * Всё до цикла — как у обычного ответа (AnswerService::prepare(): право,
- * роль, частота, запись CRM, статьи); плюс право agent.use и включённый агент.
+ * роль, частота, запись CRM, статьи; лента записи короче — 1.13.0), плюс
+ * подсказки, каким инструментом взять подробности открытого (PageContext); плюс право agent.use и включённый агент.
  * Шаги вопроса (trace) хранятся вместе с ждущим вызовом на сервере: окно
  * присылает только id и решение, ни вызов, ни шаги подменить не может.
  */
@@ -56,7 +58,7 @@ final class AgentService
 	public function run(Rights $rights, int $userId, ChatRequest $request, ?array $confirm = null): array
 	{
 		AgentStatus::assert($rights, $this->config);
-		$prepared = $this->answers->prepare($rights, $userId, $request);
+		$prepared = $this->answers->prepare($rights, $userId, $request, true);
 		if($prepared->stubText !== null)
 		{
 			return $this->finish($prepared->stubText, $prepared, [], 'stop');
@@ -65,6 +67,11 @@ final class AgentService
 		$tools = $this->tools($userId);
 		$messages = $prepared->messages;
 		$messages[0]['content'] .= "\n\n".ToolProtocol::instructions($tools);
+		$hints = ($request->page ?? ($request->record !== null ? new PageContext(PageContext::RECORD, '', $request->record->entityTypeId, $request->record->id) : null))?->agentHints($tools, $request->record) ?? [];
+		if($hints !== [])
+		{
+			$messages[0]['content'] .= "\n".implode("\n", $hints);
+		}
 		$trace = [];
 		$steps = [];
 

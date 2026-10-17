@@ -162,6 +162,28 @@
 		return NS.PromptMenu ? NS.PromptMenu.view(!!(record && !record.docs), window.location.pathname) : '';
 	}
 
+	/**
+	 * Что открыто у сотрудника (1.13.0): путь верхнего слайдера, нет его — путь
+	 * окна. Сервер разбирает путь сам (Chat\PageContext): карточка, список или
+	 * канбан CRM, задача, календарь. Чужой адрес слайдера — пусто.
+	 */
+	function pageOf(win)
+	{
+		win = win || window;
+		try
+		{
+			var panel = win.BX && win.BX.SidePanel && win.BX.SidePanel.Instance;
+			var slider = panel && panel.getTopSlider ? panel.getTopSlider() : null;
+			if(slider && slider.getUrl)
+			{
+				var url = new win.URL(String(slider.getUrl()), win.location.href);
+				return url.origin === win.location.origin ? url.pathname : '';
+			}
+		}
+		catch(e) { return ''; }
+		return String(win.location && win.location.pathname || '');
+	}
+
 	/** Контекст окна для сервера: «docs» — свой ключ чата справки (Chat\ChatKey::DOCS). */
 	function contextOf(record)
 	{
@@ -1092,7 +1114,7 @@
 			this.render();
 			this.pending = NS.Stream.request(ACTION + 'stream', {
 				messages: this.messages.map(function(m) { return m.files ? {role: m.role, text: m.text, files: m.files} : {role: m.role, text: m.text}; }),
-				record: recordData(this.record), context: contextOf(this.record),
+				record: recordData(this.record), context: contextOf(this.record), page: pageOf(),
 				role: this.info && this.info.role ? this.info.role : ''
 			}, {
 				onStart: function(event)
@@ -1622,7 +1644,7 @@
 			this.render();
 			BX.ajax.runAction(AGENT_ACTION + 'run', {data: {
 				messages: A.history(this.messages),
-				record: recordData(this.record), context: contextOf(this.record),
+				record: recordData(this.record), context: contextOf(this.record), page: pageOf(),
 				role: this.info && this.info.role ? this.info.role : '',
 				confirm: confirm || {}
 			}}).then(function(response)
@@ -2022,6 +2044,8 @@
 		normalizeRecord: normalizeRecord,
 		/** Для тестов: запись CRM по адресу карточки (1.4.0). */
 		recordFromPath: recordFromPath,
+		/** Для тестов: путь открытой страницы для сервера (1.13.0). */
+		pageOf: pageOf,
 		/** Для тестов: класс ручки ширины ядра в колонке Air (1.9.0). */
 		CORE_HANDLE: CORE_HANDLE
 	};

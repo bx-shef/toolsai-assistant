@@ -279,6 +279,16 @@ function runTop(session, local, { air = null, width = 1600 } = {}) {
   same('Air, окно уже 768 — поверх, в body (колонку ядро прячет)', [t.panel.parentNode === t.body, t.panel.classList.contains('--air'), t.panel.classList.contains('--narrow'), t.body.classList.contains('shef-aia-push')], [true, false, true, false]);
 }
 
+console.log('\nчто открыто у сотрудника (1.13.0)');
+{
+  const loc = { href: 'https://p.example/crm/deal/kanban/', origin: 'https://p.example', pathname: '/crm/deal/kanban/' };
+  const win = (slider) => ({ URL, location: loc, BX: { SidePanel: { Instance: { getTopSlider: () => slider } } } });
+  same('без слайдера — путь окна', chat.pageOf(win(null)), '/crm/deal/kanban/');
+  same('слайдер — его путь без запроса', chat.pageOf(win({ getUrl: () => '/crm/deal/details/5/?IFRAME=Y' })), '/crm/deal/details/5/');
+  same('чужой адрес слайдера — пусто', chat.pageOf(win({ getUrl: () => 'https://evil.example/x/' })), '');
+  same('без BX — путь окна', chat.pageOf({ location: loc }), '/crm/deal/kanban/');
+}
+
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) {
   process.exit(1);
