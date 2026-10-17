@@ -12,12 +12,15 @@ use Shef\ToolsAiAssistant\Main\Constants;
  */
 final class UserOptionRateStore implements RateStoreInterface
 {
-	private const NAME = 'rate';
+	/** @param string $name имя настройки: «rate» — ответы модели, «rate_feedback» — оценки (1.1.0) */
+	public function __construct(private readonly string $name = 'rate')
+	{
+	}
 
 	/** @return list<int> */
 	public function get(int $userId): array
 	{
-		$value = \CUserOptions::GetOption(Constants::MODULE_ID, self::NAME, [], $userId);
+		$value = \CUserOptions::GetOption(Constants::MODULE_ID, $this->name, [], $userId);
 
 		return is_array($value) ? array_values(array_map('intval', $value)) : [];
 	}
@@ -25,6 +28,6 @@ final class UserOptionRateStore implements RateStoreInterface
 	/** @param list<int> $stamps */
 	public function put(int $userId, array $stamps): void
 	{
-		\CUserOptions::SetOption(Constants::MODULE_ID, self::NAME, array_values($stamps), false, $userId);
+		\CUserOptions::SetOption(Constants::MODULE_ID, $this->name, array_values($stamps), false, $userId);
 	}
 }

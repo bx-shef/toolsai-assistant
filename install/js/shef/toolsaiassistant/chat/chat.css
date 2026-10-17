@@ -58,3 +58,7 @@ body.shef-ai-chat-open { padding-right: var(--shef-aia-chat-w, 400px); box-sizin
 .shef-aia-input { flex: 1; min-width: 0; resize: none; max-height: 140px; border: 0; outline: none; font: inherit; padding: 6px; }
 .shef-aia-send { flex: none; }
 .shef-aia-disclaimer { margin: 4px 0 0; text-align: center; font-size: 11px; line-height: 14px; font-style: italic; color: #a8adb4; }
+.shef-aia-tool:disabled { opacity: .5; cursor: default; }
+.shef-aia-rated { color: #828b95; font-size: 12px; padding: 4px 6px; }
+.shef-aia-rate-form { display: flex; gap: 6px; align-items: flex-start; margin-top: 6px; }
+.shef-aia-rate-comment { flex: 1; min-width: 0; resize: vertical; font: 13px/1.4 inherit; padding: 4px 6px; border: 1px solid #dfe0e3; border-radius: 6px; }

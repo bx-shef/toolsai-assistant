@@ -26,4 +26,16 @@ interface ModelGatewayInterface
 	 * @throws ChatException квота, модель не ответила — текст для сотрудника
 	 */
 	public function complete(array $messages, int $userId = 0): array;
+
+	/**
+	 * Ответ модели потоком: каждый кусок текста — в $onDelta, как пришёл
+	 * (модель без потока — один кусок со всем ответом). Квота и журнал расхода —
+	 * как у complete().
+	 *
+	 * @param list<array{role: string, content: string}> $messages
+	 * @param callable(string): void $onDelta
+	 * @return array{text: string, finishReason: string} полный текст
+	 * @throws ChatException квота, модель не ответила или оборвала ответ
+	 */
+	public function stream(array $messages, callable $onDelta, int $userId = 0): array;
 }

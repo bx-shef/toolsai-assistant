@@ -1,6 +1,6 @@
 # Памятка агенту: shef.toolsaiassistant
 
-> Последняя сверка: 2026-10-16
+> Последняя сверка: 2026-10-17
 
 Модуль коробочного Битрикс24: чат ИИ-помощника панелью справа в CRM с ролями
 (анализ работы сотрудников, узкие места, качество ведения сделки). Вынесен из
@@ -34,7 +34,9 @@
 | сценарий ответа (права → роль → квота → запись → kb → модель) | `lib/chat/answerservice.php` |
 | вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
 | «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
-| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/answer`) |
+| контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate`) |
+| ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
+| оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`) |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
@@ -49,8 +51,18 @@
   `OnViewRowActionsBuild`. Внутренние классы shef.toolsai не трогаем.
 - **Права чата shef.toolsai до 1.50.0** переносятся при установке один раз
   (`Access\LegacyRights`).
-- **Ответ — одним JSON**, не потоком: `Bitrix\Main\Engine\Controller`; сессия
-  отпускается до вызова модели (`ActionFilter\CloseSession`).
+- **Ответ — потоком** (1.1.0): действие `stream` возвращает `Chat\StreamResponse`
+  (наследник `HttpResponse` со своим `send()` — так ядро отдаёт `File`/`Zip`).
+  Все проверки — до потока, отказ — обычным JSON ajax; сессия отпускается до
+  вызова модели (`ActionFilter\CloseSession`). `answer` (одним JSON) оставлен.
+- **Оценки ответов** — своя таблица `shef_toolsaiassistant_feedback`; смотреть —
+  право `feedback.view` (администратору всегда). Таблица создаётся и при первой
+  оценке после обновления (`FeedbackStore::ensure()`).
+- **Обновление без установщика** (`Main\Maintenance::ensureOnce()` в OnProlog):
+  версия файлов (`FILES_version`) отстала — перекопировать свои каталоги installDir,
+  таблицы, подписки, агент (`tests/maintenance_test.php`). Новый файл в install/ —
+  он приедет и так; новая таблица — добавить в `Maintenance::ensure()`.
+- **«Где показывать чат» пусто — чат нигде** (1.1.0); умолчание — в `default_option.php`.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —

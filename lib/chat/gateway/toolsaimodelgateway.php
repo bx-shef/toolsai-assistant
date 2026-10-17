@@ -13,8 +13,8 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * (категория assistant) — внутри complete(). Исключений сервис не бросает:
  * отказ — код LlmService::ERROR_*, его переводим в ChatException.
  *
- * Ответ — одним куском (complete()): контроллер отвечает JSON. stream() у
- * сервиса есть — понадобится, когда окно перейдёт на поток.
+ * Окно с 1.1.0 печатает ответ по ходу — stream() (LlmService::stream());
+ * complete() — ответ одним куском (действие answer, для совместимости).
  */
 final class ToolsAiModelGateway implements ModelGatewayInterface
 {
@@ -44,14 +44,43 @@ final class ToolsAiModelGateway implements ModelGatewayInterface
 		return $this->isStub() ? 'заглушка (модель не подключена)' : $this->modelCode();
 	}
 
+	/** Текст отказа, когда часть ответа уже напечатана. */
+	public const BROKEN_TEXT = 'Ответ модели оборвался — спросите ещё раз';
+
 	/** Ответ модели; отказ сервиса — ChatException с текстом для сотрудника. */
 	public function complete(array $messages, int $userId = 0): array
 	{
-		$response = $this->llm->complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId > 0 ? $userId : null);
+		return $this->result($this->llm->complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId > 0 ? $userId : null), false);
+	}
+
+	/**
+	 * Ответ потоком (LlmService::stream()); отказ — ChatException. Отказ после
+	 * напечатанных кусков — «ответ оборвался»: так было в чате shef.toolsai.
+	 */
+	public function stream(array $messages, callable $onDelta, int $userId = 0): array
+	{
+		$printed = false;
+		$response = $this->llm->stream(LlmService::CATEGORY_ASSISTANT, $messages, static function(string $delta) use ($onDelta, &$printed): void
+		{
+			if($delta === '')
+			{
+				return;
+			}
+			$printed = true;
+			$onDelta($delta);
+		}, $userId > 0 ? $userId : null);
+
+		return $this->result($response, $printed);
+	}
+
+	/** Итог сервиса — текст или ChatException. */
+	private function result(\Shef\ToolsAi\Public\Service\LlmResponse $response, bool $printed): array
+	{
 		if(!$response->isSuccess())
 		{
 			[$code, $message] = self::ERRORS[$response->getErrorCode()] ?? [ChatException::MODEL, 'Не удалось получить ответ'];
-			throw new ChatException($message, $code);
+			// Квота и «нет модели» отказывают до вызова — печатать нечего; иначе ответ оборвался
+			throw new ChatException($printed && $code === ChatException::MODEL ? self::BROKEN_TEXT : $message, $code);
 		}
 
 		return ['text' => $response->getText(), 'finishReason' => $response->getFinishReason() !== '' ? $response->getFinishReason() : 'stop'];

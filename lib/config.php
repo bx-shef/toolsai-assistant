@@ -21,6 +21,8 @@ final class Config
 	public const KB_LIMIT_MAX = 10;
 	public const DEFAULT_RATE_LIMIT = 10;
 	public const RATE_LIMIT_MAX = 120;
+	public const DEFAULT_FEEDBACK_DAYS = 90;
+	public const FEEDBACK_DAYS_MAX = 3650;
 
 	/** Коды опций: <вкладка>_<опция> (shef.options). Менять нельзя — значения в базе. */
 	public const OPTION_ENABLED = 'PANEL_enabled';
@@ -28,6 +30,7 @@ final class Config
 	public const OPTION_HISTORY = 'CHAT_history';
 	public const OPTION_KB_LIMIT = 'CHAT_kblimit';
 	public const OPTION_RATE_LIMIT = 'CHAT_ratelimit';
+	public const OPTION_FEEDBACK_DAYS = 'CHAT_feedbackdays';
 
 	/**
 	 * @param list<string> $paths начала адресов страниц, где есть кнопка и панель
@@ -39,6 +42,7 @@ final class Config
 		public readonly int $history = self::DEFAULT_HISTORY,
 		public readonly int $kbLimit = self::DEFAULT_KB_LIMIT,
 		public readonly int $rateLimit = self::DEFAULT_RATE_LIMIT,
+		public readonly int $feedbackDays = self::DEFAULT_FEEDBACK_DAYS,
 	)
 	{
 	}
@@ -54,11 +58,14 @@ final class Config
 			self::OPTION_HISTORY => $get(self::OPTION_HISTORY),
 			self::OPTION_KB_LIMIT => $get(self::OPTION_KB_LIMIT),
 			self::OPTION_RATE_LIMIT => $get(self::OPTION_RATE_LIMIT),
+			self::OPTION_FEEDBACK_DAYS => $get(self::OPTION_FEEDBACK_DAYS),
 		]);
 	}
 
 	/**
-	 * Разбор сохранённых значений. Пусто — умолчание.
+	 * Разбор сохранённых значений. Пусто — умолчание; кроме адресов панели:
+	 * сохранённое пустое «Где показывать чат» — чат нигде (1.1.0), умолчание —
+	 * только когда настройки нет вовсе (ключ не передан).
 	 *
 	 * @param array<string, string> $values код опции => значение из формы
 	 */
@@ -79,14 +86,15 @@ final class Config
 
 		return new self(
 			enabled: $enabled,
-			paths: $paths !== [] ? $paths : self::DEFAULT_PATHS,
+			paths: array_key_exists(self::OPTION_PATHS, $values) ? $paths : self::DEFAULT_PATHS,
 			history: static::int($values[self::OPTION_HISTORY] ?? '', self::DEFAULT_HISTORY, 2, self::HISTORY_MAX),
 			kbLimit: static::int($values[self::OPTION_KB_LIMIT] ?? '', self::DEFAULT_KB_LIMIT, 0, self::KB_LIMIT_MAX),
 			rateLimit: static::int($values[self::OPTION_RATE_LIMIT] ?? '', self::DEFAULT_RATE_LIMIT, 0, self::RATE_LIMIT_MAX),
+			feedbackDays: static::int($values[self::OPTION_FEEDBACK_DAYS] ?? '', self::DEFAULT_FEEDBACK_DAYS, 1, self::FEEDBACK_DAYS_MAX),
 		);
 	}
 
-	/** Открыта ли панель на странице с этим путём. */
+	/** Открыта ли панель на странице с этим путём; список адресов пуст — нигде. */
 	public function matchesPath(string $path): bool
 	{
 		foreach($this->paths as $prefix)

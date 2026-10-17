@@ -10,6 +10,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiRecordSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\UserOptionRateStore;
 use Shef\ToolsAiAssistant\Chat\RoleChoiceStore;
+use Shef\ToolsAiAssistant\Feedback\FeedbackStore;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
@@ -31,6 +32,8 @@ final class Container
 			new RoleChoiceStore(),
 			new UserOptionRateStore(),
 			Config::current(),
+			null,
+			new FeedbackStore(),
 		);
 	}
 

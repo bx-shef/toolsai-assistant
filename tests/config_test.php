@@ -36,6 +36,7 @@ Check::same('адреса: только пути своего сайта, без
 Check::same('история — не больше 30', $custom->history, 30);
 Check::same('0 статей — не искать', $custom->kbLimit, 0);
 Check::same('мусор в числах — умолчание, а не ноль', [Config::fromValues([Config::OPTION_HISTORY => '5 2'])->history, Config::fromValues([Config::OPTION_KB_LIMIT => '-1'])->kbLimit], [10, 5]);
+Check::same('срок оценок: пусто — 90, 0 — 1, мусор — 90', [$empty->feedbackDays, Config::fromValues([Config::OPTION_FEEDBACK_DAYS => '0'])->feedbackDays, Config::fromValues([Config::OPTION_FEEDBACK_DAYS => 'x'])->feedbackDays], [90, 1, 90]);
 Check::same('история не меньше 2', Config::fromValues([Config::OPTION_HISTORY => '1'])->history, 2);
 
 Check::group('где показывать');
@@ -43,6 +44,9 @@ Check::group('где показывать');
 Check::same('сделки — в CRM', $empty->matchesPath('/crm/deal/list/'), true);
 Check::same('вид «ИИ»', $empty->matchesPath('/shef/toolsai/view/'), true);
 Check::same('живая лента — нет', $empty->matchesPath('/stream/'), false);
+$nowhere = Config::fromValues([Config::OPTION_PATHS => '']);
+Check::same('сохранено пустое — чат нигде (1.1.0)', [$nowhere->paths, $nowhere->matchesPath('/crm/deal/list/')], [[], false]);
+Check::same('сохранён только мусор — тоже нигде', Config::fromValues([Config::OPTION_PATHS => "https://evil.example/\n"])->paths, []);
 
 Check::group('умолчания и страница настроек');
 
@@ -64,8 +68,11 @@ foreach($tabs as $tab)
 	}
 }
 sort($codes);
-$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT];
+$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT, Config::OPTION_FEEDBACK_DAYS];
 sort($expected);
+$pathsField = null;
+foreach($tabs as $tab) { foreach($tab->getOptionList() as $option) { if($tab->getCode().'_'.$option->getCode() === Config::OPTION_PATHS) { $pathsField = $option; } } }
+Check::same('поле «Где показывать чат» — крупное: 8 строк, 80 знаков', [$pathsField?->getRows(), $pathsField?->getCols()], [8, 80]);
 Check::same('страница настроек сохраняет ровно то, что читает Config', $codes, $expected);
 $defaultKeys = array_keys($shef_toolsaiassistant_default_option);
 sort($defaultKeys);

@@ -4,7 +4,8 @@
  * Расширение shef.toolsaiassistant.chat — панель справа и окно чата
  * ИИ-помощника. Чистый BX (main.core), без сборки: файлы подключаются как
  * есть. markdown.js — разбор ответа модели в безопасный HTML (проверяется
- * tests/markdown_test.mjs), chat.js — панель и окно.
+ * tests/markdown_test.mjs), stream.js — ответ потоком (1.1.0,
+ * tests/stream_test.mjs), chat.js — панель и окно.
  */
 
 if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
@@ -14,7 +15,7 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 return [
 	'css' => 'chat.css',
-	'js' => ['markdown.js', 'chat.js'],
+	'js' => ['markdown.js', 'stream.js', 'chat.js'],
 	'rel' => ['main.core', 'ui.buttons'],
 	'skip_core' => false,
 ];

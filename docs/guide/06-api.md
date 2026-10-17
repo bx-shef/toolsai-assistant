@@ -1,6 +1,6 @@
 # 06. API для разработчиков
 
-> Последняя сверка: 2026-10-16
+> Последняя сверка: 2026-10-17
 
 ## JS
 
@@ -41,9 +41,58 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 |---|---|---|
 | `info` | `record: {entityTypeId, id}` или `{}` | `{roles: [{code, title, description}], role, examples, model, kb, chatKey}` |
 | `role` | `role`, `record` | `{role, examples}`; роль не открыта — ошибка `role` |
-| `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` |
+| `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` — одним куском (совместимость с 1.0.0) |
+| `stream` | как у `answer` | поток `text/event-stream` (1.1.0) — см. ниже |
+| `rate` | `rating: up\|down`, `role`, `record`, `question`, `answer`, `comment` | `{id}` (1.1.0) |
 
 Коды ошибок (`errors[0].code`): `access`, `role`, `no_roles`, `empty_question`,
-`quota`, `rate`, `record`, `model`, `internal`. Текст ошибки можно показывать сотруднику.
+`quota`, `rate`, `record`, `model`, `feedback`, `internal`. Текст ошибки можно
+показывать сотруднику.
+
+## Ответ потоком (1.1.0)
+
+Окно печатает ответ по мере прихода: действие `stream`. `BX.ajax.runAction` поток
+по кускам не отдаёт, поэтому окно зовёт тот же адрес ядра через `fetch`
+(`/bitrix/services/main/ajax.php?action=shef:toolsaiassistant.chat.stream`, sessid в
+заголовке `X-Bitrix-Csrf-Token`) — `install/js/.../chat/stream.js`.
+
+Проверки модуля — права, роль, частота, запись CRM — **до** потока: отказ приходит
+обычным JSON ajax с кодом ошибки, как у `answer`. **Квоту и модель проверяет
+shef.toolsai уже внутри `LlmService::stream()`**, поэтому их отказ приходит событием
+`error` в потоке (коды `quota`, `model`), как и обрыв ответа. Дальше — события, по
+одному на строку `data: {json}` (`Chat\StreamEvents`); первой строкой идёт
+комментарий SSE `: ping` (окно его пропускает):
+
+| событие | поля | когда |
+|---|---|---|
+| `start` | `role`, `sources: [{title, url}]` | проверки пройдены, модель позвали |
+| `delta` | `text` | кусок ответа, как пришёл |
+| `finish` | `finishReason` (`stop`, `length`) | ответ целиком |
+| `error` | `code` (`quota`, `model`, `internal`), `message` | квота исчерпана, модель не подключена, не ответила или оборвала ответ, сбой модуля |
+
+Поток кончился без `finish` — окно считает, что ответ оборвался.
+
+**Как сделано.** Потокового ответа контроллера в ядре нет
+(`main/lib/engine/response/`: `Json`, `File`, `Zip\Archive`…). Но
+`HttpApplication::runController()` отдаёт как есть любой наследник `HttpResponse`,
+который вернуло действие, и зовёт его `send()` (`main/lib/httpapplication.php`,
+`buildResponse()`; `main/lib/application.php`, `end()`) — так устроены
+`Engine\Response\File` и `Zip\Archive`. `Chat\StreamResponse::send()` пишет заголовки
+и печатает события по мере прихода. Фильтры действия — штатные: авторизация, POST,
+`Csrf`, `CloseSession`. Модель — `LlmService::stream()` shef.toolsai: квота до
+вызова, журнал расхода после; закрытая вкладка ответ не обрывает
+(`ignore_user_abort`) — журнал дописывается. Время скрипта —
+`StreamResponse::TIME_LIMIT` (300 с).
+
+## Оценки ответов (1.1.0)
+
+Под каждым ответом — «👍 Полезно» и «👎 Не помогло» (с комментарием по желанию).
+Оценка — действие `rate`: право на чат, роль должна быть открыта сотруднику, не
+больше 30 оценок в минуту. Хранится в таблице `shef_toolsaiassistant_feedback`:
+сотрудник, роль, чат (`general` или `record:<тип>:<id>`), вопрос (до 1000 знаков),
+ответ (до 2000), оценка `1` / `-1`, комментарий (до 1000), время. Вопрос и ответ
+присылает окно чата; хранятся `CHAT_feedbackdays` дней (по умолчанию 90), потом
+их удаляет агент `FeedbackStore::cleanAgent()`. Список — страница
+`/shef/toolsaiassistant/feedback/` ([02-rights.md](02-rights.md)).
 
 `shef:toolsaiassistant.access.save` — сохранение страницы прав (только администратор).

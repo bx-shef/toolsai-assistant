@@ -18,6 +18,7 @@ require_once $root.'/tests/assert.php';
 /** [файл от корня shef.toolsai, класс, метод или константа] */
 const TOOLSAI_API = [
 	['lib/public/service/llmservice.php', 'LlmService', 'function complete(string $category, array $messages, ?int $userId = null): LlmResponse'],
+	['lib/public/service/llmservice.php', 'LlmService', 'function stream(string $category, array $messages, callable $onDelta, ?int $userId = null): LlmResponse'],
 	['lib/public/service/llmservice.php', 'LlmService', 'function model(string $category): string'],
 	['lib/public/service/llmservice.php', 'LlmService', "CATEGORY_ASSISTANT = 'assistant'"],
 	['lib/public/service/llmservice.php', 'LlmService', "ERROR_QUOTA = 'quota_exceeded'"],

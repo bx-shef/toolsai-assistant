@@ -9,7 +9,7 @@
 require $_SERVER['DOCUMENT_ROOT'].'/bitrix/header.php';
 
 /** @global \CMain $APPLICATION */
-$APPLICATION->SetTitle('ИИ-помощник: права доступа');
+$APPLICATION->SetTitle('[SH] ИИ чат с ролями: права доступа');
 $APPLICATION->IncludeComponent('shef:toolsaiassistant.rights', '', []);
 
 require $_SERVER['DOCUMENT_ROOT'].'/bitrix/footer.php';

@@ -86,6 +86,24 @@ namespace Bitrix\Main\ORM\Data
 	}
 }
 
+namespace Bitrix\Main
+{
+	if(!class_exists(HttpResponse::class))
+	{
+		/** Ответ ядра: заголовки копятся, writeHeaders() — отметка, что их «отправили». */
+		class HttpResponse
+		{
+			public array $headers = [];
+			public bool $headersWritten = false;
+
+			public function __construct() {}
+			public function addHeader($name, $value = '') { $this->headers[$name] = $value; return $this; }
+			public function writeHeaders() { $this->headersWritten = true; }
+			public function send() {}
+		}
+	}
+}
+
 namespace Bitrix\Main\Engine
 {
 	if(!class_exists(Controller::class))

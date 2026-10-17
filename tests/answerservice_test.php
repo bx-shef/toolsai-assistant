@@ -16,6 +16,7 @@ use Shef\ToolsAiAssistant\Chat\AnswerService;
 use Shef\ToolsAiAssistant\Chat\ChatException;
 use Shef\ToolsAiAssistant\Chat\ChatRequest;
 use Shef\ToolsAiAssistant\Chat\Gateway\ChoiceStoreInterface;
+use Shef\ToolsAiAssistant\Chat\Gateway\FeedbackStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSourceInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\ModelGatewayInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\PromptSourceInterface;
@@ -113,6 +114,39 @@ final class FakeModel implements ModelGatewayInterface
 		}
 
 		return ['text' => 'Ответ', 'finishReason' => 'stop'];
+	}
+
+	/** Поток: тот же ответ двумя кусками. */
+	public function stream(array $messages, callable $onDelta, int $userId = 0): array
+	{
+		$answer = $this->complete($messages, $userId);
+		$onDelta('От');
+		$onDelta('вет');
+
+		return $answer;
+	}
+}
+
+final class FakeFeedback implements FeedbackStoreInterface
+{
+	public array $rows = [];
+	public array $stamps = [];
+
+	public function add(int $userId, array $rating): int
+	{
+		$this->rows[] = [$userId, $rating];
+
+		return count($this->rows);
+	}
+
+	public function stamps(int $userId): array
+	{
+		return $this->stamps[$userId] ?? [];
+	}
+
+	public function putStamps(int $userId, array $stamps): void
+	{
+		$this->stamps[$userId] = $stamps;
 	}
 }
 
@@ -268,5 +302,41 @@ $model->fail = null;
 $admin = Rights::resolve(true, [], []);
 Check::same('видит все шесть ролей', count($service->info($admin, 5, null)['roles']), 6);
 Check::same('отвечает ролью руководителя', $service->answer($admin, 5, $ask('Где теряем клиента?', null, Roles::SUPERVISOR))['role'], Roles::SUPERVISOR);
+
+Check::group('поток');
+
+$streamed = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(rateLimit: 2), static function() use (&$now): int { return $now; });
+$now += 120;
+$rates->stamps = [];
+$choices->rows = [];
+$model->calls = [];
+$records->visible['2:10'] = ['title' => 'Сделка', 'text' => 'история'];
+$prepared = $streamed->prepare($seller, 1, $ask('Что с клиентом?', ['entityTypeId' => 2, 'id' => 10], Roles::DEAL_QUALITY));
+Check::same('prepare: модель ещё не звали, роль не запомнили, отметка частоты — уже', [count($model->calls), $choices->rows, count($rates->stamps[1] ?? [])], [0, [], 1]);
+$pieces = [];
+$done = $streamed->stream($prepared, static function(string $d) use (&$pieces): void { $pieces[] = $d; });
+Check::same('stream: куски по ходу, итог, роль запомнена', [$pieces, $done['text'], $choices->rows['1|record:2:10'] ?? null], [['От', 'вет'], 'Ответ', Roles::DEAL_QUALITY]);
+$streamed->prepare($seller, 1, $ask('Ещё'));
+Check::same('частота считается и для потока', $outcome(static fn() => $streamed->prepare($seller, 1, $ask('Третий'))), ChatException::RATE);
+Check::same('поток: те же отказы до модели — роль', $outcome(static fn() => $streamed->prepare($seller, 1, $ask('?', null, Roles::SUPERVISOR))), ChatException::ROLE);
+Check::same('поток: нет права — access', $outcome(static fn() => $streamed->prepare($nobody, 2, $ask('?'))), ChatException::ACCESS);
+$model->stub = true;
+$pieces = [];
+$streamed->stream($streamed->prepare($seller, 3, $ask('?')), static function(string $d) use (&$pieces): void { $pieces[] = $d; });
+Check::same('заглушка в потоке — одним куском', $pieces, [AnswerService::STUB_TEXT]);
+$model->stub = false;
+
+Check::group('оценка');
+
+$feedback = new FakeFeedback();
+$rating = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(), static function() use (&$now): int { return $now; }, $feedback);
+$good = ['rating' => 'up', 'role' => Roles::MANAGER, 'record' => ['entityTypeId' => 2, 'id' => 10], 'question' => 'Что мешает?', 'answer' => 'Нет шага', 'comment' => ''];
+Check::same('оценка сохранена', [$rating->rate($seller, 1, $good), $feedback->rows[0][1]['chatKey'], $feedback->rows[0][1]['rating']], [['id' => 1], 'record:2:10', 1]);
+Check::same('роль не открыта — отказ', $outcome(static fn() => $rating->rate($seller, 1, ['role' => Roles::SUPERVISOR] + $good)), ChatException::ROLE);
+Check::same('без права на чат — отказ', $outcome(static fn() => $rating->rate($nobody, 2, $good)), ChatException::ACCESS);
+Check::same('мусор — отказ feedback', $outcome(static fn() => $rating->rate($seller, 1, ['rating' => '5'] + $good)), ChatException::FEEDBACK);
+Check::same('без хранилища — отказ feedback', $outcome(static fn() => $service->rate($seller, 1, $good)), ChatException::FEEDBACK);
+$feedback->stamps[1] = array_fill(0, \Shef\ToolsAiAssistant\Feedback\Rating::RATE_LIMIT, $now);
+Check::same('слишком часто — rate', $outcome(static fn() => $rating->rate($seller, 1, $good)), ChatException::RATE);
 
 Check::finish();
