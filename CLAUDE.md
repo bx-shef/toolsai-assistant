@@ -46,6 +46,8 @@
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
+| меню промптов в поле ввода (1.7.0): места окна, типовые запросы, группы | `lib/prompt/chatplaces.php`, `lib/prompt/typicalprompts.php`, `install/js/.../chat/promptmenu.js`, глава 09 |
+| виджеты в ответах (1.7.0): блок ```widget, реестр, событие `OnChatWidgetsCollect` | `markdown.js` (`renderFull`), `install/js/.../chat/widgets.js`, `lib/chat/widgetcatalog.php`, глава 09 |
 | места «Где показывать чат» (1.3.0) | `lib/panel/placeurl.php` (сопоставление), `placecatalog.php` (свои + событие `OnChatPlacesCollect`), `placesoption.php` (поле настроек), провайдер `lib/internals/integration/ui/entityselector/placeprovider.php` |
 
 ## Решения и ловушки
@@ -98,7 +100,8 @@
   модуля ai (`ai.engine`), а окно `ui.entity-catalog` легло бы
   над панелью. Вид повторяем по его CSS.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
-  (`markdown.js`, `tests/markdown_test.mjs`).
+  (`markdown.js`, `tests/markdown_test.mjs`). Виджеты (1.7.0) — только DOM-узлы с
+  `textContent`, без `innerHTML`; рисование модуля, вернувшее не узел, не вставляется.
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —
   `/bitrix/js/shef/toolsaiassistant`, `/local/components/shef/toolsaiassistant.rights`,
   `/shef/toolsaiassistant` (`tests/install_test.php`).

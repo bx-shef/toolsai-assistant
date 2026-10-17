@@ -40,4 +40,16 @@ interface PromptSourceInterface
 	 * @throws \Shef\ToolsAiAssistant\Chat\ChatException $userId <= 0
 	 */
 	public function compose(string $roleCode, ?int $entityTypeId, int $userId): array;
+
+	/**
+	 * Промпты меню в поле ввода (1.7.0): навыки роли и общие навыки мест окна
+	 * (Prompt\ChatPlaces), для сущности записи, открытые сотруднику, избранные
+	 * первыми. shef.toolsai без PromptService::skills() (старее 1.59.0) — пусто:
+	 * меню просто не появится.
+	 *
+	 * @param list<string> $places полные коды мест
+	 * @return list<array{code: string, title: string, text: string, type: string, icon: string, iconUrl: string, favorite: bool, group: string}>
+	 * @throws \Shef\ToolsAiAssistant\Chat\ChatException $userId <= 0
+	 */
+	public function prompts(string $roleCode, ?int $entityTypeId, array $places, int $userId): array;
 }

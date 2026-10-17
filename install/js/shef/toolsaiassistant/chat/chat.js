@@ -62,6 +62,12 @@
 		return record && !record.docs ? {entityTypeId: record.entityTypeId, id: record.id} : {};
 	}
 
+	/** Вид окна для меню промптов (1.7.0): «list» — список CRM без записи; карточку сервер узнаёт по записи. */
+	function viewOf(record)
+	{
+		return NS.PromptMenu ? NS.PromptMenu.view(!!(record && !record.docs), window.location.pathname) : '';
+	}
+
 	/** Контекст окна для сервера: «docs» — свой ключ чата справки (Chat\ChatKey::DOCS). */
 	function contextOf(record)
 	{
@@ -180,6 +186,10 @@
 		ownSliderUntil: 0,
 		/** Перерисовка по кускам потока — не чаще кадра. */
 		frame: 0,
+		/** Подключённые расширения виджетов модулей (1.7.0). */
+		widgetExtensions: {},
+		/** Слой меню промптов (1.7.0). */
+		promptsLayer: null,
 
 		/** Запуск на странице: один раз и только в верхнем окне. */
 		init: function(settings)
@@ -314,6 +324,13 @@
 			this.input.placeholder = 'Спросите помощника…';
 			this.input.addEventListener('keydown', function(e)
 			{
+				// «/» в пустом поле — меню промптов (1.7.0), как у задач
+				if(NS.PromptMenu && NS.PromptMenu.opensOn(self.input.value, e.key) && self.info && self.info.prompts && self.info.prompts.length)
+				{
+					e.preventDefault();
+					self.openPrompts();
+					return;
+				}
 				if(e.key === 'Tab' && !e.shiftKey && self.nextPlaceholder())
 				{
 					e.preventDefault();
@@ -329,6 +346,10 @@
 			this.sendButton.type = 'submit';
 			form.addEventListener('submit', function(e) { e.preventDefault(); self.send(self.input.value); });
 			var row = el('div', 'shef-aia-row');
+			// Меню промптов (1.7.0): избранные, для записи или списка, общие, «Библиотека промптов»
+			this.promptsButton = iconButton('shef-aia-prompts-btn', 'o-copilot', 'Промпты (/)');
+			this.promptsButton.addEventListener('click', function() { self.isPromptsOpen() ? self.closePrompts() : self.openPrompts(); });
+			row.appendChild(this.promptsButton);
 			row.appendChild(this.input);
 			row.appendChild(this.sendButton);
 			form.appendChild(row);
@@ -485,11 +506,12 @@
 			this.messages = this.loadMessages();
 			this.render();
 			var requestId = this.requestId;
-			BX.ajax.runAction(ACTION + 'info', {data: {record: recordData(record), context: contextOf(record)}})
+			BX.ajax.runAction(ACTION + 'info', {data: {record: recordData(record), context: contextOf(record), view: viewOf(record)}})
 				.then(function(response)
 				{
 					if(requestId !== self.requestId) { return; }
 					self.info = response.data;
+					self.loadWidgetExtensions(self.info.widgets);
 					self.render();
 					self.applyDocsRole();
 					self.prefillTemplate();
@@ -565,12 +587,13 @@
 			if(!this.info || code === this.info.role) { return; }
 			var previous = this.info.role;
 			this.info.role = code;
-			BX.ajax.runAction(ACTION + 'role', {data: {role: code, record: recordData(this.record), context: contextOf(this.record)}})
+			BX.ajax.runAction(ACTION + 'role', {data: {role: code, record: recordData(this.record), context: contextOf(this.record), view: viewOf(this.record)}})
 				.then(function(response)
 				{
 					self.info.role = response.data.role;
 					self.info.examples = response.data.examples || [];
 					self.info.template = response.data.template || '';
+					self.info.prompts = response.data.prompts || [];
 					// Недавние — как запомнил сервер (RolePrefs::touch)
 					var prefs = self.info.prefs || {recent: [], favorite: []};
 					self.info.prefs = {recent: [response.data.role].concat((prefs.recent || []).filter(function(c) { return c !== response.data.role; })).slice(0, 5), favorite: prefs.favorite || []};
@@ -864,6 +887,102 @@
 		 * ui.entity-catalog оказалось бы над панелью и закрыло её на узком экране. Вид — как у
 		 * ai.roles-dialog: поиск и ×, категории слева, роли справа, звёздочка.
 		 */
+		isPromptsOpen: function()
+		{
+			return !!this.promptsLayer && !this.promptsLayer.hidden;
+		},
+
+		/** Меню промптов над полем ввода (1.7.0). */
+		openPrompts: function()
+		{
+			var self = this;
+			if(!this.info || this.busy || !NS.PromptMenu) { return; }
+			if(!this.promptsLayer)
+			{
+				var layer = el('div', 'shef-aia-prompts');
+				layer.setAttribute('role', 'menu');
+				layer.setAttribute('aria-label', 'Промпты');
+				this.promptsSearch = el('input', 'shef-aia-prompts-search');
+				this.promptsSearch.type = 'search';
+				this.promptsSearch.placeholder = 'Найти промпт';
+				this.promptsSearch.setAttribute('aria-label', 'Найти промпт');
+				this.promptsSearch.addEventListener('input', function() { self.renderPrompts(); });
+				this.promptsBody = el('div', 'shef-aia-prompts-body');
+				layer.appendChild(this.promptsSearch);
+				layer.appendChild(this.promptsBody);
+				layer.addEventListener('keydown', function(e) { if(e.key === 'Escape') { self.closePrompts(); self.input.focus(); } });
+				document.addEventListener('mousedown', function(e)
+				{
+					if(self.isPromptsOpen() && !layer.contains(e.target) && !self.promptsButton.contains(e.target)) { self.closePrompts(); }
+				});
+				this.panel.querySelector('.shef-aia-form').appendChild(layer);
+				this.promptsLayer = layer;
+			}
+			this.promptsSearch.value = '';
+			this.promptsLayer.hidden = false;
+			this.renderPrompts();
+			this.promptsSearch.focus({preventScroll: true});
+		},
+
+		closePrompts: function()
+		{
+			if(this.promptsLayer) { this.promptsLayer.hidden = true; }
+		},
+
+		renderPrompts: function()
+		{
+			var self = this;
+			var M = NS.PromptMenu;
+			var body = this.promptsBody;
+			BX.cleanNode(body);
+			// Шапка — роль, как «BitrixGPT ▸ Изменить роль» у задач
+			var current = View.role(this.info.roles || [], this.info.role);
+			if(current)
+			{
+				var head = el('button', 'shef-aia-prompts-role');
+				head.type = 'button';
+				head.appendChild(avatar(View.iconOf(current), 'shef-aia-avatar', View.iconUrlOf(current)));
+				var titles = el('span', 'shef-aia-prompts-role-titles');
+				titles.appendChild(el('span', 'shef-aia-prompts-role-title', current.title));
+				titles.appendChild(el('span', 'shef-aia-prompts-role-sub', 'Изменить роль'));
+				head.appendChild(titles);
+				head.addEventListener('click', function() { self.closePrompts(); self.openRoles(); });
+				body.appendChild(head);
+			}
+			var groups = M.groups(this.info.prompts || [], this.promptsSearch.value);
+			if(!groups.length)
+			{
+				body.appendChild(el('p', 'shef-aia-prompts-empty', this.promptsSearch.value ? 'Ничего не нашлось' : 'Промптов для этого места пока нет'));
+			}
+			groups.forEach(function(group)
+			{
+				body.appendChild(el('div', 'shef-aia-prompts-group', group.title));
+				group.items.forEach(function(prompt)
+				{
+					var item = el('button', 'shef-aia-prompts-item');
+					item.type = 'button';
+					item.setAttribute('role', 'menuitem');
+					item.title = prompt.text;
+					item.appendChild(avatar(prompt.icon, 'shef-aia-prompts-icon', prompt.iconUrl));
+					item.appendChild(el('span', 'shef-aia-prompts-item-title', prompt.title));
+					item.addEventListener('click', function()
+					{
+						self.closePrompts();
+						M.action(prompt) === 'prefill' ? self.prefill(prompt.text, true) : self.send(prompt.text);
+					});
+					body.appendChild(item);
+				});
+			});
+			if(this.info.library)
+			{
+				var library = el('a', 'shef-aia-prompts-library', 'Библиотека промптов');
+				library.href = this.info.library;
+				library.setAttribute('data-shef-link', '1');
+				library.addEventListener('click', function(e) { self.closePrompts(); self.onLinkClick(e); });
+				body.appendChild(library);
+			}
+		},
+
 		openRoles: function()
 		{
 			var self = this;
@@ -971,6 +1090,46 @@
 				}, function() {});
 		},
 
+		/**
+		 * Виджеты ответа (1.7.0): на места <div data-shef-widget="N"> — узлы
+		 * реестра NS.Widgets (встроенные и модулей). Кнопки виджета вставляют
+		 * запрос в поле или отправляют его; ссылки — через обработчик ссылок чата.
+		 */
+		mountWidgets: function(body, widgets)
+		{
+			var self = this;
+			if(!widgets || !widgets.length || !NS.Widgets) { return; }
+			var ctx = {
+				el: function(tag, cls, text) { return el(tag, cls, text); },
+				prefill: function(text) { self.prefill(text); },
+				send: function(text) { self.send(text); },
+				safeUrl: function(url) { return NS.Markdown ? NS.Markdown.safeUrl(url) : null; },
+				recordUrl: NS.Widgets.recordUrl
+			};
+			var hosts = body.querySelectorAll('[data-shef-widget]');
+			for(var i = 0; i < hosts.length; i++)
+			{
+				var spec = widgets[Number(hosts[i].getAttribute('data-shef-widget'))];
+				if(spec) { NS.Widgets.mount(hosts[i], spec, ctx); }
+			}
+		},
+
+		/**
+		 * Расширения модулей с виджетами (1.7.0, событие OnChatWidgetsCollect):
+		 * подключить один раз и перерисовать — ответы уже могли их ждать.
+		 */
+		loadWidgetExtensions: function(list)
+		{
+			var self = this;
+			var names = (list || []).map(function(w) { return w && w.extension; }).filter(function(name, i, all)
+			{
+				return typeof name === 'string' && /^[a-z0-9_.-]{1,100}$/.test(name) && all.indexOf(name) === i && !self.widgetExtensions[name];
+			});
+			if(!names.length || !BX.Runtime || !BX.Runtime.loadExtension) { return; }
+			names.forEach(function(name) { self.widgetExtensions[name] = true; });
+			BX.Runtime.loadExtension(names).then(function() { self.render(); }, function() {});
+		},
+
 		render: function()
 		{
 			var self = this;
@@ -985,6 +1144,8 @@
 			this.roleButton.disabled = this.busy;
 			this.clearButton.style.visibility = this.messages.length ? 'visible' : 'hidden';
 			if(!this.messages.length) { this.askClear(false); }
+			this.promptsButton.style.display = info && info.prompts && info.prompts.length ? '' : 'none';
+			this.promptsButton.disabled = this.busy;
 			this.disclaimer.textContent = 'Ответы ' + (info && info.model ? info.model : 'ИИ') + ' могут быть неточны, проверяйте важную информацию.';
 
 			var box = this.scroller;
@@ -1057,6 +1218,7 @@
 				column.appendChild(author);
 				var body = el('div', 'shef-aia-bubble shef-aia-md');
 				body.innerHTML = view.html; // Markdown.render экранирует весь ответ
+				self.mountWidgets(body, view.widgets);
 				column.appendChild(body);
 				answer.appendChild(column);
 				var row = answer;

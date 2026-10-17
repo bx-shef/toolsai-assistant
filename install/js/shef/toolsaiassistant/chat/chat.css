@@ -146,3 +146,55 @@
 .shef-aia-star.--active { color: #f7a700; background: none; }
 .shef-aia-roles-empty { margin: 20px 8px; color: var(--ui-color-base-70, #6a737f); }
 #shef-aia-chat.--narrow .shef-aia-roles-nav { width: 112px; }
+
+/* Меню промптов (1.7.0) — как у задач: над полем ввода, роль сверху, группы, «Библиотека промптов» */
+.shef-aia-form { position: relative; }
+.shef-aia-prompts-btn { flex: none; width: 32px; height: 32px; margin-bottom: 2px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.shef-aia-prompts-btn .ui-icon-set { --ui-icon-set__icon-size: 22px; --ui-icon-set__icon-color: var(--shef-aia-accent); }
+.shef-aia-prompts-btn:hover { background: var(--ui-color-base-05, #f5f7f8); }
+.shef-aia-prompts { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 4; max-height: 60vh; display: flex; flex-direction: column; border-radius: 12px; background: var(--ui-color-background-primary, #fff); box-shadow: 0 8px 28px rgba(31, 36, 51, .2); overflow: hidden; }
+.shef-aia-prompts[hidden] { display: none; }
+.shef-aia-prompts-search { flex: none; margin: 10px 12px 4px; height: 32px; padding: 0 10px; border: 1px solid var(--ui-color-base-10, #dfe0e3); border-radius: 8px; font: inherit; }
+.shef-aia-prompts-body { overflow-y: auto; padding: 4px 0 8px; }
+.shef-aia-prompts-role { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 14px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+.shef-aia-prompts-role:hover, .shef-aia-prompts-item:hover, .shef-aia-prompts-item:focus { background: var(--ui-color-base-05, #f5f7f8); outline: none; }
+.shef-aia-prompts-role-titles { display: flex; flex-direction: column; }
+.shef-aia-prompts-role-title { color: var(--shef-aia-accent); font-weight: 600; }
+.shef-aia-prompts-role-sub { font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aia-prompts-group { margin: 8px 14px 2px; padding-top: 6px; border-top: 1px solid var(--ui-color-base-10, #edeef0); font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aia-prompts-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 14px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; color: var(--ui-color-text-primary, #333); }
+.shef-aia-prompts-icon { width: 20px; height: 20px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.shef-aia-prompts-icon .ui-icon-set { --ui-icon-set__icon-size: 18px; --ui-icon-set__icon-color: var(--shef-aia-accent); }
+.shef-aia-prompts-icon img { width: 18px; height: 18px; border-radius: 4px; }
+.shef-aia-prompts-empty { margin: 10px 14px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aia-prompts-library { display: block; margin: 6px 14px 0; padding-top: 8px; border-top: 1px solid var(--ui-color-base-10, #edeef0); color: var(--shef-aia-accent); text-decoration: none; font-weight: 600; }
+
+/* Виджеты в ответе (1.7.0) — карточки как в шаблоне чата Nuxt UI */
+.shef-aia-widget { margin: 8px 0; padding: 12px; border-radius: 12px; background: var(--ui-color-background-primary, #fff); border: 1px solid var(--ui-color-base-10, #e6e8eb); }
+.shef-aia-widget.--pending { color: var(--ui-color-base-70, #6a737f); font-size: 13px; }
+.shef-aiw-title { margin-bottom: 8px; font-weight: 600; }
+.shef-aiw-missing { color: var(--ui-color-base-70, #6a737f); font-size: 13px; }
+.shef-aiw-kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.shef-aiw-kpi-tile { padding: 10px; border-radius: 10px; background: linear-gradient(135deg, #f3ecfe, #eaf6fd); }
+.shef-aiw-kpi-value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.shef-aiw-trend.--up { color: #2e7d32; font-size: 13px; }
+.shef-aiw-trend.--down { color: #c62828; font-size: 13px; }
+.shef-aiw-kpi-label { font-size: 12px; color: var(--ui-color-base-70, #525c69); }
+.shef-aiw-kpi-hint { font-size: 11px; color: var(--ui-color-base-50, #828b95); }
+.shef-aiw-table-wrap { overflow-x: auto; }
+.shef-aiw-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.shef-aiw-table th, .shef-aiw-table td { padding: 6px 8px; border-bottom: 1px solid var(--ui-color-base-10, #edeef0); text-align: left; vertical-align: top; }
+.shef-aiw-table th { color: var(--ui-color-base-70, #525c69); font-weight: 600; }
+.shef-aiw-bar-row { display: grid; grid-template-columns: minmax(70px, 35%) 1fr auto; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+.shef-aiw-bar-track { height: 8px; border-radius: 4px; background: var(--ui-color-base-05, #f1f2f4); overflow: hidden; }
+.shef-aiw-bar-fill { display: block; height: 100%; border-radius: 4px; background: var(--shef-aia-accent); }
+.shef-aiw-bar-value { font-variant-numeric: tabular-nums; }
+.shef-aiw-record-title { font-weight: 600; color: var(--ui-color-link-primary-base, #2066b0); text-decoration: none; }
+.shef-aiw-record-sub { margin-top: 2px; font-size: 13px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-record-stage { display: inline-block; margin-top: 6px; padding: 1px 8px; border-radius: 10px; background: #e5f6fd; font-size: 12px; }
+.shef-aiw-record-fields { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; font-size: 13px; }
+.shef-aiw-record-fields dt { color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-record-fields dd { margin: 0; }
+.shef-aiw-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.shef-aiw-action { padding: 6px 12px; border: 1px solid var(--shef-aia-accent); border-radius: 16px; background: transparent; color: var(--shef-aia-accent); cursor: pointer; font: inherit; font-size: 13px; }
+.shef-aiw-action:hover { background: #f3ecfe; }

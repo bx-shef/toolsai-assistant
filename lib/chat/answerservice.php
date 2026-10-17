@@ -13,6 +13,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\RateStoreInterface;
 use Shef\ToolsAiAssistant\Chat\Gateway\RecordSourceInterface;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Main\Constants;
+use Shef\ToolsAiAssistant\Prompt\ChatPlaces;
 
 /**
  * Сценарий чата: что показать в окне, смена роли, ответ (одним куском или
@@ -44,6 +45,8 @@ final class AnswerService
 		private readonly Config $config,
 		private readonly ?\Closure $clock = null,
 		private readonly ?FeedbackStoreInterface $feedback = null,
+		/** 1.7.0: подсказка модели о виджетах (WidgetCatalog::instructions()); пусто — без виджетов. */
+		private readonly string $widgetHint = '',
 	)
 	{
 	}
@@ -52,11 +55,13 @@ final class AnswerService
 	 * Что показать в окне: открытые роли, выбранная, готовые вопросы, модель.
 	 *
 	 * template — текст навыка «с уточнениями» для поля ввода (1.6.0), иначе пусто.
+	 * prompts — меню промптов в поле ввода (1.7.0): места окна — Prompt\ChatPlaces
+	 * (запись — карточка, $view = list — список).
 	 *
-	 * @return array{roles: list<array<string, mixed>>, role: ?string, examples: list<string>, template: string, model: string, kb: bool, chatKey: string}
+	 * @return array{roles: list<array<string, mixed>>, role: ?string, examples: list<string>, template: string, prompts: list<array<string, mixed>>, model: string, kb: bool, chatKey: string}
 	 * @throws ChatException нет права на чат
 	 */
-	public function info(Rights $rights, int $userId, ?Record $record, string $context = ''): array
+	public function info(Rights $rights, int $userId, ?Record $record, string $context = '', string $view = ''): array
 	{
 		$this->assertChat($rights);
 		$roles = $this->prompts->roles($userId);
@@ -71,6 +76,7 @@ final class AnswerService
 			'role' => $role,
 			'examples' => $composed['examples'] ?? [],
 			'template' => $composed['template'] ?? '',
+			'prompts' => $role !== null ? $this->prompts->prompts($role, $record?->entityTypeId, ChatPlaces::forWindow($record, $view, $context), $userId) : [],
 			'model' => $this->model->modelName(),
 			'kb' => $this->kb->isAvailable(),
 			'chatKey' => $key,
@@ -80,10 +86,10 @@ final class AnswerService
 	/**
 	 * Сменить роль в чате: только открытую сотруднику; запоминается сразу.
 	 *
-	 * @return array{role: string, examples: list<string>, template: string}
+	 * @return array{role: string, examples: list<string>, template: string, prompts: list<array<string, mixed>>}
 	 * @throws ChatException нет права на чат или на роль
 	 */
-	public function chooseRole(Rights $rights, int $userId, ?Record $record, string $roleCode, string $context = ''): array
+	public function chooseRole(Rights $rights, int $userId, ?Record $record, string $roleCode, string $context = '', string $view = ''): array
 	{
 		$this->assertChat($rights);
 		$roleCode = strtolower(trim($roleCode));
@@ -101,7 +107,7 @@ final class AnswerService
 		}
 		$this->choices->save($userId, ChatKey::of($record, $context), $role);
 
-		return ['role' => $role, 'examples' => $composed['examples'], 'template' => $composed['template']];
+		return ['role' => $role, 'examples' => $composed['examples'], 'template' => $composed['template'], 'prompts' => $this->prompts->prompts($role, $record?->entityTypeId, ChatPlaces::forWindow($record, $view, $context), $userId)];
 	}
 
 	/**
@@ -178,7 +184,7 @@ final class AnswerService
 		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
 
-		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages($composed['system'], $recordText, $articles, $request->history), ContextBuilder::sources($articles));
+		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages(trim($composed['system']."\n\n".$this->widgetHint), $recordText, $articles, $request->history), ContextBuilder::sources($articles));
 	}
 
 	/**

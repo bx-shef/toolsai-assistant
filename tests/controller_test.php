@@ -33,6 +33,15 @@ $broken = false;
 $service = new AnswerService(
 	new class($broken) implements PromptSourceInterface
 	{
+	/** Промпты меню (1.7.0): места окна — для проверки; отдаём по одному на место. */
+	public array $promptPlaces = [];
+	public function prompts(string $roleCode, ?int $entityTypeId, array $places, int $userId): array
+	{
+		$this->promptPlaces[] = $places;
+
+		return array_map(static fn(string $place): array => ['code' => $place.'/'.$roleCode, 'title' => $place, 'text' => 'Запрос', 'type' => 'plain', 'icon' => 'o-copilot', 'iconUrl' => '', 'favorite' => false, 'group' => 'chat'], $places);
+	}
+
 		public function __construct(private bool &$broken) {}
 		public function roles(int $userId): array
 		{

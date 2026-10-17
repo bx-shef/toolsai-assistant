@@ -60,6 +60,17 @@ return [
 					'sort' => 100,
 				],
 			],
+			// Места чата для «Где доступен» в библиотеке промптов shef.toolsai (1.54.0+, 1.7.0)
+			[
+				'isCompatible' => false,
+				'from' => ['module' => 'shef.toolsai', 'event' => 'OnPromptPlacesCollect'],
+				'to' => [
+					'module' => 'shef.toolsaiassistant',
+					'class' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\ToolsAi\\EventHandler\\OnPromptPlacesCollectEventHandler',
+					'function' => 'handle',
+					'sort' => 100,
+				],
+			],
 			// «✦ Спросить ИИ» в меню строки вида «ИИ» shef.toolsai (1.50.0+)
 			[
 				'isCompatible' => false,

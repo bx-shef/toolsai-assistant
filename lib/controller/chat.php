@@ -13,6 +13,8 @@ use Shef\ToolsAiAssistant\Chat\PreparedAnswer;
 use Shef\ToolsAiAssistant\Chat\StreamEvents;
 use Shef\ToolsAiAssistant\Chat\StreamResponse;
 use Shef\ToolsAiAssistant\Chat\Record;
+use Shef\ToolsAiAssistant\Chat\WidgetCatalog;
+use Shef\ToolsAiAssistant\Prompt\ChatPlaces;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Container;
 
@@ -56,9 +58,11 @@ class Chat extends Controller
 	}
 
 	/** Что показать в окне. $record — {entityTypeId, id} или пусто. */
-	public function infoAction(array $record = [], string $context = ''): ?array
+	public function infoAction(array $record = [], string $context = '', string $view = ''): ?array
 	{
-		return $this->guarded(fn(): array => static::withPrefs(Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context)), $this->userId()));
+		return $this->guarded(fn(): array => static::withPrefs(Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context), ChatPlaces::view($view)), $this->userId())
+			// 1.7.0: виджеты модулей (расширения подключит окно) и библиотека промптов shef.toolsai
+			+ ['widgets' => WidgetCatalog::forClient(WidgetCatalog::collect()), 'library' => ChatPlaces::LIBRARY_URL]);
 	}
 
 	/**
@@ -91,11 +95,11 @@ class Chat extends Controller
 	}
 
 	/** Сменить роль в этом чате. */
-	public function roleAction(string $role = '', array $record = [], string $context = ''): ?array
+	public function roleAction(string $role = '', array $record = [], string $context = '', string $view = ''): ?array
 	{
-		return $this->guarded(function() use ($role, $record, $context): array
+		return $this->guarded(function() use ($role, $record, $context, $view): array
 		{
-			$result = Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role, ChatKey::context($context));
+			$result = Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role, ChatKey::context($context), ChatPlaces::view($view));
 			// Право проверено — в недавние (1.4.0)
 			\Shef\ToolsAiAssistant\Chat\RolePrefsStore::save($this->userId(), \Shef\ToolsAiAssistant\Chat\RolePrefs::touch(\Shef\ToolsAiAssistant\Chat\RolePrefsStore::load($this->userId()), (string)$result['role']));
 

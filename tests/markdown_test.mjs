@@ -53,6 +53,18 @@ same('заголовок — жирной строкой', md.render('## Ито�
 same('пусто', md.render(''), '');
 same('незакрытый блок кода закрыт', md.render('```\nx'), '<pre><code>x</code></pre>');
 
+console.log('\nвиджеты (1.7.0)');
+const w = md.renderFull('Итог:\n```widget\n{"type": "KPI", "items": [{"label": "<b>", "value": 3}]}\n```\nдальше');
+same('блок виджета — место под виджет, не код', w.html, '<p>Итог:</p><div class="shef-aia-widget" data-shef-widget="0"></div><p>дальше</p>');
+same('JSON разобран, тип — строчными, данные сырые (рисует widgets.js текстом)', JSON.stringify(w.widgets), '[{"type":"kpi","data":{"type":"KPI","items":[{"label":"<b>","value":3}]}}]');
+same('негодный JSON — обычный код, экранирован', md.renderFull('```widget\n{<b>\n```').html, '<pre><code>{&lt;b&gt;</code></pre>');
+same('тип с кавычкой — не виджет', md.renderFull('```widget\n{"type": "a\\"b"}\n```').widgets.length, 0);
+same('массив вместо объекта — не виджет', md.renderFull('```widget\n[1]\n```').widgets.length, 0);
+same('незакрытый (ответ печатается) — заглушка, JSON не виден', md.renderFull('Смотрите:\n```widget\n{"type": "kpi", "ite').html, '<p>Смотрите:</p><div class="shef-aia-widget --pending">Готовлю виджет…</div>');
+same('два виджета — два места', md.renderFull('```widget\n{"type":"a"}\n```\n```widget\n{"type":"b"}\n```').widgets.map(x => x.type).join(), 'a,b');
+same('render() — прежний: строка', typeof md.render('```widget\n{"type":"a"}\n```'), 'string');
+same('обычный блок кода с языком — не виджет', md.renderFull('```json\n{"type":"a"}\n```').widgets.length, 0);
+
 console.log('');
 if (errors.length) {
   console.log(`Провалено ${errors.length} из ${count}`);

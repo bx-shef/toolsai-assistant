@@ -14,6 +14,7 @@
 | [06-api.md](guide/06-api.md) | API: JS, PHP, ajax-действия |
 | [07-settings.md](guide/07-settings.md) | настройки модуля |
 | [08-feedback.md](guide/08-feedback.md) | оценки ответов: разбор и кейсы проверки промптов shef.toolsai |
+| [09-prompts-widgets.md](guide/09-prompts-widgets.md) | меню промптов в поле ввода (свои и типовые, для записи и списка) и виджеты в ответах — свои виджеты модулей |
 
 ## Внутреннее (`private/`)
 

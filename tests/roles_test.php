@@ -85,6 +85,6 @@ Check::group('обработчик события');
 $result = OnPromptRegistryBuildEventHandler::handle(new Event('shef.toolsai', 'OnPromptRegistryBuild'));
 Check::same('ответ — EventResult SUCCESS', [$result instanceof EventResult, $result->getType()], [true, EventResult::SUCCESS]);
 Check::same('владелец — этот модуль (реестр сверяет коды с ним)', $result->getModuleId(), Constants::MODULE_ID);
-Check::same('промпты — роли модуля', $result->getParameters()['prompts'] ?? null, $raw);
+Check::same('промпты — роли модуля и типовые запросы меню (1.7.0)', $result->getParameters()['prompts'] ?? null, [...$raw, ...\Shef\ToolsAiAssistant\Prompt\TypicalPrompts::raw()]);
 
 Check::finish();

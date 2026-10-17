@@ -34,6 +34,15 @@ use Shef\ToolsAiAssistant\Prompt\Roles;
  */
 final class FakePrompts implements PromptSourceInterface
 {
+	/** Промпты меню (1.7.0): места окна — для проверки; отдаём по одному на место. */
+	public array $promptPlaces = [];
+	public function prompts(string $roleCode, ?int $entityTypeId, array $places, int $userId): array
+	{
+		$this->promptPlaces[] = $places;
+
+		return array_map(static fn(string $place): array => ['code' => $place.'/'.$roleCode, 'title' => $place, 'text' => 'Запрос', 'type' => 'plain', 'icon' => 'o-copilot', 'iconUrl' => '', 'favorite' => false, 'group' => 'chat'], $places);
+	}
+
 	public array $composed = [];
 	public ?array $open = null;
 	public array $closed = [];
@@ -396,5 +405,28 @@ Check::same('мусор — отказ feedback', $outcome(static fn() => $ratin
 Check::same('без хранилища — отказ feedback', $outcome(static fn() => $service->rate($seller, 1, $good)), ChatException::FEEDBACK);
 $feedback->stamps[1] = array_fill(0, \Shef\ToolsAiAssistant\Feedback\Rating::RATE_LIMIT, $now);
 Check::same('слишком часто — rate', $outcome(static fn() => $rating->rate($seller, 1, $good)), ChatException::RATE);
+
+Check::group('меню промптов и виджеты (1.7.0)');
+$prompts->promptPlaces = [];
+$withWidgets = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(rateLimit: 100), static function() use (&$now): int { return $now; }, null, 'ВИДЖЕТЫ: подсказка');
+$now += 120;
+$withWidgets->info($seller, 1, new Record(2, 5));
+$withWidgets->info($seller, 1, null, '', 'list');
+$withWidgets->info($seller, 1, null);
+$withWidgets->info($seller, 1, null, 'docs', 'list');
+Check::same('места меню: карточка, список, общий чат, справка — пусто', $prompts->promptPlaces, [
+	['shef.toolsaiassistant:chat', 'shef.toolsaiassistant:chat.card'],
+	['shef.toolsaiassistant:chat', 'shef.toolsaiassistant:chat.list'],
+	['shef.toolsaiassistant:chat'],
+	[],
+]);
+Check::same('info отдаёт prompts', array_column($withWidgets->info($seller, 1, new Record(2, 5))['prompts'], 'title'), ['shef.toolsaiassistant:chat', 'shef.toolsaiassistant:chat.card']);
+Check::same('смена роли отдаёт prompts', count($withWidgets->chooseRole($seller, 1, null, Roles::MANAGER, '', 'list')['prompts']), 2);
+$model->calls = [];
+$withWidgets->answer($seller, 1, $ask('Итоги'));
+Check::same('подсказка о виджетах — в системном тексте после роли', str_contains((string)($model->calls[0][0]['content'] ?? ''), 'ВИДЖЕТЫ: подсказка'), true);
+$model->calls = [];
+$streamed->answer($seller, 1, $ask('Итоги'));
+Check::same('без подсказки — системный текст как раньше', str_contains((string)($model->calls[0][0]['content'] ?? ''), 'ВИДЖЕТЫ'), false);
 
 Check::finish();

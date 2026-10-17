@@ -6,6 +6,7 @@ use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
 use Shef\ToolsAiAssistant\Main\Constants;
 use Shef\ToolsAiAssistant\Prompt\Roles;
+use Shef\ToolsAiAssistant\Prompt\TypicalPrompts;
 
 /**
  * Обработчик shef.toolsai:OnPromptRegistryBuild — роли помощника в реестр
@@ -22,9 +23,9 @@ use Shef\ToolsAiAssistant\Prompt\Roles;
  */
 final class OnPromptRegistryBuildEventHandler
 {
-	/** Ответ реестру: шесть ролей помощника. */
+	/** Ответ реестру: шесть ролей помощника и типовые запросы меню промптов (1.7.0). */
 	public static function handle(Event $event): EventResult
 	{
-		return new EventResult(EventResult::SUCCESS, ['prompts' => Roles::raw()], Constants::MODULE_ID);
+		return new EventResult(EventResult::SUCCESS, ['prompts' => [...Roles::raw(), ...TypicalPrompts::raw()]], Constants::MODULE_ID);
 	}
 }

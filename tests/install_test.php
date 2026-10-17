@@ -85,9 +85,9 @@ namespace
 	}
 	Check::same('каждый обработчик — статический метод существующего класса', $missing, []);
 	Check::same(
-		'подписки: реестр промптов и вид «ИИ» shef.toolsai, панель',
+		'подписки: реестр промптов, места промптов (1.7.0) и вид «ИИ» shef.toolsai, панель',
 		array_map(static fn(array $e): string => $e['from']['module'].':'.$e['from']['event'], $settings['installEvents']['value']),
-		['shef.toolsai:OnPromptRegistryBuild', 'shef.toolsai:OnViewRowActionsBuild', 'shef.toolsai:OnViewToolbarBuild', 'shef.toolsai:OnViewSettingsMenuBuild', 'main:OnProlog']
+		['shef.toolsai:OnPromptRegistryBuild', 'shef.toolsai:OnPromptPlacesCollect', 'shef.toolsai:OnViewRowActionsBuild', 'shef.toolsai:OnViewToolbarBuild', 'shef.toolsai:OnViewSettingsMenuBuild', 'main:OnProlog']
 	);
 
 	Check::group('подписка и снятие — парные');
@@ -96,7 +96,7 @@ namespace
 	$registered = array_map(static fn(array $r): string => implode('|', $r), EventManager::$registered);
 	$installer->UnInstallEvents();
 	$unregistered = array_map(static fn(array $r): string => implode('|', $r), EventManager::$unregistered);
-	Check::same('установка подписала все пять', count($registered), 5);
+	Check::same('установка подписала все шесть', count($registered), 6);
 	Check::same('удаление сняло ровно то, что подписано', array_values(array_diff($registered, $unregistered)), []);
 
 	Check::group('раскладка файлов');
