@@ -4,7 +4,8 @@
  * Панель — перенос Assistant\SidePanel::script() shef.toolsai без смены смысла:
  * фиксированный блок у правого края поверх страницы, ширина тянется мышью и
  * запоминается в браузере (localStorage, удобство — не данные), «открыт» —
- * тоже; кнопка — элемент с id из настроек (кнопка «ИИ: чат» верхней панели),
+ * только в этой вкладке (sessionStorage, 1.7.1): новая вкладка и другая
+ * страница в новой вкладке чат сами не открывают; кнопка — элемент с id из настроек (кнопка «ИИ: чат» верхней панели),
  * клик открывает и закрывает; window.ShefAiChat.open({entityTypeId, id, title})
  * — чат по записи CRM, без записи — общий; только в верхнем окне.
  *
@@ -33,10 +34,20 @@
 	var VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
 	/** Карточки CRM: адрес /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). */
 	var DETAIL_TYPES = {lead: 1, deal: 2, contact: 3, company: 4, quote: 7};
+	/** Атрибут ui.a11y FocusTrap: элемент не делать inert при открытом слайдере (1.7.1). */
+	var INERT_OPT_OUT = 'data-a11y-ignore-inert';
 
 	function get(key) { try { return window.localStorage.getItem(key); } catch(e) { return null; } }
 	function put(key, value) { try { window.localStorage.setItem(key, value); } catch(e) {} }
 	function drop(key) { try { window.localStorage.removeItem(key); } catch(e) {} }
+	/**
+	 * «Чат открыт» — только для этой вкладки (1.7.1): sessionStorage живёт, пока
+	 * открыта вкладка. Раньше метка лежала в localStorage, и чат сам
+	 * открывался на любой странице в любой новой вкладке.
+	 */
+	var OPEN_KEY = 'shef-ai-chat-open';
+	function tabOpen() { try { return window.sessionStorage.getItem(OPEN_KEY) === '1'; } catch(e) { return false; } }
+	function setTabOpen(open) { try { window.sessionStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch(e) {} }
 
 	function el(tag, className, text)
 	{
@@ -225,7 +236,9 @@
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { self.open(rec); });
 			// Запущен из фрейма (Frame.top) — откроет тот, кто позвал; сам не открываемся
-			if(!settings.fromFrame && get('shef-ai-chat-open') === '1' && window.innerWidth > 760)
+			// Старая метка 1.7.0 и раньше (localStorage, на все вкладки) — убираем
+			drop(OPEN_KEY);
+			if(!settings.fromFrame && tabOpen() && window.innerWidth > 760)
 			{
 				this.open(null);
 			}
@@ -272,6 +285,10 @@
 			panel.style.zIndex = String(this.settings.z);
 			panel.setAttribute('role', 'complementary');
 			panel.setAttribute('aria-label', 'ИИ: чат');
+			// Слайдер ставит inert всем соседям своего слоя в <body> (FocusTrap ui.a11y,
+			// isolateOutside: true): панель видна, но клики проходят сквозь неё во фрейм
+			// слайдера. Штатный отказ — этот атрибут (так же у BX.UI.Notification) (1.7.1).
+			panel.setAttribute(INERT_OPT_OUT, 'true');
 
 			var drag = el('div', 'shef-aia-drag');
 			drag.title = 'Потяните, чтобы изменить ширину';
@@ -458,11 +475,12 @@
 			}
 			this.applyLayout();
 			this.panel.classList.add('--open');
+			this.panel.removeAttribute('inert');
 			this.raise();
 			// Только метка «открыт»: страницу не сдвигаем (1.4.0)
 			document.body.classList.add('shef-ai-chat-open');
 			this.markButtons(true);
-			put('shef-ai-chat-open', '1');
+			setTabOpen(true);
 			var input = this.input;
 			setTimeout(function() { input.focus({preventScroll: true}); }, 50);
 		},
@@ -472,7 +490,7 @@
 			this.panel.classList.remove('--open');
 			document.body.classList.remove('shef-ai-chat-open');
 			this.markButtons(false);
-			put('shef-ai-chat-open', '0');
+			setTabOpen(false);
 		},
 
 		/**
@@ -1455,6 +1473,8 @@
 		/** Для тестов: что откроет window.ShefAiChat.open() (запись CRM или справка). */
 		normalizeRecord: normalizeRecord,
 		/** Для тестов: запись CRM по адресу карточки (1.4.0). */
-		recordFromPath: recordFromPath
+		recordFromPath: recordFromPath,
+		/** Для тестов: атрибут отказа от inert слайдера (1.7.1). */
+		INERT_OPT_OUT: INERT_OPT_OUT
 	};
 })();
