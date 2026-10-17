@@ -72,7 +72,7 @@ final class FeedbackPage
 		}
 		try
 		{
-			EvalMigration::run($eval);
+			EvalMigration::run($eval, null, 1);
 			$left = EvalMigration::left();
 		}
 		catch(\Throwable $throwable)

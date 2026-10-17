@@ -16,7 +16,9 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * дошли — опция FEEDBACK_evalmigrated (последний перенесённый ID). Своя
  * таблица не трогается: удалить её — решение владельца, после проверки.
  *
- * Зовут агент очистки (раз в сутки) и страница оценок. step() — чистая часть
+ * Зовут агент очистки (раз в сутки, до MAX_BATCHES пачек) и страница оценок
+ * (одна пачка — страница не ждёт). Негодные строки пропускаются и пишутся в
+ * журнал проблем. step() — чистая часть
  * (evalbridge_test.php).
  */
 final class EvalMigration
@@ -40,9 +42,24 @@ final class EvalMigration
 		{
 			$id = (int)$row['ID'];
 			$data = EvalBridge::fromRow($row);
+			$createdAt = $row['CREATED_AT'] ?? null;
+			if(!is_object($createdAt))
+			{
+				// Без даты переносить нечего: пропустить, иначе import() упадёт на типе и перенос застрянет
+				$failed[] = $id;
+				$lastId = $id;
+				continue;
+			}
 			try
 			{
-				$result = $eval->import($data['entry'], $row['CREATED_AT'] ?? null, $id, $data['review']);
+				$result = $eval->import($data['entry'], $createdAt, $id, $data['review']);
+			}
+			catch(\TypeError)
+			{
+				// Ошибка формы строки, а не базы — пропустить, как негодную
+				$failed[] = $id;
+				$lastId = $id;
+				continue;
 			}
 			catch(\Throwable)
 			{
@@ -70,7 +87,7 @@ final class EvalMigration
 	 *
 	 * @return int сколько перенесено
 	 */
-	public static function run(?EvalGatewayInterface $eval = null, ?FeedbackStore $store = null): int
+	public static function run(?EvalGatewayInterface $eval = null, ?FeedbackStore $store = null, int $maxBatches = self::MAX_BATCHES): int
 	{
 		$eval ??= new ToolsAiEvalGateway();
 		if(!$eval->isAvailable())
@@ -80,7 +97,7 @@ final class EvalMigration
 		$store ??= new FeedbackStore();
 		$lastId = (int)Option::get(Constants::MODULE_ID, self::OPTION_LAST_ID, '0');
 		$moved = 0;
-		for($i = 0; $i < self::MAX_BATCHES; $i++)
+		for($i = 0; $i < $maxBatches; $i++)
 		{
 			$rows = $store->after($lastId, self::BATCH);
 			if($rows === [])
@@ -89,6 +106,10 @@ final class EvalMigration
 			}
 			$step = static::step($rows, $lastId, $eval);
 			$moved += $step['moved'];
+			if($step['failed'] !== [])
+			{
+				\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->warning('Оценки не перенесены в shef.toolsaieval (негодные строки): '.implode(', ', $step['failed']));
+			}
 			if($step['lastId'] === $lastId)
 			{
 				break;

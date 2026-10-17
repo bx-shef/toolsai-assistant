@@ -8,8 +8,9 @@ use Shef\ToolsAiAssistant\Chat\Gateway\FeedbackStoreInterface;
 /**
  * Куда пишется оценка ответа (1.11.0): есть shef.toolsaieval — в общий
  * журнал отзывов линейки (разбор и выгрузка кейсов — там); нет или он не
- * записал — в свою таблицу, как до 1.11.0: оценка не теряется. Отметки
- * частоты — свои, как раньше.
+ * записал (в том числе по своему пределу частоты) — в свою таблицу, как до
+ * 1.11.0: оценка не теряется, перенос доставит её позже. Частоту оценок
+ * ограничивает свой RateLimit до записи. Отметки частоты — свои.
  */
 final class FeedbackRouter implements FeedbackStoreInterface
 {
@@ -31,7 +32,7 @@ final class FeedbackRouter implements FeedbackStoreInterface
 			$id = null;
 		}
 
-		return $id ?? $this->local->add($userId, $rating);
+		return $id !== null && $id > 0 ? $id : $this->local->add($userId, $rating);
 	}
 
 	public function stamps(int $userId): array

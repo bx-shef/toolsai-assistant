@@ -97,6 +97,9 @@ $eval = new FakeEval();
 $local = new FakeLocal();
 $router = new FeedbackRouter($local, $eval);
 Check::same('есть shef.toolsaieval — туда, своя таблица пуста', [$router->add(9, $rating), count($eval->records), $local->added], [77, 1, []]);
+$eval->recordResult = 0;
+Check::same('вернул 0 — в свою таблицу', [$router->add(9, $rating), count($local->added)], [5, 1]);
+$local->added = [];
 $eval->recordResult = null;
 Check::same('не записал — в свою таблицу', [$router->add(9, $rating), count($local->added)], [5, 1]);
 $eval->recordResult = new \RuntimeException('сбой');
@@ -111,12 +114,17 @@ Check::group('перенос пачкой');
 
 $eval = new FakeEval();
 $eval->importResults = [11 => 0, 12 => null];
+$row['CREATED_AT'] = new \DateTimeImmutable('2026-10-01 10:00:00');
 $rows = [['ID' => 10] + $row, ['ID' => 11] + $row, ['ID' => 12] + $row, ['ID' => 13] + $row];
 Check::same('перенесено, уже было, негодная — дальше; последний ID', EvalMigration::step($rows, 9, $eval), ['lastId' => 13, 'moved' => 2, 'failed' => [12]]);
 Check::same('номер источника и вид — в import()', array_column($eval->imports, 0), [10, 11, 12, 13]);
 $eval = new FakeEval();
 $eval->importResults = [12 => new \RuntimeException('база')];
 Check::same('сбой базы — стоп на этой строке', EvalMigration::step($rows, 9, $eval), ['lastId' => 11, 'moved' => 2, 'failed' => []]);
+$eval = new FakeEval();
+$eval->importResults = [11 => new \TypeError('тип')];
+Check::same('ошибка типа — строка пропущена, перенос идёт дальше', EvalMigration::step($rows, 9, $eval), ['lastId' => 13, 'moved' => 3, 'failed' => [11]]);
+Check::same('без даты — пропуск без import()', [EvalMigration::step([['ID' => 20, 'CREATED_AT' => null] + $row], 9, $eval = new FakeEval()), $eval->imports], [['lastId' => 20, 'moved' => 0, 'failed' => [20]], []]);
 Check::same('пустая пачка — без изменений', EvalMigration::step([], 9, new FakeEval()), ['lastId' => 9, 'moved' => 0, 'failed' => []]);
 
 Check::group('подсказка на странице оценок');

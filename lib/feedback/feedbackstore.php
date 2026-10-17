@@ -88,18 +88,26 @@ final class FeedbackStore implements FeedbackStoreInterface
 	 */
 	public static function cleanAgent(): string
 	{
+		$pending = false;
 		try
 		{
 			// Сначала перенос в общий журнал (1.11.0): до удаления по сроку
-			EvalMigration::run();
+			$eval = new \Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiEvalGateway();
+			EvalMigration::run($eval);
+			$pending = $eval->isAvailable() && EvalMigration::left() > 0;
 		}
 		catch(\Throwable $throwable)
 		{
 			\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->error($throwable);
+			$pending = true;
 		}
 		try
 		{
-			static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
+			// Перенос не закончен — не удалять: непереносённое старше срока пропало бы
+			if(!$pending)
+			{
+				static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
+			}
 		}
 		catch(\Throwable $throwable)
 		{
