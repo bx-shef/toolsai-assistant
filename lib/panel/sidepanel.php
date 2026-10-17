@@ -13,7 +13,8 @@ namespace Shef\ToolsAiAssistant\Panel;
  * окно чата JS-расширения модуля (install/js/shef/toolsaiassistant/chat), и
  * ответ — через контроллер модуля, а не endpoint/kb.php shef.toolsai.
  * Место «Марты» (#app__right-panel) по-прежнему не трогаем: наша панель —
- * слоем выше, ниже слайдеров.
+ * слоем выше; с 1.3.0 открытый чат — и над слайдерами BX.SidePanel, а со
+ * страницы в слайдере (IFRAME=Y) он открывается в верхнем окне.
  *
  * Чистый класс — без ядра (panel_test.php).
  */
@@ -24,7 +25,12 @@ final class SidePanel
 	public const WIDTH_MIN = 320;
 	public const WIDTH_MAX = 720;
 	public const WIDTH_DEFAULT = 400;
-	/** Выше места Марты в шаблоне Air, ниже слайдеров (BX.SidePanel — от 1000). */
+	/**
+	 * Запасной слой (поле z настроек окна): действует, только если в окне нет
+	 * BX.ZIndexManager. С 1.3.0 панель регистрируется в стопке ZIndexManager
+	 * ядра (слой выдаёт ядро) и при открытии поднимается над верхним
+	 * слайдером (chat.js, watchSliders()). Выше места Марты в шаблоне Air.
+	 */
 	public const Z_INDEX = 990;
 	public const TITLE_MAX = 120;
 
@@ -54,8 +60,10 @@ final class SidePanel
 	 * Настройки окна для JS-расширения (BX.Shef.ToolsAiAssistant.Chat.init).
 	 *
 	 * @param string $context тема общего чата — название страницы, где открыт чат
+	 * @param list<string> $assets адреса файлов расширения с версией (assets());
+	 *   берутся только /bitrix/js/…
 	 */
-	public static function settings(string $context, string $buttonId = self::BUTTON_ID): array
+	public static function settings(string $context, string $buttonId = self::BUTTON_ID, array $assets = []): array
 	{
 		return [
 			'button' => preg_replace('/[^a-zA-Z0-9_-]/', '', $buttonId) ?: self::BUTTON_ID,
@@ -64,7 +72,35 @@ final class SidePanel
 			'max' => self::WIDTH_MAX,
 			'def' => self::WIDTH_DEFAULT,
 			'z' => self::Z_INDEX,
+			// Файлы расширения — для страницы в слайдере: она подгружает их в верхнее окно (1.3.0)
+			'assets' => array_values(array_filter($assets, static fn($url): bool => is_string($url) && str_starts_with($url, '/bitrix/js/'))),
 		];
+	}
+
+	/**
+	 * Файлы расширения из его config.php (Extension::getConfig()) — css, потом
+	 * js, в порядке конфига; $url добавляет версию файла
+	 * (CUtil::GetAdditionalFileURL). Список один — config.php расширения.
+	 *
+	 * @param array{css?: string|list<string>, js?: string|list<string>}|null $config
+	 * @param \Closure(string): string $url
+	 * @return list<string>
+	 */
+	public static function assets(?array $config, \Closure $url): array
+	{
+		$files = [];
+		foreach(['css', 'js'] as $kind)
+		{
+			foreach((array)($config[$kind] ?? []) as $file)
+			{
+				if(is_string($file) && $file !== '')
+				{
+					$files[] = $url($file);
+				}
+			}
+		}
+
+		return $files;
 	}
 
 	/** Скрипт запуска панели — для Asset::addString(). */

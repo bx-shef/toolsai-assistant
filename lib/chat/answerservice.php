@@ -53,11 +53,11 @@ final class AnswerService
 	 * @return array{roles: list<array{code: string, title: string, description: string}>, role: ?string, examples: list<string>, model: string, kb: bool, chatKey: string}
 	 * @throws ChatException нет права на чат
 	 */
-	public function info(Rights $rights, int $userId, ?Record $record): array
+	public function info(Rights $rights, int $userId, ?Record $record, string $context = ''): array
 	{
 		$this->assertChat($rights);
 		$roles = $this->prompts->roles($rights->allowedRoles());
-		$key = ChatKey::of($record);
+		$key = ChatKey::of($record, $context);
 		$role = RoleSelector::choose(array_column($roles, 'code'), '', $this->choices->get($userId, $key), Constants::DEFAULT_ROLE);
 
 		return [
@@ -76,7 +76,7 @@ final class AnswerService
 	 * @return array{role: string, examples: list<string>}
 	 * @throws ChatException нет права на чат или на роль
 	 */
-	public function chooseRole(Rights $rights, int $userId, ?Record $record, string $roleCode): array
+	public function chooseRole(Rights $rights, int $userId, ?Record $record, string $roleCode, string $context = ''): array
 	{
 		$this->assertChat($rights);
 		$roleCode = strtolower(trim($roleCode));
@@ -86,7 +86,7 @@ final class AnswerService
 		}
 		// Прислана роль — RoleSelector вернёт её же или откажет
 		$role = (string)RoleSelector::choose(array_column($this->prompts->roles($rights->allowedRoles()), 'code'), $roleCode, null, Constants::DEFAULT_ROLE);
-		$this->choices->save($userId, ChatKey::of($record), $role);
+		$this->choices->save($userId, ChatKey::of($record, $context), $role);
 
 		return ['role' => $role, 'examples' => $this->prompts->compose($role, $record?->entityTypeId, $rights->allowedRoles())['examples']];
 	}
@@ -124,7 +124,7 @@ final class AnswerService
 			throw new ChatException('Напишите вопрос', ChatException::EMPTY_QUESTION);
 		}
 		$allowed = $rights->allowedRoles();
-		$key = ChatKey::of($request->record);
+		$key = ChatKey::of($request->record, $request->context);
 		$role = RoleSelector::choose(array_column($this->prompts->roles($allowed), 'code'), $request->role, $this->choices->get($userId, $key), Constants::DEFAULT_ROLE);
 		if($role === null)
 		{

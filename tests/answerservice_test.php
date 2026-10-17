@@ -226,6 +226,10 @@ Check::same('пустая роль — отказ', $outcome(static fn() => $ser
 $chosen = $service->chooseRole($seller, 1, new Record(2, 5), Roles::COACH);
 Check::same('открытая роль — выбрана', $chosen['role'], Roles::COACH);
 Check::same('запомнена на сотрудника и чат записи', $choices->rows, ['1|record:2:5' => Roles::COACH]);
+$service->chooseRole($seller, 1, null, Roles::COACH, 'docs');
+Check::same('справка: выбор роли — под ключом docs, общий чат не тронут (1.3.0)', [$choices->rows['1|docs'] ?? null, $choices->rows['1|general'] ?? null], [Roles::COACH, null]);
+Check::same('справка: info берёт роль справки', $service->info($seller, 1, null, 'docs')['chatKey'], 'docs');
+unset($choices->rows['1|docs']);
 Check::same('в общем чате — по-прежнему по умолчанию', $service->info($seller, 1, null)['role'], Roles::MANAGER);
 Check::same('в чате записи — запомненная', $service->info($seller, 1, new Record(2, 5))['role'], Roles::COACH);
 

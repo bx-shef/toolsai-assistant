@@ -26,12 +26,14 @@ final class ChatRequest
 		public readonly string $question,
 		public readonly ?Record $record,
 		public readonly string $role,
+		/** Контекст окна: «docs» — справка (1.3.0, ChatKey::of()). */
+		public readonly string $context = '',
 	)
 	{
 	}
 
 	/** Разбор параметров действия. */
-	public static function parse(mixed $messages, mixed $record, mixed $role, int $history): self
+	public static function parse(mixed $messages, mixed $record, mixed $role, int $history, mixed $context = ''): self
 	{
 		$list = [];
 		foreach(is_array($messages) ? $messages : [] as $message)
@@ -71,6 +73,6 @@ final class ChatRequest
 
 		$role = is_string($role) ? strtolower(trim(mb_substr($role, 0, self::ROLE_MAX))) : '';
 
-		return new self($list, $question, Record::fromArray($record), $role);
+		return new self($list, $question, Record::fromArray($record), $role, ChatKey::context($context));
 	}
 }

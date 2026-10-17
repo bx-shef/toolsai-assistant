@@ -122,4 +122,19 @@ return [
 		],
 		'readonly' => true,
 	],
+	// Подбор мест «Где показывать чат» (1.3.0): провайдер ui.entity-selector
+	'ui.entity-selector' => [
+		'value' => [
+			'entities' => [
+				[
+					'entityId' => 'shef-assistant-place',
+					'provider' => [
+						'moduleId' => 'shef.toolsaiassistant',
+						'className' => '\\Shef\\ToolsAiAssistant\\Internals\\Integration\\Ui\\EntitySelector\\PlaceProvider',
+					],
+				],
+			],
+		],
+		'readonly' => true,
+	],
 ];

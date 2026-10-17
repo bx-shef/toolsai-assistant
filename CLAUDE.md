@@ -40,6 +40,7 @@
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
+| места «Где показывать чат» (1.3.0) | `lib/panel/placeurl.php` (сопоставление), `placecatalog.php` (свои + событие `OnChatPlacesCollect`), `placesoption.php` (поле настроек), провайдер `lib/internals/integration/ui/entityselector/placeprovider.php` |
 
 ## Решения и ловушки
 
@@ -63,6 +64,11 @@
   таблицы, подписки, агент (`tests/maintenance_test.php`). Новый файл в install/ —
   он приедет и так; новая таблица — добавить в `Maintenance::ensure()`.
 - **«Где показывать чат» пусто — чат нигде** (1.1.0); умолчание — в `default_option.php`.
+  С 1.3.0 поле — подбор мест (`ui.entity-selector`), но хранит то же: адреса
+  строками в `PANEL_paths`; ключ места — адрес, а не id.
+- **Чат поверх слайдеров и из слайдера** (1.3.0): панель — в стопке
+  `BX.ZIndexManager`; во фрейме (`IFRAME=Y`) `window.ShefAiChat` — посредник к
+  верхнему окну (`chat.js`, `Frame`). Чат справки — `open({context: 'docs'})`.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —

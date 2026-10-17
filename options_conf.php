@@ -38,9 +38,8 @@ $options->addTab(
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_PANEL_enabled_descr'))
 		)
 		->addOption(
-			(new Options\TextArea('paths'))
-				->setRows(8)
-				->setCols(80)
+			// Подбор мест через ui.entity-selector (1.3.0); хранит адреса строками, как раньше
+			(new \Shef\ToolsAiAssistant\Panel\PlacesOption('paths'))
 				->setTitle(Loc::getMessage($options->moduleId.'_TAB_PANEL_paths'))
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_PANEL_paths_descr'))
 		)

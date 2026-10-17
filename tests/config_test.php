@@ -72,7 +72,7 @@ $expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTOR
 sort($expected);
 $pathsField = null;
 foreach($tabs as $tab) { foreach($tab->getOptionList() as $option) { if($tab->getCode().'_'.$option->getCode() === Config::OPTION_PATHS) { $pathsField = $option; } } }
-Check::same('поле «Где показывать чат» — крупное: 8 строк, 80 знаков', [$pathsField?->getRows(), $pathsField?->getCols()], [8, 80]);
+Check::same('поле «Где показывать чат» — подбор мест (ui.entity-selector, 1.3.0)', $pathsField instanceof \Shef\ToolsAiAssistant\Panel\PlacesOption, true);
 Check::same('страница настроек сохраняет ровно то, что читает Config', $codes, $expected);
 $defaultKeys = array_keys($shef_toolsaiassistant_default_option);
 sort($defaultKeys);

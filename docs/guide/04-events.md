@@ -1,6 +1,6 @@
 # 04. События
 
-> Последняя сверка: 2026-10-16
+> Последняя сверка: 2026-10-17
 
 Постоянные подписки — в `installEvents` (`.settings.php`): установщик
 регистрирует их, удаление снимает те же (`tests/install_test.php`).
@@ -9,7 +9,7 @@
 |---|---|---|
 | `shef.toolsai:OnPromptRegistryBuild` (D7) | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler::handle(Event): EventResult` | отдаёт шесть ролей: `EventResult(SUCCESS, ['prompts' => Roles::raw()], 'shef.toolsaiassistant')` |
 | `shef.toolsai:OnViewRowActionsBuild` (D7, 1.50.0) | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler::handle(Event): EventResult` | пункт «✦ Спросить ИИ» в меню строки вида «ИИ»: `['actions' => [['text', 'onclick']]]`, только при праве на чат |
-| `main:OnProlog` (compatible, без параметров) | `Internals\Integration\Main\EventHandler\OnPrologEventHandler::handle()` | на страницах из настройки «Где показывать чат» — кнопка «✦ ИИ: чат» и панель |
+| `main:OnProlog` (compatible, без параметров) | `Internals\Integration\Main\EventHandler\OnPrologEventHandler::handle()` | на страницах из настройки «Где показывать чат» — кнопка «✦ ИИ: чат» и панель; страница в слайдере (`IFRAME=Y`) — тоже, чат откроется в верхнем окне (1.3.0) |
 
 Контракт `OnPromptRegistryBuild` задаёт shef.toolsai (`lib/prompt/registryservice.php`,
 `RegistryService::defaults()`): коды промптов обязаны начинаться с ID модуля —
@@ -19,4 +19,73 @@
 `shef.toolsai:OnPromptChanged` модуль не слушает: своего кеша промптов у него нет,
 текст роли берётся из реестра на каждом ответе.
 
-Своих событий модуль не шлёт.
+## Своё событие: `shef.toolsaiassistant:OnChatPlacesCollect` (1.3.0)
+
+Сбор готовых мест для настройки «Где показывать чат». Шлёт
+`Panel\PlaceCatalog::collect()` — при открытии подбора мест на странице настроек
+(провайдер `PlaceProvider`), раз за хит. Класс события —
+`Public\Event\OnChatPlacesCollectEvent` (D7, параметров нет).
+
+Ответ обработчика:
+
+```php
+new EventResult(EventResult::SUCCESS, ['places' => [
+	['id' => 'view', 'title' => 'Вид «ИИ»', 'url' => '/shef/toolsai/view/', 'group' => 'ИИ'],
+]], 'shef.toolsai');
+```
+
+| поле | что | правило |
+|---|---|---|
+| `id` | код места в модуле | непустая строка до 100 знаков |
+| `title` | название в подборе | непустая строка, обрезается до 100 знаков |
+| `url` | адрес места | путь своего портала, можно с параметрами: `/shef/toolsai/view/?type=2` (`Panel\PlaceUrl::normalize()`) |
+| `group` | подпись группы | строка, обрезается до 100 знаков; пусто — ID модуля ответа, а без него — `CRM` |
+
+- Учитываются только ответы `EventResult::SUCCESS`; негодное место пропускается
+  молча, остальные места ответа остаются (`PlaceCatalog::normalize()`).
+- **Ключ места в настройке — адрес.** Повтор адреса — берётся первое: свои места
+  модуля идут первыми, потом ответы в порядке `sort` подписок. Сменили адрес
+  места — у портала, где его выбрали, он останется «своим адресом» со старым путём.
+- Сбой обработчика (исключение) — в лог, подбор работает со своими местами.
+- Формат места `{id, title, url, group}` — тот же, что у события
+  `shef.toolsaiannounce:OnAnnouncementPlacesCollect`: один обработчик может
+  отдавать один список обоим.
+
+### Пример: места shef.toolsai
+
+`.settings.php` shef.toolsai, `installEvents`:
+
+```php
+[
+	'isCompatible' => false,
+	'from' => ['module' => 'shef.toolsaiassistant', 'event' => 'OnChatPlacesCollect'],
+	'to' => [
+		'module' => 'shef.toolsai',
+		'class' => '\\Shef\\ToolsAi\\Internals\\Integration\\ToolsAiAssistant\\EventHandler\\OnChatPlacesCollectEventHandler',
+		'function' => 'handle',
+		'sort' => 100,
+	],
+],
+```
+
+```php
+namespace Shef\ToolsAi\Internals\Integration\ToolsAiAssistant\EventHandler;
+
+use Bitrix\Main\Event;
+use Bitrix\Main\EventResult;
+
+final class OnChatPlacesCollectEventHandler
+{
+	public static function handle(Event $event): EventResult
+	{
+		return new EventResult(EventResult::SUCCESS, ['places' => [
+			['id' => 'view', 'title' => 'Вид «ИИ»', 'url' => '/shef/toolsai/view/', 'group' => 'ИИ'],
+			['id' => 'settings', 'title' => 'Настройки ИИ', 'url' => '/shef/toolsai/', 'group' => 'ИИ'],
+		]], 'shef.toolsai');
+	}
+}
+```
+
+Аргумент — `Bitrix\Main\Event`, а не класс события этого модуля: так обработчику
+не нужен этот модуль при загрузке (правило `event.md` навыка
+`bitrix-best-practice-core`).

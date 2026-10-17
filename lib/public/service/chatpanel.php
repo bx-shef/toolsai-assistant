@@ -51,7 +51,8 @@ final class ChatPanel
 	public static function load(string $context = ''): void
 	{
 		Extension::load(Constants::EXTENSION_CHAT);
-		Asset::getInstance()->addString(SidePanel::initScript(SidePanel::settings($context)));
+		$assets = SidePanel::assets(Extension::getConfig(Constants::EXTENSION_CHAT), static fn(string $file): string => (string)\CUtil::GetAdditionalFileURL($file));
+		Asset::getInstance()->addString(SidePanel::initScript(SidePanel::settings($context, SidePanel::BUTTON_ID, $assets)));
 	}
 
 	/** Кнопка «✦ ИИ: чат» в верхней панели страницы (ui.toolbar). */

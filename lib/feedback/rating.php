@@ -52,7 +52,7 @@ final class Rating
 		return [
 			'rating' => $rating,
 			'role' => $role,
-			'chatKey' => ChatKey::of(Record::fromArray($input['record'] ?? null)),
+			'chatKey' => ChatKey::of(Record::fromArray($input['record'] ?? null), ChatKey::context($input['context'] ?? '')),
 			'question' => $question,
 			'answer' => $answer,
 			'comment' => static::text($input['comment'] ?? '', self::COMMENT_MAX),
