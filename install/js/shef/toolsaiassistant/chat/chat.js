@@ -110,6 +110,26 @@
 		return record;
 	}
 
+	/**
+	 * Кнопка-иконка (1.3.2): штатная иконка ui.icon-set (набор outline) и
+	 * подсказка title / aria-label.
+	 */
+	function iconButton(className, icon, title)
+	{
+		var button = el('button', className);
+		button.type = 'button';
+		setIcon(button, icon, title);
+		return button;
+	}
+
+	function setIcon(button, icon, title)
+	{
+		BX.cleanNode(button);
+		button.appendChild(el('span', 'ui-icon-set --' + icon));
+		button.title = title;
+		button.setAttribute('aria-label', title);
+	}
+
 	function errorText(response, fallback)
 	{
 		var errors = response && response.errors;
@@ -144,6 +164,11 @@
 				return;
 			}
 			this.settings = settings;
+			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.3.2)
+			if(settings.fromFrame && BX.Runtime && BX.Runtime.loadExtension)
+			{
+				try { BX.Runtime.loadExtension('ui.icon-set.outline'); } catch(e) {}
+			}
 			this.buildPanel();
 			this.bindButton();
 			this.watchSliders();
@@ -214,19 +239,29 @@
 
 			var bar = el('div', 'shef-aia-bar');
 			bar.appendChild(el('span', 'shef-aia-bar-title', 'ИИ-помощник'));
-			this.clearButton = el('button', 'shef-aia-icon', '⟲');
-			this.clearButton.type = 'button';
-			this.clearButton.title = 'Очистить чат';
-			this.clearButton.setAttribute('aria-label', 'Очистить чат');
-			this.clearButton.addEventListener('click', function() { self.clear(); });
+			this.clearButton = iconButton('shef-aia-icon', 'o-trashcan', 'Очистить диалог');
+			this.clearButton.addEventListener('click', function() { self.askClear(true); });
 			bar.appendChild(this.clearButton);
-			var closeButton = el('button', 'shef-aia-icon', '✕');
-			closeButton.type = 'button';
-			closeButton.title = 'Закрыть';
-			closeButton.setAttribute('aria-label', 'Закрыть чат');
+			var closeButton = iconButton('shef-aia-icon', 'cross-m', 'Закрыть чат');
 			closeButton.addEventListener('click', function() { self.close(); });
 			bar.appendChild(closeButton);
 			panel.appendChild(bar);
+
+			// Подтверждение очистки — в самой панели: всплывающее окно ядра легло бы под панель (она поверх всего)
+			var confirmRow = el('div', 'shef-aia-confirm');
+			confirmRow.setAttribute('role', 'alert');
+			confirmRow.appendChild(el('span', 'shef-aia-confirm-text', 'Очистить диалог? Переписка удалится из этого браузера.'));
+			var yes = el('button', 'ui-btn ui-btn-xs ui-btn-danger', 'Очистить');
+			yes.type = 'button';
+			yes.addEventListener('click', function() { self.askClear(false); self.clear(); });
+			var no = el('button', 'ui-btn ui-btn-xs ui-btn-light-border', 'Отмена');
+			no.type = 'button';
+			no.addEventListener('click', function() { self.askClear(false); });
+			confirmRow.appendChild(yes);
+			confirmRow.appendChild(no);
+			confirmRow.hidden = true;
+			this.confirmRow = confirmRow;
+			panel.appendChild(confirmRow);
 
 			var roleRow = el('label', 'shef-aia-role');
 			roleRow.appendChild(el('span', 'shef-aia-role-label', 'Роль:'));
@@ -466,6 +501,12 @@
 			})));
 		},
 
+		/** Показать / спрятать подтверждение «Очистить диалог?». */
+		askClear: function(show)
+		{
+			this.confirmRow.hidden = !show;
+		},
+
 		clear: function()
 		{
 			this.requestId++;
@@ -522,6 +563,7 @@
 			var stale = function() { return requestId !== self.requestId; };
 			this.stopStream();
 			this.busy = true;
+			this.startStatus();
 			this.render();
 			this.pending = NS.Stream.request(ACTION + 'stream', {
 				messages: this.messages.map(function(m) { return {role: m.role, text: m.text}; }),
@@ -533,12 +575,14 @@
 					if(stale()) { return; }
 					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true};
 					self.messages.push(message);
+					self.stepStatus('start');
 					self.scheduleRender();
 				},
 				onDelta: function(text)
 				{
 					if(stale() || !message) { return; }
 					message.text += text;
+					self.stepStatus('delta');
 					self.scheduleRender();
 				},
 				onFinish: function(event)
@@ -546,6 +590,7 @@
 					if(stale() || !message) { return; }
 					self.pending = null;
 					self.busy = false;
+					self.stepStatus('finish');
 					delete message.streaming;
 					message.cut = event.finishReason === 'length';
 					self.saveMessages();
@@ -556,6 +601,7 @@
 					if(stale()) { return; }
 					self.pending = null;
 					self.busy = false;
+					self.stepStatus('error');
 					if(message)
 					{
 						self.messages = self.messages.filter(function(m) { return m !== message; });
@@ -566,8 +612,39 @@
 			});
 		},
 
+		/**
+		 * Этапы ожидания (status.js, 1.3.2): история записи → база знаний →
+		 * «Думаю…» (start потока) → печать (первый кусок).
+		 */
+		startStatus: function()
+		{
+			var self = this;
+			var S = NS.ChatStatus;
+			this.stopStatusTimer();
+			this.status = S ? S.initial({record: !!(this.record && !this.record.docs), kb: !!(this.info && this.info.kb)}) : null;
+			if(S)
+			{
+				this.statusTimer = setInterval(function() { self.stepStatus('tick'); }, S.TICK);
+			}
+		},
+
+		stepStatus: function(event)
+		{
+			if(!this.status || !NS.ChatStatus) { return; }
+			var before = NS.ChatStatus.label(this.status);
+			this.status = NS.ChatStatus.next(this.status, event);
+			if(this.status.phase !== 'wait') { this.stopStatusTimer(); }
+			if(event === 'tick' && NS.ChatStatus.label(this.status) !== before) { this.scheduleRender(); }
+		},
+
+		stopStatusTimer: function()
+		{
+			if(this.statusTimer) { clearInterval(this.statusTimer); this.statusTimer = 0; }
+		},
+
 		stopStream: function()
 		{
+			this.stopStatusTimer();
 			if(this.pending)
 			{
 				this.pending.abort();
@@ -654,8 +731,8 @@
 			if(!navigator.clipboard) { return; }
 			navigator.clipboard.writeText(text).then(function()
 			{
-				button.textContent = 'Скопировано';
-				setTimeout(function() { button.textContent = 'Копировать'; }, 1500);
+				setIcon(button, 'check-m', 'Скопировано');
+				setTimeout(function() { setIcon(button, 'o-copy', 'Копировать ответ'); }, 1500);
 			}, function() {});
 		},
 
@@ -679,6 +756,7 @@
 			this.roleRow.style.display = roles.length ? '' : 'none';
 			this.roleSelect.disabled = this.busy;
 			this.clearButton.style.visibility = this.messages.length ? 'visible' : 'hidden';
+			if(!this.messages.length) { this.askClear(false); }
 			this.disclaimer.textContent = 'Ответы ' + (info && info.model ? info.model : 'ИИ') + ' могут быть неточны, проверяйте важную информацию.';
 
 			var box = this.scroller;
@@ -759,18 +837,17 @@
 				}
 				if(message.streaming)
 				{
-					box.appendChild(answer);
+					// Пока модель молчит — не пустой пузырь, а индикатор ниже
+					if(message.text !== '') { box.appendChild(answer); }
 					return;
 				}
 				var tools = el('div', 'shef-aia-tools');
-				var copy = el('button', 'shef-aia-tool', 'Копировать');
-				copy.type = 'button';
+				var copy = iconButton('shef-aia-tool', 'o-copy', 'Копировать ответ');
 				copy.addEventListener('click', function() { self.copy(message.text, copy); });
 				tools.appendChild(copy);
 				if(index === self.messages.length - 1)
 				{
-					var again = el('button', 'shef-aia-tool', 'Ответить заново');
-					again.type = 'button';
+					var again = iconButton('shef-aia-tool', 'o-refresh', 'Ответить заново');
 					again.addEventListener('click', function() { self.retry(); });
 					tools.appendChild(again);
 				}
@@ -787,10 +864,14 @@
 				box.appendChild(answer);
 			});
 
-			var last = this.messages[this.messages.length - 1];
-			if(this.busy && !(last && last.streaming))
+			var waiting = this.busy ? (this.status && NS.ChatStatus ? NS.ChatStatus.label(this.status) : 'Думаю…') : '';
+			if(waiting)
 			{
-				box.appendChild(el('div', 'shef-aia-thinking', '✦ Думаю…'));
+				var thinking = el('div', 'shef-aia-thinking');
+				thinking.setAttribute('role', 'status');
+				thinking.appendChild(el('span', 'shef-aia-thinking-star', '✦'));
+				thinking.appendChild(el('span', 'shef-aia-thinking-text', waiting));
+				box.appendChild(thinking);
 			}
 			if(this.lastError && !this.busy)
 			{
@@ -811,30 +892,31 @@
 		}
 	};
 
-	/** Кнопки оценки под ответом: «Полезно», «Не помогло»; после — «Спасибо». */
+	/**
+	 * Оценка под ответом (1.3.2) — иконки «полезно» / «не помогло» с
+	 * состоянием: выбранная подсвечена (aria-pressed), после оценки обе
+	 * неактивны, подсказка — «Спасибо за оценку».
+	 */
 	Chat.renderRating = function(tools, message, index)
 	{
 		var self = this;
-		if(message.rated)
+		var chosen = message.rated || (message.askComment ? 'down' : '');
+		var make = function(code, icon, title, onClick)
 		{
-			tools.appendChild(el('span', 'shef-aia-rated', message.rated === 'up' ? '👍 Спасибо за оценку' : '👎 Спасибо — учтём'));
-			return;
-		}
-		var up = el('button', 'shef-aia-tool', '👍 Полезно');
-		up.type = 'button';
-		up.disabled = !!message.rating;
-		up.addEventListener('click', function() { self.rate(index, 'up', ''); });
-		var down = el('button', 'shef-aia-tool', '👎 Не помогло');
-		down.type = 'button';
-		down.disabled = !!message.rating;
-		down.addEventListener('click', function()
+			var pressed = chosen === code;
+			var button = iconButton('shef-aia-tool' + (pressed ? ' --active' : ''), icon, message.rated && pressed ? 'Спасибо за оценку' : title);
+			button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+			button.disabled = !!message.rated || !!message.rating;
+			button.addEventListener('click', onClick);
+			tools.appendChild(button);
+		};
+		make('up', 'o-like', 'Полезно', function() { self.rate(index, 'up', ''); });
+		make('down', 'o-dislike', 'Не помогло — напишите, что не так', function()
 		{
 			delete message.rateError;
-			message.askComment = true;
+			message.askComment = !message.askComment;
 			self.render();
 		});
-		tools.appendChild(up);
-		tools.appendChild(down);
 	};
 
 	/** «Не помогло»: что не так — по желанию, потом «Отправить». */

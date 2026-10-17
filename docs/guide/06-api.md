@@ -112,6 +112,21 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 её не правит. В шапку вида «ИИ» (shef.toolsai 1.53+) кнопку ставит сам вид по
 событию `OnViewToolbarBuild`.
 
+## Окно: иконки и ожидание (1.3.2)
+
+Иконки — `ui.icon-set` (расширение `ui.icon-set.outline`, в `rel` расширения
+окна): `o-trashcan` «Очистить диалог», `cross-m` «Закрыть чат», `o-copy` /
+`check-m` «Копировать ответ» / «Скопировано», `o-refresh` «Ответить заново»,
+`o-like` / `o-dislike` — оценка. У каждой кнопки `title` и `aria-label`.
+Подтверждение очистки — строкой в самой панели: окно `BX.UI.Dialogs` легло бы под
+панель (она `alwaysOnTop`).
+
+Ожидание ответа — `status.js` (`BX.Shef.ToolsAiAssistant.ChatStatus`): этапы
+`record` («Читаю историю записи…», если чат по записи), `kb` («Ищу в базе знаний…»,
+если база подключена), `model` («Думаю…»). Подготовительные этапы сменяются по
+таймеру (1,5 с), но до `model` доходят только по событию `start` потока; первый
+`delta` — печать, индикатор гаснет (`tests/status_test.mjs`).
+
 ## Ajax-действия
 
 `BX.ajax.runAction('shef:toolsaiassistant.chat.<действие>', {data})` — POST,
