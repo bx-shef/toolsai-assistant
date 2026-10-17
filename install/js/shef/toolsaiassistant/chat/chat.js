@@ -223,8 +223,6 @@
 		/** Файлы к следующему вопросу (1.8.0): {id, name, status: reading|ok|error, file, error}. */
 		attachments: [],
 		attachSeq: 0,
-		/** Агент (1.9.0): шаги текущего вопроса для модели (trace сервера) — до ответа сотруднику. */
-		agentTrace: [],
 		/** Подписка на сообщение окна подключения к MCP. */
 		agentListener: null,
 
@@ -672,7 +670,6 @@
 			this.stopStream();
 			this.busy = false;
 			this.messages = [];
-			this.agentTrace = [];
 			this.lastError = '';
 			drop(this.storageKey());
 			this.render();
@@ -857,7 +854,6 @@
 		{
 			if(this.agentMode())
 			{
-				this.agentTrace = [];
 				this.askAgent(null);
 				return;
 			}
@@ -1326,7 +1322,6 @@
 				return;
 			}
 			put(AGENT_KEY, get(AGENT_KEY) === '1' ? '0' : '1');
-			this.agentTrace = [];
 			this.render();
 		},
 
@@ -1375,8 +1370,8 @@
 
 		/**
 		 * Ответ агента: вопрос (confirm = null) или решение по ждущему действию.
-		 * Сервер присылает шаги, текст и, если нужно, ждущее действие + trace —
-		 * его отдаём назад при «Выполнить / Отмена».
+		 * Сервер присылает шаги, текст и, если нужно, ждущее действие; сам вызов
+		 * и шаги вопроса он хранит у себя — окно шлёт только id и решение.
 		 */
 		askAgent: function(confirm)
 		{
@@ -1391,7 +1386,6 @@
 				messages: A.history(this.messages),
 				record: recordData(this.record), context: contextOf(this.record),
 				role: this.info && this.info.role ? this.info.role : '',
-				trace: this.agentTrace,
 				confirm: confirm || {}
 			}}).then(function(response)
 			{
@@ -1399,7 +1393,6 @@
 				self.busy = false;
 				var data = response.data || {};
 				var message = A.message(data);
-				self.agentTrace = message.pending && Array.isArray(data.trace) ? data.trace : [];
 				(message.steps || []).forEach(function(step) { A.emit(A.EVENT_STEP, [step]); });
 				if(message.pending) { A.emit(A.EVENT_PENDING, [message.pending]); }
 				self.messages.push(message);
@@ -1414,7 +1407,6 @@
 				{
 					self.info.agent.connected = false;
 				}
-				self.agentTrace = [];
 				self.lastError = errorText(response, 'Агент не ответил');
 				self.render();
 			});

@@ -225,6 +225,6 @@
 .shef-aia-agent-step.--declined { color: #a8adb4; }
 .shef-aia-agent-pending { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--shef-aia-accent, #8e52ec); border-radius: 10px; background: #fff; }
 .shef-aia-agent-pending-title { font-weight: 600; margin-bottom: 6px; }
-.shef-aia-agent-pending-args { display: block; font-size: 12px; white-space: pre-wrap; word-break: break-word; background: #f5f7f8; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
+.shef-aia-agent-pending-args { display: block; max-height: 240px; overflow: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; background: #f5f7f8; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
 .shef-aia-agent-pending-buttons { display: flex; gap: 8px; }
 .shef-aia-agent-pending-done { font-size: 12px; color: #6a737f; }

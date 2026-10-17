@@ -74,6 +74,25 @@ final class TokenStore implements TokenStoreInterface
 		}
 	}
 
+	public function locked(int $userId, \Closure $action): mixed
+	{
+		$connection = \Bitrix\Main\Application::getConnection();
+		$name = 'shef_taia_mcp_refresh_'.$userId;
+		// Ждём до 20 с: столько идёт обмен у соседнего запроса
+		if(!$connection->lock($name, 20))
+		{
+			throw new McpException('MCP-сервер занят обновлением входа — повторите через минуту', McpException::NETWORK);
+		}
+		try
+		{
+			return $action();
+		}
+		finally
+		{
+			$connection->unlock($name);
+		}
+	}
+
 	private static function crypto(): TokenCrypto
 	{
 		$key = (string)Option::get(Constants::MODULE_ID, self::OPTION_KEY, '');

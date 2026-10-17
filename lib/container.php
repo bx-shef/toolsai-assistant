@@ -15,7 +15,7 @@ use Shef\ToolsAiAssistant\Feedback\FeedbackStore;
 use Shef\ToolsAiAssistant\Main\Constants;
 use Shef\ToolsAiAssistant\Agent\AgentEvents;
 use Shef\ToolsAiAssistant\Agent\AgentService;
-use Shef\ToolsAiAssistant\Agent\UserOptionPendingStore;
+use Shef\ToolsAiAssistant\Agent\PendingStore;
 use Shef\ToolsAiAssistant\Mcp\BitrixHttpTransport;
 use Shef\ToolsAiAssistant\Mcp\McpConnection;
 use Shef\ToolsAiAssistant\Mcp\OptionStateStore;
@@ -58,7 +58,7 @@ final class Container
 	{
 		$config = Config::current();
 
-		return new AgentService(static::getAnswerService(), new ToolsAiModelGateway(), static::getMcpConnection($config), new UserOptionPendingStore(), new AgentEvents(), $config);
+		return new AgentService(static::getAnswerService(), new ToolsAiModelGateway(), static::getMcpConnection($config), new PendingStore(), new AgentEvents(), $config);
 	}
 
 	/** Подменить сценарий (тесты контроллера); null — вернуть настоящий. */

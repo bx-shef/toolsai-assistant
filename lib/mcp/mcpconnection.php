@@ -80,10 +80,14 @@ final class McpConnection implements \Shef\ToolsAiAssistant\Agent\McpGatewayInte
 	public function finish(int $userId, array $query): void
 	{
 		$login = $this->session->get('login');
-		$this->session->set('login', null);
 		$state = is_string($query['state'] ?? null) ? $query['state'] : '';
-		if($login === null || $state === '' || !hash_equals((string)$login['state'], $state)
-			|| (int)$login['userId'] !== $userId || (string)$login['server'] !== $this->server
+		// Чужой переход на страницу возврата (state не тот) начатый вход не сбрасывает
+		if($login === null || $state === '' || !hash_equals((string)$login['state'], $state))
+		{
+			throw new McpException('Вход устарел или начат в другом окне — нажмите «Подключить» в чате ещё раз', McpException::AUTH);
+		}
+		$this->session->set('login', null);
+		if((int)$login['userId'] !== $userId || (string)$login['server'] !== $this->server
 			|| $this->now() - (int)$login['at'] > self::LOGIN_TTL)
 		{
 			throw new McpException('Вход устарел или начат в другом окне — нажмите «Подключить» в чате ещё раз', McpException::AUTH);
@@ -158,16 +162,37 @@ final class McpConnection implements \Shef\ToolsAiAssistant\Agent\McpGatewayInte
 		return $action($client, $this->refresh($userId, $token)['access']);
 	}
 
-	/** @throws McpException AUTH — подключение удалено */
+	/**
+	 * Обновить под блокировкой: соседний запрос уже обновил (refresh в
+	 * хранилище другой) — берём его пару без обмена. Подключение удаляется,
+	 * только если сервер отверг именно тот refresh, что ещё лежит в хранилище.
+	 *
+	 * @throws McpException AUTH — подключение удалено
+	 */
 	private function refresh(int $userId, array $token): array
 	{
+		return $this->tokens->locked($userId, fn(): array => $this->refreshLocked($userId, $token));
+	}
+
+	private function refreshLocked(int $userId, array $token): array
+	{
+		$stored = $this->tokens->get($userId);
+		if($stored === null || $stored['server'] !== $this->server)
+		{
+			throw new McpException('Подключитесь к MCP-серверу кнопкой «Подключить» в чате', McpException::AUTH);
+		}
+		if($stored['refresh'] !== $token['refresh'] && $stored['expiresAt'] - self::SKEW > $this->now())
+		{
+			return $stored;
+		}
+		$token = $stored;
 		try
 		{
 			$fresh = $this->oauth->refresh($this->metadata()['token_endpoint'], $token['clientId'], $token['refresh'], $this->now());
 		}
 		catch(McpException $exception)
 		{
-			if($exception->errorCode === McpException::AUTH)
+			if($exception->errorCode === McpException::AUTH && ($this->tokens->get($userId)['refresh'] ?? null) === $token['refresh'])
 			{
 				$this->tokens->delete($userId);
 			}

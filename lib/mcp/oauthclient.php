@@ -134,7 +134,9 @@ final class OAuthClient
 	private function token(string $endpoint, array $params, int $now): array
 	{
 		$response = $this->http->request('POST', $endpoint, ['Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json'], http_build_query($params, '', '&'));
-		if($response['status'] >= 400 && $response['status'] < 500)
+		// Вход не годится — только явный ответ OAuth (RFC 6749 5.2); 429 и прочие 4xx — временный сбой
+		$error = json_decode($response['body'], true);
+		if(in_array($response['status'], [400, 401], true) && is_array($error) && in_array($error['error'] ?? '', ['invalid_grant', 'invalid_client'], true))
 		{
 			throw new McpException('Подключение к MCP устарело — подключитесь заново', McpException::AUTH);
 		}

@@ -67,7 +67,7 @@
 			if(steps.length) { message.steps = steps.map(function(s) { return {tool: str(s.tool, 64), title: str(s.title, 120), status: str(s.status, 20), readOnly: !!s.readOnly, note: str(s.note, 300)}; }); }
 			if(data && data.pending && typeof data.pending.id === 'string')
 			{
-				message.pending = {id: data.pending.id, tool: str(data.pending.tool, 64), title: str(data.pending.title, 120), readOnly: !!data.pending.readOnly, preview: str(data.pending.preview, 400)};
+				message.pending = {id: data.pending.id, tool: str(data.pending.tool, 64), title: str(data.pending.title, 120), readOnly: !!data.pending.readOnly, preview: str(data.pending.preview, 4000)};
 			}
 			return message;
 		},
@@ -102,7 +102,8 @@
 			card.appendChild(el('div', 'shef-aia-agent-pending-title', (pending.readOnly ? 'Агент хочет посмотреть: ' : 'Агент хочет выполнить: ') + pending.title));
 			if(pending.preview && pending.preview !== '{}' && pending.preview !== '[]')
 			{
-				card.appendChild(el('code', 'shef-aia-agent-pending-args', pending.preview));
+				// Целиком (сервер не даёт подтвердить длиннее 4000 знаков): сотрудник видит всё, что выполнится
+				card.appendChild(el('pre', 'shef-aia-agent-pending-args', pending.preview));
 			}
 			if(decided)
 			{

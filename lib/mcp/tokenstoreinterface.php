@@ -17,4 +17,11 @@ interface TokenStoreInterface
 	public function save(int $userId, array $token): void;
 
 	public function delete(int $userId): void;
+
+	/**
+	 * Выполнить под блокировкой сотрудника: обновление токена — одно на
+	 * сотрудника (сервер вращает refresh, второй параллельный обмен получил
+	 * бы отказ и стёр подключение).
+	 */
+	public function locked(int $userId, \Closure $action): mixed;
 }

@@ -112,6 +112,8 @@ final class MemTokens implements TokenStoreInterface
 	public function get(int $userId): ?array { return $this->rows[$userId] ?? null; }
 	public function save(int $userId, array $token): void { $this->rows[$userId] = $token; }
 	public function delete(int $userId): void { unset($this->rows[$userId]); }
+	public int $locks = 0;
+	public function locked(int $userId, \Closure $action): mixed { $this->locks++; return $action(); }
 }
 
 final class MemState implements StateStoreInterface
@@ -140,7 +142,7 @@ $connection->start(7, $redirect, 'portal.by');
 Check::same('регистрация чата — одна на сервер и адрес возврата', count(array_filter($server->urls(), static fn($u) => str_ends_with($u, '/oauth/register'))), 1);
 
 Check::throws('чужой state — отказ', McpException::class, fn() => $connection->finish(7, ['code' => 'good', 'state' => 'x']));
-Check::same('state сгорает и при отказе', $session->get('login'), null);
+Check::same('…а начатый вход цел: чужая ссылка на страницу возврата его не сбрасывает', $session->get('login') !== null, true);
 $connection->start(7, $redirect, 'portal.by');
 $state = $session->rows['login']['state'];
 Check::throws('другой сотрудник с тем же state — отказ', McpException::class, fn() => $connection->finish(8, ['code' => 'good', 'state' => $state]));
@@ -177,6 +179,12 @@ $server->refreshes['r2'] = ['a3', 'r3'];
 $connection->tools(7);
 Check::same('401 раньше срока — обновить и повторить раз', $tokens->rows[7]['access'], 'a3');
 unset($server->valid['a3']);
+$stale = $tokens->rows[7];
+$tokens->rows[7] = ['refresh' => 'r9', 'access' => 'a9', 'expiresAt' => 99999] + $stale;
+$server->valid['a9'] = true;
+Check::same('соседний запрос уже обновил — его пара без обмена (refresh вращается)', (fn() => $this->refresh(7, $stale))->call($connection)['access'], 'a9');
+Check::same('обновление — под блокировкой сотрудника', $tokens->locks > 0, true);
+$tokens->rows[7] = $stale;
 Check::throws('refresh отозван — McpException::AUTH', McpException::class, fn() => $connection->tools(7));
 Check::same('…и подключение удалено: окно предложит подключиться заново', isset($tokens->rows[7]), false);
 Check::throws('не подключён — AUTH', McpException::class, fn() => $connection->call(9, 'crm_item_get', []));
@@ -184,6 +192,16 @@ $server->down = true;
 try { (new McpConnection($server->base, $server, $tokens, $session, $portal))->start(7, $redirect, 'portal.by'); } catch(McpException $e) { $code = $e->errorCode; }
 Check::same('сервер молчит — NETWORK', $code ?? '', McpException::NETWORK);
 $server->down = false;
+
+Check::group('временный отказ сервера токенов');
+$busy = new class implements HttpTransportInterface {
+	public function request(string $method, string $url, array $headers = [], string $body = ''): array
+	{
+		return ['status' => 429, 'headers' => [], 'body' => '{"error":"rate_limited"}'];
+	}
+};
+try { (new OAuthClient('https://box.by', $busy))->refresh('https://box.by/oauth/token', 'c', 'r', 0); } catch(McpException $e) { $code429 = $e->errorCode; }
+Check::same('429 — не «войти заново»: подключение не стирается', $code429 ?? '', McpException::SERVER);
 
 Check::group('метаданные');
 $evil = new FakeServer();

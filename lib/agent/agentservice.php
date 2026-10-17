@@ -24,14 +24,15 @@ use Shef\ToolsAiAssistant\Mcp\McpException;
  *
  * Всё до цикла — как у обычного ответа (AnswerService::prepare(): право,
  * роль, частота, запись CRM, статьи); плюс право agent.use и включённый агент.
- * Переписка шагов (trace) живёт в окне до ответа сотруднику и приходит назад
- * при подтверждении — это только контекст модели: вызов при подтверждении
- * берётся из сохранённого, а не из trace.
+ * Шаги вопроса (trace) хранятся вместе с ждущим вызовом на сервере: окно
+ * присылает только id и решение, ни вызов, ни шаги подменить не может.
  */
 final class AgentService
 {
-	/** Сколько сообщений trace принимаем от окна. */
+	/** Сколько сообщений шагов держим. */
 	public const TRACE_MAX = 40;
+	/** Аргументы длиннее — не подтверждаем: сотрудник должен видеть их целиком. */
+	public const PREVIEW_MAX = 4000;
 
 	public function __construct(
 		private readonly AnswerService $answers,
@@ -48,12 +49,11 @@ final class AgentService
 	/**
 	 * Ответ агента.
 	 *
-	 * @param list<array{role: string, content: string}> $trace шаги этого вопроса из окна
 	 * @param array{id?: mixed, decision?: mixed}|null $confirm решение по ждущему вызову
-	 * @return array{text: string, role: string, sources: list<array>, steps: list<array>, pending: ?array, trace: list<array>, finishReason: string}
+	 * @return array{text: string, role: string, sources: list<array>, steps: list<array>, pending: ?array, finishReason: string}
 	 * @throws ChatException
 	 */
-	public function run(Rights $rights, int $userId, ChatRequest $request, array $trace = [], ?array $confirm = null): array
+	public function run(Rights $rights, int $userId, ChatRequest $request, ?array $confirm = null): array
 	{
 		AgentStatus::assert($rights, $this->config);
 		$prepared = $this->answers->prepare($rights, $userId, $request);
@@ -65,7 +65,7 @@ final class AgentService
 		$tools = $this->tools($userId);
 		$messages = $prepared->messages;
 		$messages[0]['content'] .= "\n\n".ToolProtocol::instructions($tools);
-		$trace = static::trace($trace, $this->config->agentResultMax);
+		$trace = [];
 		$steps = [];
 
 		if($confirm !== null)
@@ -79,7 +79,7 @@ final class AgentService
 			$parsed = ToolProtocol::parse($answer['text']);
 			if($parsed['call'] === null)
 			{
-				return $this->finish($parsed['text'], $prepared, $steps, $answer['finishReason'], $trace);
+				return $this->finish($parsed['text'], $prepared, $steps, $answer['finishReason']);
 			}
 			$trace[] = ['role' => 'assistant', 'content' => $answer['text']];
 			$call = $parsed['call'];
@@ -91,16 +91,21 @@ final class AgentService
 			}
 			if(ToolCatalog::needsConfirm($tool, $this->config->agentAutoRead))
 			{
+				$preview = (string)json_encode($call['arguments'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+				if(mb_strlen($preview) > self::PREVIEW_MAX)
+				{
+					$trace[] = ['role' => 'user', 'content' => 'Аргументы '.$tool['name'].' длиннее '.self::PREVIEW_MAX.' знаков — сотрудник не сможет их проверить. Сократи (например, текст) или раздели на несколько действий.'];
+					continue;
+				}
 				$id = bin2hex(random_bytes(8));
-				$this->pending->put($userId, $id, ['tool' => $tool['name'], 'title' => $tool['title'], 'arguments' => $call['arguments'], 'at' => $this->now()]);
+				$this->pending->put($userId, $id, ['tool' => $tool['name'], 'title' => $tool['title'], 'arguments' => $call['arguments'], 'trace' => array_slice($trace, -self::TRACE_MAX), 'at' => $this->now()]);
 
 				return [
 					'text' => $parsed['text'],
 					'role' => $prepared->role,
 					'sources' => $prepared->sources,
 					'steps' => $steps,
-					'pending' => ['id' => $id, 'tool' => $tool['name'], 'title' => $tool['title'], 'readOnly' => $tool['readOnly'], 'arguments' => $call['arguments'], 'preview' => ToolProtocol::preview($call['arguments'])],
-					'trace' => $trace,
+					'pending' => ['id' => $id, 'tool' => $tool['name'], 'title' => $tool['title'], 'readOnly' => $tool['readOnly'], 'arguments' => $call['arguments'], 'preview' => $preview],
 					'finishReason' => 'tool',
 				];
 			}
@@ -111,7 +116,7 @@ final class AgentService
 		$trace[] = ['role' => 'user', 'content' => 'Шаги инструментов на этот вопрос закончились. Ответь сотруднику по уже полученным данным, без блока tool; если данных не хватает — скажи, что уточнить.'];
 		$answer = $this->model->complete(array_merge($messages, $trace), $userId);
 
-		return $this->finish(ToolProtocol::strip($answer['text']), $prepared, $steps, $answer['finishReason'], $trace);
+		return $this->finish(ToolProtocol::strip($answer['text']), $prepared, $steps, $answer['finishReason']);
 	}
 
 	/**
@@ -144,6 +149,7 @@ final class AgentService
 		{
 			throw new ChatException('Это действие уже выполнено или устарело — повторите просьбу', ChatException::AGENT);
 		}
+		$trace = AgentService::trace($call['trace'] ?? [], $this->config->agentResultMax);
 		$tool = $tools[$call['tool']] ?? null;
 		if($tool === null)
 		{
@@ -188,7 +194,7 @@ final class AgentService
 		return ['status' => $result['isError'] ? 'error' : 'done'] + $step;
 	}
 
-	private function finish(string $text, $prepared, array $steps, string $finishReason, array $trace = []): array
+	private function finish(string $text, $prepared, array $steps, string $finishReason): array
 	{
 		return [
 			'text' => $text !== '' ? $text : 'Готово.',
@@ -196,13 +202,12 @@ final class AgentService
 			'sources' => $prepared->sources,
 			'steps' => $steps,
 			'pending' => null,
-			'trace' => [],
 			'finishReason' => $finishReason,
 		];
 	}
 
 	/**
-	 * Шаги из окна: только роли assistant/user и строки, не длиннее предела.
+	 * Шаги из хранилища: только роли assistant/user и строки, не длиннее предела.
 	 *
 	 * @return list<array{role: string, content: string}>
 	 */
