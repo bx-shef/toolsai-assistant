@@ -48,6 +48,7 @@
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
 | меню промптов в поле ввода (1.7.0): места окна, типовые запросы, группы | `lib/prompt/chatplaces.php`, `lib/prompt/typicalprompts.php`, `install/js/.../chat/promptmenu.js`, глава 09 |
 | виджеты в ответах (1.7.0): блок ```widget, реестр, событие `OnChatWidgetsCollect` | `markdown.js` (`renderFull`), `install/js/.../chat/widgets.js`, `lib/chat/widgetcatalog.php`, глава 09 |
+| файлы в чате (1.8.0): текст из PDF/DOCX/XLSX/PPTX/CSV/TXT в браузере, пределы на сервере | `install/js/.../chat/files.js`, `lib/chat/chatfiles.php`, глава 09 |
 | места «Где показывать чат» (1.3.0) | `lib/panel/placeurl.php` (сопоставление), `placecatalog.php` (свои + событие `OnChatPlacesCollect`), `placesoption.php` (поле настроек), провайдер `lib/internals/integration/ui/entityselector/placeprovider.php` |
 
 ## Решения и ловушки

@@ -28,6 +28,8 @@ final class ChatRequest
 		public readonly string $role,
 		/** Контекст окна: «docs» — справка (1.3.0, ChatKey::of()). */
 		public readonly string $context = '',
+		/** 1.8.0: текст файлов сотрудника из сообщений переписки (ChatFiles, общий предел). */
+		public readonly array $files = [],
 	)
 	{
 	}
@@ -52,7 +54,8 @@ final class ChatRequest
 			{
 				continue;
 			}
-			$list[] = ['role' => $author, 'content' => $text];
+			// Файлы — только у вопросов сотрудника (1.8.0)
+			$list[] = ['role' => $author, 'content' => $text, 'files' => $author === 'user' ? ChatFiles::fromMessage($message['files'] ?? null) : []];
 		}
 		$list = array_slice($list, -max(1, $history));
 		// Модель ждёт, что разговор начинается с сотрудника: ответ без вопроса — прочь
@@ -72,7 +75,9 @@ final class ChatRequest
 		}
 
 		$role = is_string($role) ? strtolower(trim(mb_substr($role, 0, self::ROLE_MAX))) : '';
+		$files = ChatFiles::limit(array_column($list, 'files'));
+		$list = array_map(static fn(array $m): array => ['role' => $m['role'], 'content' => $m['content']], $list);
 
-		return new self($list, $question, Record::fromArray($record), $role, ChatKey::context($context));
+		return new self($list, $question, Record::fromArray($record), $role, ChatKey::context($context), $files);
 	}
 }
