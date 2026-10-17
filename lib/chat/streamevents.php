@@ -41,6 +41,15 @@ final class StreamEvents
 		return static::line(['type' => 'finish', 'finishReason' => $finishReason !== '' ? $finishReason : 'stop']);
 	}
 
+	/**
+	 * Комментарий SSE «: ping» — окно и прокси его пропускают; шлём сразу после
+	 * заголовков, чтобы прокси увидел первые байты, пока модель думает.
+	 */
+	public static function ping(): string
+	{
+		return ": ping\n\n";
+	}
+
 	/** Отказ посреди потока. */
 	public static function error(string $code, string $message): string
 	{

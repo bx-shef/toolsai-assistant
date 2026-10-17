@@ -9,4 +9,5 @@ $shef_toolsaiassistant_default_option = [
 	'CHAT_history' => '10',
 	'CHAT_kblimit' => '5',
 	'CHAT_ratelimit' => '10',
+	'CHAT_feedbackdays' => '90',
 ];

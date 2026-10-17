@@ -26,6 +26,8 @@ final class OnPrologEventHandler
 	/** Добавить кнопку и панель, если страница, хит и права подходят; сбой — в лог, страница не падает. */
 	public static function handle(): void
 	{
+		// Обновили файлами без установщика — довести файлы, таблицы, подписки (1.1.0)
+		\Shef\ToolsAiAssistant\Main\Maintenance::ensureOnce();
 		try
 		{
 			if(defined('ADMIN_SECTION') && ADMIN_SECTION === true)

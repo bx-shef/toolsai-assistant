@@ -34,6 +34,7 @@ $row = ['ID' => 1, 'CREATED_AT' => '2026-10-17 10:00', 'USER_ID' => 5, 'ROLE_COD
 $html = FeedbackPage::render([$row], 1, 1, null, ['shef.toolsaiassistant:manager' => 'Помощник менеджера'], [5 => 'Иван <Петров>']);
 Check::same('вопрос, ответ, комментарий, имя — экранированы', [str_contains($html, '<script>'), str_contains($html, '<img'), str_contains($html, '"><b>'), str_contains($html, 'Иван &lt;Петров&gt;')], [false, false, false, true]);
 Check::same('роль — названием, чат — записью, оценка — словом', [str_contains($html, 'Помощник менеджера'), str_contains($html, 'запись CRM: тип 2, № 7'), str_contains($html, 'Не помогло')], [true, true, true]);
+Check::same('пометка: текст — из окна чата, фрагменты CRM', [str_contains($html, 'присылает окно чата'), str_contains($html, 'фрагменты записей CRM')], [true, true]);
 Check::same('пусто — подсказка', str_contains(FeedbackPage::render([], 0, 1, null, [], []), 'Оценок пока нет'), true);
 $paged = FeedbackPage::render([$row], 120, 2, Rating::UP, [], []);
 Check::same('страницы: обе стороны, фильтр в ссылках', [str_contains($paged, 'страница 2 из 3'), str_contains($paged, 'rating=up&amp;page=3'), str_contains($paged, '?rating=up"')], [true, true, true]);

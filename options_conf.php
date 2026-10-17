@@ -65,6 +65,11 @@ $options->addTab(
 				->setTitle(Loc::getMessage($options->moduleId.'_TAB_CHAT_ratelimit'))
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_CHAT_ratelimit_descr'))
 		)
+		->addOption(
+			(new Options\NumberInt('feedbackdays'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_CHAT_feedbackdays'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_CHAT_feedbackdays_descr'))
+		)
 );
 
 return $options->get();

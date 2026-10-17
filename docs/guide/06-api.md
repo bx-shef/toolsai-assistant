@@ -56,16 +56,19 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 (`/bitrix/services/main/ajax.php?action=shef:toolsaiassistant.chat.stream`, sessid в
 заголовке `X-Bitrix-Csrf-Token`) — `install/js/.../chat/stream.js`.
 
-Все проверки — права, роль, частота, запись CRM — **до** потока: отказ приходит
-обычным JSON ajax с кодом ошибки, как у `answer`. Дальше — события, по одному на
-строку `data: {json}` (`Chat\StreamEvents`):
+Проверки модуля — права, роль, частота, запись CRM — **до** потока: отказ приходит
+обычным JSON ajax с кодом ошибки, как у `answer`. **Квоту и модель проверяет
+shef.toolsai уже внутри `LlmService::stream()`**, поэтому их отказ приходит событием
+`error` в потоке (коды `quota`, `model`), как и обрыв ответа. Дальше — события, по
+одному на строку `data: {json}` (`Chat\StreamEvents`); первой строкой идёт
+комментарий SSE `: ping` (окно его пропускает):
 
 | событие | поля | когда |
 |---|---|---|
 | `start` | `role`, `sources: [{title, url}]` | проверки пройдены, модель позвали |
 | `delta` | `text` | кусок ответа, как пришёл |
 | `finish` | `finishReason` (`stop`, `length`) | ответ целиком |
-| `error` | `code`, `message` | модель не ответила или оборвала ответ |
+| `error` | `code` (`quota`, `model`, `internal`), `message` | квота исчерпана, модель не подключена, не ответила или оборвала ответ, сбой модуля |
 
 Поток кончился без `finish` — окно считает, что ответ оборвался.
 
@@ -78,7 +81,8 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 и печатает события по мере прихода. Фильтры действия — штатные: авторизация, POST,
 `Csrf`, `CloseSession`. Модель — `LlmService::stream()` shef.toolsai: квота до
 вызова, журнал расхода после; закрытая вкладка ответ не обрывает
-(`ignore_user_abort`) — журнал дописывается.
+(`ignore_user_abort`) — журнал дописывается. Время скрипта —
+`StreamResponse::TIME_LIMIT` (300 с).
 
 ## Оценки ответов (1.1.0)
 
@@ -86,7 +90,9 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 Оценка — действие `rate`: право на чат, роль должна быть открыта сотруднику, не
 больше 30 оценок в минуту. Хранится в таблице `shef_toolsaiassistant_feedback`:
 сотрудник, роль, чат (`general` или `record:<тип>:<id>`), вопрос (до 1000 знаков),
-ответ (до 2000), оценка `1` / `-1`, комментарий, время. Список — страница
+ответ (до 2000), оценка `1` / `-1`, комментарий (до 1000), время. Вопрос и ответ
+присылает окно чата; хранятся `CHAT_feedbackdays` дней (по умолчанию 90), потом
+их удаляет агент `FeedbackStore::cleanAgent()`. Список — страница
 `/shef/toolsaiassistant/feedback/` ([02-rights.md](02-rights.md)).
 
 `shef:toolsaiassistant.access.save` — сохранение страницы прав (только администратор).

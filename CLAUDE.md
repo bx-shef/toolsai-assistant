@@ -58,6 +58,10 @@
 - **Оценки ответов** — своя таблица `shef_toolsaiassistant_feedback`; смотреть —
   право `feedback.view` (администратору всегда). Таблица создаётся и при первой
   оценке после обновления (`FeedbackStore::ensure()`).
+- **Обновление без установщика** (`Main\Maintenance::ensureOnce()` в OnProlog):
+  версия файлов (`FILES_version`) отстала — перекопировать свои каталоги installDir,
+  таблицы, подписки, агент (`tests/maintenance_test.php`). Новый файл в install/ —
+  он приедет и так; новая таблица — добавить в `Maintenance::ensure()`.
 - **«Где показывать чат» пусто — чат нигде** (1.1.0); умолчание — в `default_option.php`.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).

@@ -17,10 +17,21 @@ use Bitrix\Main\HttpResponse;
  *
  * Буферы PHP сбрасываются, сжатие отключается: иначе ответ пришёл бы целиком в
  * конце. Закрытая вкладка ответ не обрывает (ignore_user_abort): журнал
- * расхода shef.toolsai должен дописаться.
+ * расхода shef.toolsai должен дописаться. Время скрипта — TIME_LIMIT: ответ
+ * модели бывает дольше max_execution_time портала, а таймаут запроса к модели
+ * держит провайдер shef.toolsai.
+ *
+ * «: ping» — только в начале: пока модель молчит, PHP ждёт внутри
+ * LlmService::stream() (curl), и вставить что-то в поток из этого места
+ * нельзя. Поэтому таймаут чтения прокси (nginx proxy_read_timeout /
+ * fastcgi_read_timeout) должен быть больше таймаута модели —
+ * docs/guide/03-dependencies.md.
  */
 final class StreamResponse extends HttpResponse
 {
+	/** Секунд на весь ответ (set_time_limit). */
+	public const TIME_LIMIT = 300;
+
 	/** @param \Closure(callable(string): void): void $producer */
 	public function __construct(private readonly \Closure $producer)
 	{
@@ -39,13 +50,16 @@ final class StreamResponse extends HttpResponse
 			ob_end_clean();
 		}
 		ignore_user_abort(true);
+		@set_time_limit(self::TIME_LIMIT);
 		@ini_set('zlib.output_compression', '0');
 		@ini_set('implicit_flush', '1');
 		$this->writeHeaders();
-		($this->producer)(static function(string $chunk): void
+		$emit = static function(string $chunk): void
 		{
 			echo $chunk;
 			flush();
-		});
+		};
+		$emit(StreamEvents::ping());
+		($this->producer)($emit);
 	}
 }

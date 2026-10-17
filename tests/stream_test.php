@@ -29,6 +29,7 @@ Check::same('перевод строки в тексте не рвёт собы�
 Check::same('пустая причина — stop', $events[2]['finishReason'], 'stop');
 Check::same('start: роль и статьи', [$events[0]['role'], $events[0]['sources'][0]['url']], ['shef.toolsaiassistant:manager', '/notes/1/']);
 Check::same('каждое событие — одна строка data:', count(array_filter(explode("\n", $body), static fn(string $l): bool => $l !== '')), 4);
+Check::same('ping — комментарий SSE, событием не считается', StreamEvents::parse(StreamEvents::ping().StreamEvents::finish('stop'))[0]['type'], 'finish');
 Check::same('битый UTF-8 не роняет событие', StreamEvents::parse(StreamEvents::delta("a\xB1b"))[0]['type'] ?? null, 'delta');
 
 Check::group('ответ потоком');
@@ -43,6 +44,6 @@ Check::same('заголовки потока', [$response->headers['Content-Type
 $script = sprintf('require %s; require %s; ob_start(); echo "мусор из буфера"; $r = new %s(static function(callable $emit): void { $emit(%s::delta("раз")); $emit(%s::delta("два")); }); $r->send(); echo $r->headersWritten ? "|headers" : "|none";',
 	var_export($root.'/tests/stub/runtime.php', true), var_export($root.'/tests/stub/autoload.php', true), StreamResponse::class, StreamEvents::class, StreamEvents::class);
 $printed = (string)shell_exec(escapeshellarg(PHP_BINARY).' -r '.escapeshellarg($script));
-Check::same('send(): буфер сброшен, куски напечатаны по порядку, заголовки отправлены', [str_contains($printed, 'мусор'), array_column(StreamEvents::parse($printed), 'text'), str_ends_with($printed, '|headers')], [false, ['раз', 'два'], true]);
+Check::same('send(): буфер сброшен, куски напечатаны по порядку, заголовки отправлены', [str_contains($printed, 'мусор'), str_starts_with($printed, ': ping'), array_column(StreamEvents::parse($printed), 'text'), str_ends_with($printed, '|headers')], [false, true, ['раз', 'два'], true]);
 
 Check::finish();

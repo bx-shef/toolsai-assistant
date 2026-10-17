@@ -49,6 +49,49 @@ final class FeedbackStore implements FeedbackStoreInterface
 		}
 	}
 
+	/** Имя агента очистки (CAgent). */
+	public const AGENT = '\\Shef\\ToolsAiAssistant\\Feedback\\FeedbackStore::cleanAgent();';
+
+	/** Поставить агент очистки раз в сутки, если его нет. */
+	public static function installAgent(): void
+	{
+		$existing = \CAgent::GetList([], ['NAME' => self::AGENT, 'MODULE_ID' => \Shef\ToolsAiAssistant\Main\Constants::MODULE_ID])->Fetch();
+		if(!is_array($existing))
+		{
+			\CAgent::AddAgent(self::AGENT, \Shef\ToolsAiAssistant\Main\Constants::MODULE_ID, 'N', 86400);
+		}
+	}
+
+	/**
+	 * Агент: удалить оценки старше срока хранения (настройка
+	 * CHAT_feedbackdays, по умолчанию 90 дней) — в оценках фрагменты CRM.
+	 */
+	public static function cleanAgent(): string
+	{
+		try
+		{
+			static::clean(\Shef\ToolsAiAssistant\Config::current()->feedbackDays);
+		}
+		catch(\Throwable $throwable)
+		{
+			\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->error($throwable);
+		}
+
+		return self::AGENT;
+	}
+
+	/** Удалить оценки старше $days дней. */
+	public static function clean(int $days): void
+	{
+		$connection = Application::getConnection();
+		if($days <= 0 || !$connection->isTableExists(FeedbackTable::getTableName()))
+		{
+			return;
+		}
+		$cutoff = (new DateTime())->add('-'.$days.' days');
+		$connection->queryExecute('DELETE FROM '.FeedbackTable::getTableName().' WHERE CREATED_AT < '.$connection->getSqlHelper()->convertToDbDateTime($cutoff));
+	}
+
 	/** Сохранить оценку; вернуть ID. */
 	public function add(int $userId, array $rating): int
 	{
