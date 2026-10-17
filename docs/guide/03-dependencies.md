@@ -27,7 +27,7 @@ shef.toolsai от этого модуля не зависит: связь — с
 | `Public\Service\PromptService::roles(?array $allowed)` | роли для переключателя и страницы прав | `Chat\Gateway\ToolsAiPromptSource` |
 | `PromptService::compose($role, PromptService::PLACE_ASSISTANT, $entityTypeId, $allowed)` | текст роли (+ её навык) | там же |
 | `PromptService::forget()` | перечитать реестр после установки | `install/index.php` |
-| `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM | `Chat\Gateway\ToolsAiRecordSource` |
+| `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM; с 1.4.0 — и запись в кейсе проверки при выгрузке оценок | `Chat\Gateway\ToolsAiRecordSource` |
 | `Public\Service\LlmService::stream(LlmService::CATEGORY_ASSISTANT, $messages, $onDelta, $userId)` | ответ потоком (окно, 1.1.0); квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |
 | `Public\Service\LlmService::complete(LlmService::CATEGORY_ASSISTANT, $messages, $userId)` | ответ одним куском (действие `answer`) | `Chat\Gateway\ToolsAiModelGateway` |
 | `LlmService::model(CATEGORY_ASSISTANT)` (`''` — заглушка) | подпись под окном; заглушка — подсказка без вызова | там же |

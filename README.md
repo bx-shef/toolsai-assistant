@@ -50,6 +50,7 @@
 - [Роли помощника](docs/guide/05-roles.md)
 - [API для разработчиков](docs/guide/06-api.md)
 - [Настройки](docs/guide/07-settings.md)
+- [Оценки ответов и проверка промптов](docs/guide/08-feedback.md)
 - Все документы — [docs/README.md](docs/README.md)
 
 Лицензия — MIT.

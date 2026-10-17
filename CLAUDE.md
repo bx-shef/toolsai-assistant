@@ -37,7 +37,7 @@
 | «✦ ИИ: чат» в шапке вида «ИИ» (событие `OnViewToolbarBuild`, 1.3.1) | `lib/internals/integration/toolsai/eventhandler/onviewtoolbarbuildeventhandler.php` |
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
-| оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`) |
+| оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`); с 1.4.0 — грид и фильтр (`GridFilter`), сводка по ролям (`RoleSummary`), статус и «что должно было быть» (`Review`), кейсы проверки (`EvalCase`, `Anonymizer`), контроллер `lib/controller/feedback.php`, окно — `install/js/shef/toolsaiassistant/feedback/` |
 | права | `lib/access/*`, страница — компонент `install/components/shef/toolsaiassistant.rights` |
 | окно чата | `install/js/shef/toolsaiassistant/chat/` (`chat.js`, `markdown.js`, `chat.css`) |
 | публичный API для других модулей | `lib/public/service/chatpanel.php` |
@@ -60,6 +60,11 @@
 - **Оценки ответов** — своя таблица `shef_toolsaiassistant_feedback`; смотреть —
   право `feedback.view` (администратору всегда). Таблица создаётся и при первой
   оценке после обновления (`FeedbackStore::ensure()`).
+- **Оценки → кейсы проверки промптов shef.toolsai** (1.4.0, [docs/guide/08-feedback.md](docs/guide/08-feedback.md)):
+  разбирать — право `feedback.edit` (тянет `feedback.view`); «В наборе проверки» ставит
+  только выгрузка; кейс — задача `chat`, обезличен `Anonymizer`. Задачу `chat` в
+  `tools/prompt-eval.php` делает shef.toolsai, не мы. Новые колонки старой таблицы —
+  `TableInstaller::addColumns()` (createDbTable() их не добавит).
 - **Обновление без установщика** (`Main\Maintenance::ensureOnce()` в OnProlog):
   версия файлов (`FILES_version`) отстала — перекопировать свои каталоги installDir,
   таблицы, подписки, агент (`tests/maintenance_test.php`). Новый файл в install/ —

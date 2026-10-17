@@ -21,6 +21,12 @@ final class Constants
 	public const RIGHTS_URL = '/shef/toolsaiassistant/rights/';
 	/** Страница «Оценки ответов» (1.1.0, Feedback\FeedbackPage). */
 	public const FEEDBACK_URL = '/shef/toolsaiassistant/feedback/';
+	/**
+	 * «Библиотека промптов» shef.toolsai — там правят тексты ролей помощника
+	 * (1.4.0, ссылка «Править промпт роли» со страницы оценок). Адрес страницы,
+	 * не API: раздел promptlib, Settings\Sections shef.toolsai.
+	 */
+	public const TOOLSAI_PROMPT_LIBRARY_URL = '/shef/toolsai/?section=promptlib';
 	/** Компонент страницы прав: ui.accessrights.v2 сохраняет через его ajax.php. */
 	public const RIGHTS_COMPONENT = 'shef:toolsaiassistant.rights';
 

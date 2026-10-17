@@ -32,7 +32,7 @@ final class Rights
 	{
 		if($isAdmin)
 		{
-			return new self(true, [Actions::CHAT_USE, Actions::FEEDBACK_VIEW]);
+			return new self(true, [Actions::CHAT_USE, Actions::FEEDBACK_VIEW, Actions::FEEDBACK_EDIT]);
 		}
 
 		$userCodes = array_fill_keys(array_map('strval', $userCodes), true);
@@ -68,6 +68,12 @@ final class Rights
 	public function canViewFeedback(): bool
 	{
 		return $this->can(Actions::FEEDBACK_VIEW);
+	}
+
+	/** Разбирать оценки ответов: статус, ожидаемый ответ, выгрузка кейсов (1.4.0). */
+	public function canEditFeedback(): bool
+	{
+		return $this->can(Actions::FEEDBACK_EDIT);
 	}
 
 	/** Пользоваться чатом: кнопка, панель, ответы. */

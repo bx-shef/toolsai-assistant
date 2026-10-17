@@ -26,6 +26,7 @@ use Shef\ToolsAiAssistant\Chat\Gateway\RecordSourceInterface;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Container;
 use Shef\ToolsAiAssistant\Controller\Chat;
+use Shef\ToolsAiAssistant\Controller\Feedback as FeedbackController;
 use Shef\ToolsAiAssistant\Prompt\Roles;
 
 $broken = false;
@@ -159,5 +160,18 @@ Check::same('мусор — ошибка feedback', [$chat->rateAction('meh', Ro
 $GLOBALS['USER'] = new CUser(0, false);
 $chat = new Chat();
 Check::same('без права — access', [$chat->rateAction('up', Roles::MANAGER, [], 'q', 'a'), $errors($chat)[0][0] ?? null], [null, 'access']);
+
+Check::group('контроллер разбора оценок (1.4.0)');
+
+$fbConfig = (new FeedbackController())->configureActions();
+Check::same('три действия, все — авторизация, POST, sessid', [array_keys($fbConfig), $classes($fbConfig['export']['prefilters']), $classes($fbConfig['status']['prefilters'])], [['status', 'expect', 'export'], ['Authentication', 'HttpMethod', 'Csrf'], ['Authentication', 'HttpMethod', 'Csrf']]);
+Check::same('свой run() не объявлен (в ядре final)', (new \ReflectionMethod(FeedbackController::class, 'run'))->getDeclaringClass()->getName(), \Bitrix\Main\Engine\Controller::class);
+$fbErrors = static fn(FeedbackController $c): array => array_map(static fn($e): string => (string)$e->getCode(), $c->getErrors());
+$GLOBALS['USER'] = new CUser(0, false);
+$fb = new FeedbackController();
+Check::same('без права feedback.edit — отказ до базы', [$fb->statusAction([1], 'reviewed'), $fb->exportAction([1]), $fbErrors($fb)], [null, null, ['access_denied', 'access_denied']]);
+$GLOBALS['USER'] = new CUser(5, true);
+$fb = new FeedbackController();
+Check::same('«в наборе проверки» руками и пустой выбор — bad_request', [$fb->statusAction([1], 'eval'), $fb->statusAction([], 'reviewed'), $fb->exportAction(['x']), $fbErrors($fb)], [null, null, null, ['bad_request', 'bad_request', 'bad_request']]);
 
 Check::finish();
