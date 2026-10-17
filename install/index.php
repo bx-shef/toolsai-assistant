@@ -117,8 +117,6 @@ class shef_toolsaiassistant extends CModule
 		// Файлы и подписки ставит установщик — самовосстановлению после обновления делать нечего
 		Config\Option::set($this->MODULE_ID, \Shef\ToolsAiAssistant\Main\Maintenance::OPTION_VERSION, $this->MODULE_VERSION);
 		\Shef\ToolsAiAssistant\Access\RoleStore::seed();
-		// Права чата shef.toolsai до 1.50.0 (assistant.use / assistant.panel) — в своё право
-		\Shef\ToolsAiAssistant\Access\LegacyRights::migrate();
 
 		return true;
 	}

@@ -175,9 +175,15 @@ namespace Bitrix\Main\Config
 				return static::$values[$moduleId][$name] ?? $default;
 			}
 
-			/** Настройки одного модуля целиком — то, что зовёт установщик. */
+			/** Настройки модуля: целиком или одну по ['name' => …] — как ядро. */
 			public static function delete(string $moduleId, array $filter = []): void
 			{
+				if(isset($filter['name']))
+				{
+					unset(static::$values[$moduleId][$filter['name']]);
+
+					return;
+				}
 				unset(static::$values[$moduleId]);
 			}
 		}
