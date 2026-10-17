@@ -37,6 +37,8 @@
 | «✦ ИИ: чат» в шапке вида «ИИ» (событие `OnViewToolbarBuild`, 1.3.1) | `lib/internals/integration/toolsai/eventhandler/onviewtoolbarbuildeventhandler.php` |
 | «✦ Спросить ИИ» в шапке карточки CRM (Toolbar API из OnProlog, 1.3.2) | `lib/public/service/chatpanel.php` (`addRecordToolbarButton()`), разбор адреса — `lib/panel/sidepanel.php` (`detailRecord()`) |
 | ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.3.2) | `install/js/shef/toolsaiassistant/chat/layout.js` |
+| вид переписки (карточка роли, пузыри, время; 1.4.0) | `install/js/shef/toolsaiassistant/chat/view.js` |
+| диалог «Выбрать роль» (модель — `roledialog.js`, вид — `chat.js` `openRoles()`), недавние/избранное | `lib/chat/roleprefs.php`, `roleprefsstore.php` (CUserOptions), иконка роли — `lib/chat/roleicon.php` |
 | контроллер окна | `lib/controller/chat.php` (`shef:toolsaiassistant.chat.info/role/stream/answer/rate`) |
 | ответ потоком | `lib/chat/streamresponse.php`, `streamevents.php`; окно — `install/js/.../chat/stream.js` |
 | оценки ответов | `lib/feedback/*` (таблица, разбор, страница `/shef/toolsaiassistant/feedback/`) |
@@ -78,6 +80,9 @@
 - **Кнопка карточки CRM — не в меню-шестерёнке** (владелец, 1.3.2): отдельной
   кнопкой Toolbar API из OnProlog. Меню `intranet.binding.menu` кешируется общим
   на всех — право сотрудника там не проверить.
+- **Диалог ролей — слоем внутри панели**, не `ai.roles-dialog`: тот берёт роли
+  модуля ai (`ai.engine`), а окно `ui.entity-catalog` легло бы под панель
+  (`alwaysOnTop`). Вид повторяем по его CSS.
 - **Ответ модели в окне** экранируется целиком, ссылки — только `/…` и http(s)
   (`markdown.js`, `tests/markdown_test.mjs`).
 - **Удаление убирает только своё**: `customPathUnInstall` в `installDir` —

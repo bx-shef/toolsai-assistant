@@ -20,6 +20,12 @@
 	'use strict';
 
 	var NS = BX.namespace('BX.Shef.ToolsAiAssistant');
+	/** Вид переписки (view.js, 1.4.0); без него — не стартуем рисовать (подключён в config.php раньше chat.js). */
+	var View = {
+		role: function(roles, code) { return NS.ChatView ? NS.ChatView.role(roles, code) : null; },
+		welcome: function(role, options) { return NS.ChatView.welcome(role, options); },
+		message: function(message, roles) { return NS.ChatView.message(message, roles); }
+	};
 	var ACTION = 'shef:toolsaiassistant.chat.';
 	var HISTORY_KEEP = 40;
 	/** id кнопки вида «ИИ» (Panel\SidePanel::VIEW_BUTTON_ID): её клик — в onclick, здесь только метка «открыт». */
@@ -130,6 +136,15 @@
 		button.setAttribute('aria-label', title);
 	}
 
+	/** Аватар роли: круг с иконкой ui.icon-set (как аватар CoPilot в мессенджере). */
+	function avatar(icon, className)
+	{
+		var box = el('span', className);
+		box.setAttribute('aria-hidden', 'true');
+		box.appendChild(el('span', 'ui-icon-set --' + icon));
+		return box;
+	}
+
 	function errorText(response, fallback)
 	{
 		var errors = response && response.errors;
@@ -167,7 +182,7 @@
 			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.3.2)
 			if(settings.fromFrame && BX.Runtime && BX.Runtime.loadExtension)
 			{
-				try { BX.Runtime.loadExtension('ui.icon-set.outline'); } catch(e) {}
+				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.design-tokens']); } catch(e) {}
 			}
 			this.buildPanel();
 			this.bindButton();
@@ -263,11 +278,13 @@
 			this.confirmRow = confirmRow;
 			panel.appendChild(confirmRow);
 
-			var roleRow = el('label', 'shef-aia-role');
-			roleRow.appendChild(el('span', 'shef-aia-role-label', 'Роль:'));
-			this.roleSelect = el('select', 'shef-aia-role-select');
-			this.roleSelect.addEventListener('change', function() { self.chooseRole(self.roleSelect.value); });
-			roleRow.appendChild(this.roleSelect);
+			// Роль — блок «<иконка> Роль ▸ Изменить роль», как у BitrixGPT (1.4.0); выбор — диалог ролей
+			var roleRow = el('div', 'shef-aia-role');
+			this.roleButton = el('button', 'shef-aia-role-btn');
+			this.roleButton.type = 'button';
+			this.roleButton.title = 'Изменить роль';
+			this.roleButton.addEventListener('click', function() { self.openRoles(); });
+			roleRow.appendChild(this.roleButton);
 			this.roleRow = roleRow;
 			panel.appendChild(roleRow);
 
@@ -288,7 +305,7 @@
 					self.send(self.input.value);
 				}
 			});
-			this.sendButton = el('button', 'ui-btn ui-btn-primary ui-btn-round shef-aia-send', 'Спросить');
+			this.sendButton = iconButton('shef-aia-send', 'arrow-top-m', 'Спросить (Enter)');
 			this.sendButton.type = 'submit';
 			form.addEventListener('submit', function(e) { e.preventDefault(); self.send(self.input.value); });
 			var row = el('div', 'shef-aia-row');
@@ -530,6 +547,9 @@
 				{
 					self.info.role = response.data.role;
 					self.info.examples = response.data.examples || [];
+					// Недавние — как запомнил сервер (RolePrefs::touch)
+					var prefs = self.info.prefs || {recent: [], favorite: []};
+					self.info.prefs = {recent: [response.data.role].concat((prefs.recent || []).filter(function(c) { return c !== response.data.role; })).slice(0, 5), favorite: prefs.favorite || []};
 					self.render();
 				}, function(response)
 				{
@@ -545,7 +565,7 @@
 			if(!question || this.busy || !this.info || this.info.error) { return; }
 			this.input.value = '';
 			this.lastError = '';
-			this.messages.push({role: 'user', text: question});
+			this.messages.push({role: 'user', text: question, time: Date.now()});
 			this.saveMessages();
 			this.ask();
 		},
@@ -573,7 +593,7 @@
 				onStart: function(event)
 				{
 					if(stale()) { return; }
-					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true};
+					message = {role: 'assistant', text: '', sources: event.sources || [], roleCode: String(event.role || ''), streaming: true, time: Date.now()};
 					self.messages.push(message);
 					self.stepStatus('start');
 					self.scheduleRender();
@@ -736,6 +756,132 @@
 			}, function() {});
 		},
 
+		/** Блок роли в шапке: «<иконка> Роль ▸ Изменить роль». */
+		renderRoleButton: function(role)
+		{
+			var button = this.roleButton;
+			BX.cleanNode(button);
+			button.appendChild(avatar(NS.ChatView ? NS.ChatView.iconOf(role) : 'o-copilot', 'shef-aia-avatar --sm'));
+			var text = el('span', 'shef-aia-role-text');
+			text.appendChild(el('span', 'shef-aia-role-name', role ? role.title : 'Роль'));
+			text.appendChild(el('span', 'shef-aia-role-change', 'Изменить роль'));
+			button.appendChild(text);
+			button.appendChild(el('span', 'ui-icon-set --chevron-right-m shef-aia-role-chevron'));
+		},
+
+		/**
+		 * Диалог «Выбрать роль» (1.4.0) — слоем внутри панели: штатный
+		 * ai.roles-dialog берёт роли модуля ai (ai.engine), а не наши, а окно
+		 * ui.entity-catalog легло бы под панель (она alwaysOnTop). Вид — как у
+		 * ai.roles-dialog: поиск и ×, категории слева, роли справа, звёздочка.
+		 */
+		openRoles: function()
+		{
+			var self = this;
+			if(!this.info || !this.info.roles || !this.info.roles.length || this.busy) { return; }
+			var M = NS.RoleDialogModel;
+			if(!M) { return; }
+			if(!this.rolesLayer)
+			{
+				var layer = el('div', 'shef-aia-roles');
+				layer.setAttribute('role', 'dialog');
+				layer.setAttribute('aria-label', 'Выбрать роль');
+				var head = el('div', 'shef-aia-roles-head');
+				head.appendChild(el('span', 'shef-aia-roles-title', 'Выбрать роль'));
+				this.rolesSearch = el('input', 'shef-aia-roles-search');
+				this.rolesSearch.type = 'search';
+				this.rolesSearch.placeholder = 'Поиск роли';
+				this.rolesSearch.setAttribute('aria-label', 'Поиск роли');
+				this.rolesSearch.addEventListener('input', function() { self.rolesUi.query = self.rolesSearch.value; self.renderRoles(); });
+				head.appendChild(this.rolesSearch);
+				var close = iconButton('shef-aia-icon', 'cross-m', 'Закрыть');
+				close.addEventListener('click', function() { self.closeRoles(); });
+				head.appendChild(close);
+				layer.appendChild(head);
+				var body = el('div', 'shef-aia-roles-body');
+				this.rolesNav = el('div', 'shef-aia-roles-nav');
+				this.rolesList = el('div', 'shef-aia-roles-list');
+				body.appendChild(this.rolesNav);
+				body.appendChild(this.rolesList);
+				layer.appendChild(body);
+				layer.addEventListener('keydown', function(e) { if(e.key === 'Escape') { self.closeRoles(); } });
+				this.panel.appendChild(layer);
+				this.rolesLayer = layer;
+			}
+			this.rolesUi = {category: M.defaultCategory(this.info.roles, this.info.prefs), query: ''};
+			this.rolesSearch.value = '';
+			this.rolesLayer.hidden = false;
+			this.renderRoles();
+			this.rolesSearch.focus({preventScroll: true});
+		},
+
+		closeRoles: function()
+		{
+			if(this.rolesLayer) { this.rolesLayer.hidden = true; }
+		},
+
+		renderRoles: function()
+		{
+			var self = this;
+			var M = NS.RoleDialogModel;
+			var roles = this.info.roles;
+			var prefs = this.info.prefs || {recent: [], favorite: []};
+			var ui = this.rolesUi;
+			BX.cleanNode(this.rolesNav);
+			M.categories(roles, prefs).forEach(function(cat)
+			{
+				var item = el('button', 'shef-aia-roles-cat' + (cat.id === ui.category && !ui.query ? ' --active' : ''));
+				item.type = 'button';
+				item.appendChild(el('span', 'ui-icon-set --' + cat.icon));
+				item.appendChild(el('span', 'shef-aia-roles-cat-title', cat.title));
+				item.appendChild(el('span', 'shef-aia-roles-cat-count', String(cat.count)));
+				item.addEventListener('click', function() { ui.category = cat.id; ui.query = ''; self.rolesSearch.value = ''; self.renderRoles(); });
+				self.rolesNav.appendChild(item);
+			});
+			BX.cleanNode(this.rolesList);
+			var items = M.items(roles, prefs, ui.category, ui.query, this.info.role);
+			if(!items.length)
+			{
+				this.rolesList.appendChild(el('p', 'shef-aia-roles-empty', M.empty(ui.category, ui.query)));
+				return;
+			}
+			items.forEach(function(item)
+			{
+				var row = el('div', 'shef-aia-roles-item' + (item.selected ? ' --selected' : ''));
+				var pick = el('button', 'shef-aia-roles-pick');
+				pick.type = 'button';
+				pick.setAttribute('aria-pressed', item.selected ? 'true' : 'false');
+				pick.appendChild(avatar(item.icon, 'shef-aia-avatar'));
+				var text = el('span', 'shef-aia-roles-item-text');
+				text.appendChild(el('span', 'shef-aia-roles-item-title', item.title));
+				if(item.description) { text.appendChild(el('span', 'shef-aia-roles-item-desc', item.description)); }
+				pick.appendChild(text);
+				pick.addEventListener('click', function() { self.closeRoles(); self.chooseRole(item.code); });
+				row.appendChild(pick);
+				var star = iconButton('shef-aia-tool shef-aia-star' + (item.favorite ? ' --active' : ''), 'o-favorite', item.favorite ? 'Убрать из избранного' : 'В избранное');
+				star.setAttribute('aria-pressed', item.favorite ? 'true' : 'false');
+				star.addEventListener('click', function() { self.toggleFavorite(item.code, !item.favorite); });
+				row.appendChild(star);
+				self.rolesList.appendChild(row);
+			});
+		},
+
+		/** Звёздочка: сразу в окне, потом сервер (право роли — на сервере, CUserOptions). */
+		toggleFavorite: function(code, on)
+		{
+			var self = this;
+			var prefs = this.info.prefs || {recent: [], favorite: []};
+			var favorite = prefs.favorite.filter(function(c) { return c !== code; });
+			if(on) { favorite.push(code); }
+			this.info.prefs = {recent: prefs.recent || [], favorite: favorite};
+			this.renderRoles();
+			BX.ajax.runAction(ACTION + 'favorite', {data: {role: code, on: on ? 'Y' : 'N'}})
+				.then(function(response)
+				{
+					if(self.info && response.data && response.data.prefs) { self.info.prefs = response.data.prefs; if(self.rolesLayer && !self.rolesLayer.hidden) { self.renderRoles(); } }
+				}, function() {});
+		},
+
 		render: function()
 		{
 			var self = this;
@@ -743,18 +889,11 @@
 			var md = NS.Markdown;
 
 			// Роли: только открытые сотруднику (сервер прислал уже отфильтрованные)
-			BX.cleanNode(this.roleSelect);
 			var roles = info && info.roles ? info.roles : [];
-			roles.forEach(function(role)
-			{
-				var option = el('option', '', role.title);
-				option.value = role.code;
-				option.title = role.description || '';
-				option.selected = info.role === role.code;
-				self.roleSelect.appendChild(option);
-			});
+			var current = View.role(roles, info && info.role);
+			this.renderRoleButton(current);
 			this.roleRow.style.display = roles.length ? '' : 'none';
-			this.roleSelect.disabled = this.busy;
+			this.roleButton.disabled = this.busy;
 			this.clearButton.style.visibility = this.messages.length ? 'visible' : 'hidden';
 			if(!this.messages.length) { this.askClear(false); }
 			this.disclaimer.textContent = 'Ответы ' + (info && info.model ? info.model : 'ИИ') + ' могут быть неточны, проверяйте важную информацию.';
@@ -763,7 +902,6 @@
 			BX.cleanNode(box);
 
 			var welcome = el('div', 'shef-aia-welcome');
-			welcome.appendChild(el('h2', 'shef-aia-welcome-title', this.record ? this.record.title : 'ИИ-помощник'));
 			if(!info)
 			{
 				welcome.appendChild(el('p', '', 'Загружаю…'));
@@ -778,34 +916,62 @@
 			}
 			else
 			{
-				welcome.appendChild(el('p', '', this.record && !this.record.docs
-					? 'Отвечает по истории этой записи: звонки, письма, чаты, дела, комментарии' + (info.kb ? ', и по статьям базы знаний.' : '.') + ' Например:'
-					: 'Общий чат: откройте «✦ Спросить ИИ» в строке записи, чтобы помощник ответил по её истории.' + (info.kb ? ' Статьи базы знаний — подбираются под вопрос.' : '') + ' Например:'));
-				var list = el('ul', 'shef-aia-examples');
-				(info.examples || []).forEach(function(question)
-				{
-					var item = el('li');
-					var button = el('button', 'shef-aia-example', '«' + question + '»');
-					button.type = 'button';
-					button.addEventListener('click', function() { self.send(question); });
-					item.appendChild(button);
-					list.appendChild(item);
+				// Приветственная карточка роли — как у BitrixGPT в мессенджере
+				var card = View.welcome(current, {
+					record: this.record && !this.record.docs ? this.record.title : '',
+					docs: !!(this.record && this.record.docs),
+					kb: !!info.kb,
+					examples: info.examples || []
 				});
-				welcome.appendChild(list);
+				var head = el('div', 'shef-aia-welcome-head');
+				head.appendChild(avatar(card.icon, 'shef-aia-avatar --lg'));
+				var titles = el('div', 'shef-aia-welcome-titles');
+				titles.appendChild(el('h2', 'shef-aia-welcome-title', card.title));
+				titles.appendChild(el('p', 'shef-aia-welcome-text', card.text));
+				head.appendChild(titles);
+				welcome.appendChild(head);
+				welcome.appendChild(el('p', 'shef-aia-welcome-scope', card.scope));
+				if(card.examples.length)
+				{
+					var list = el('div', 'shef-aia-examples');
+					card.examples.forEach(function(question)
+					{
+						var button = el('button', 'shef-aia-example', question);
+						button.type = 'button';
+						button.addEventListener('click', function() { self.send(question); });
+						list.appendChild(button);
+					});
+					welcome.appendChild(list);
+				}
 			}
 			box.appendChild(welcome);
 
 			this.messages.forEach(function(message, index)
 			{
+				var view = View.message(message, roles);
 				if(message.role === 'user')
 				{
-					box.appendChild(el('div', 'shef-aia-msg shef-aia-msg-user', message.text));
+					var mine = el('div', 'shef-aia-msg shef-aia-msg-user');
+					var bubble = el('div', 'shef-aia-bubble --mine');
+					bubble.innerHTML = view.html; // экранировано (view.js)
+					if(view.time) { bubble.appendChild(el('span', 'shef-aia-time', view.time)); }
+					mine.appendChild(bubble);
+					box.appendChild(mine);
 					return;
 				}
 				var answer = el('div', 'shef-aia-msg shef-aia-msg-assistant');
-				var body = el('div', 'shef-aia-md');
-				body.innerHTML = md ? md.render(message.text) : BX.util.htmlspecialchars(message.text);
-				answer.appendChild(body);
+				answer.appendChild(avatar(view.icon, 'shef-aia-avatar'));
+				var column = el('div', 'shef-aia-msg-column');
+				var author = el('div', 'shef-aia-author');
+				author.appendChild(el('span', 'shef-aia-author-name', view.author));
+				if(view.time) { author.appendChild(el('span', 'shef-aia-time', view.time)); }
+				column.appendChild(author);
+				var body = el('div', 'shef-aia-bubble shef-aia-md');
+				body.innerHTML = view.html; // Markdown.render экранирует весь ответ
+				column.appendChild(body);
+				answer.appendChild(column);
+				var row = answer;
+				answer = column;
 				if(message.cut)
 				{
 					answer.appendChild(el('p', 'shef-aia-cut', 'Ответ обрезан: модель упёрлась в лимит длины. Задайте вопрос уже или попросите продолжить.'));
@@ -838,7 +1004,7 @@
 				if(message.streaming)
 				{
 					// Пока модель молчит — не пустой пузырь, а индикатор ниже
-					if(message.text !== '') { box.appendChild(answer); }
+					if(message.text !== '') { box.appendChild(row); }
 					return;
 				}
 				var tools = el('div', 'shef-aia-tools');
@@ -861,7 +1027,7 @@
 				{
 					answer.appendChild(el('p', 'shef-aia-error', message.rateError));
 				}
-				box.appendChild(answer);
+				box.appendChild(row);
 			});
 
 			var waiting = this.busy ? (this.status && NS.ChatStatus ? NS.ChatStatus.label(this.status) : 'Думаю…') : '';

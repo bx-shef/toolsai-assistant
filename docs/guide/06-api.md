@@ -140,10 +140,11 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 
 | действие | параметры | ответ |
 |---|---|---|
-| `info` | `record: {entityTypeId, id}` или `{}` | `{roles: [{code, title, description}], role, examples, model, kb, chatKey}` |
+| `info` | `record: {entityTypeId, id}` или `{}` | `{roles: [{code, title, description, icon, group}], role, examples, model, kb, chatKey, prefs: {recent, favorite}}` — `icon` и `group` с 1.4.0, `prefs` — недавние и избранные роли сотрудника, только открытые |
 | `role` | `role`, `record` | `{role, examples}`; роль не открыта — ошибка `role` |
 | `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` — одним куском (совместимость с 1.0.0) |
 | `stream` | как у `answer` | поток `text/event-stream` (1.1.0) — см. ниже |
+| `favorite` | `role`, `on: Y\|N` | `{prefs: {recent, favorite}}` — звёздочка роли в диалоге (1.4.0); роль не открыта — ошибка `role` |
 | `rate` | `rating: up\|down`, `role`, `record`, `question`, `answer`, `comment` | `{id}` (1.1.0) |
 
 Коды ошибок (`errors[0].code`): `access`, `role`, `no_roles`, `empty_question`,
