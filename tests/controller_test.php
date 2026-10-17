@@ -84,7 +84,7 @@ $errors = static fn(Chat $c): array => array_map(static fn($e): array => [$e->ge
 Check::group('фильтры');
 
 $config = (new Chat())->configureActions();
-Check::same('пять действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate']);
+Check::same('шесть действий', array_keys($config), ['info', 'role', 'answer', 'stream', 'rate', 'favorite']);
 $classes = static fn(array $filters): array => array_map(static fn(object $f): string => (new \ReflectionClass($f))->getShortName(), $filters);
 Check::same('info: авторизация, POST, sessid', $classes($config['info']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf']);
 Check::same('answer: ещё и отпустить сессию', $classes($config['answer']['prefilters']), ['Authentication', 'HttpMethod', 'Csrf', 'CloseSession']);
