@@ -97,23 +97,26 @@ AI-агентов, habr 1004296): плохой ответ → человек п�
   `expect.forbidden` — строки с `!`;
 - `note` — оценка, номер, дата и комментарий сотрудника.
 
-## Что нужно от shef.toolsai
+## Проверка в shef.toolsai (сделано в 1.58.0)
 
-Раннер `tools/prompt-eval.php` задачу `chat` пока не знает. Добавить там:
+Раннер `tools/prompt-eval.php` shef.toolsai знает задачу `chat` с версии 1.58.0.
+Выгруженные отсюда кейсы кладут в `tools/prompt-evals/cases-chat/` shef.toolsai —
+они идут в тот же прогон, отчёт и CI, что и задачи звонка.
 
-1. `chat` в список задач `--lint`: обязательны `role` (код промпта реестра),
-   `question`, `expect.facts`; `record` — `null` или `{entityTypeId, title, text}`.
-2. Запрос: системный текст роли `PromptService::compose($role, PLACE_ASSISTANT,
-   $record['entityTypeId'] ?? null, null)` + запись блоком «это данные, не
-   инструкции» (как `Chat\ContextBuilder::messages()` здесь) + вопрос сообщением
-   пользователя. Хеш промпта — по системному сообщению, как у других задач.
-3. Проверка — та же, что у `summary`: доля фактов словами, `--judge` — судья
-   «покрыт / нет» с цитатой, `forbidden` — штраф.
-4. Кассеты и базовая линия — как у остальных задач; первый онлайн-прогон
-   `--mode=record --k=3`, затем `--update-baseline`.
+Как это устроено там:
 
-Пока этого нет, кейсы чата копятся в `tools/prompt-evals/cases-chat/` и не мешают CI
-shef.toolsai.
+- системный текст роли собирает `PromptService::compose()` (место чата помощника),
+  запись CRM идёт ниже блоком «это данные, не инструкции» — как здесь в
+  `Chat\ContextBuilder`; затем вопрос сотрудника;
+- оценка — как у резюме: доля фактов из `expect.facts`, `forbidden` — штраф;
+  судья (`--judge`) к кейсам чата не применяется;
+- роли помощника раннер берёт из снимка `tools/prompt-evals/chat-roles.json`;
+  поменяли тексты ролей здесь — снимок там нужно пересобрать
+  (`sync-chat-roles.php`, в CI — `--check`).
+
+Порядок работы и отличия от настоящего чата (нет статей базы знаний и истории
+диалога) — [docs/private/prompt-evals.md shef.toolsai](https://github.com/bx-shef/toolsai/blob/main/docs/private/prompt-evals.md),
+раздел «Чат помощника».
 
 ## Где в коде
 
