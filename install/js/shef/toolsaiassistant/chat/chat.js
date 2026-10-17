@@ -738,7 +738,7 @@
 			try { url = new URL(link.getAttribute('href'), window.location.href); } catch(err) { return; }
 			if(url.origin === window.location.origin && BX.SidePanel && BX.SidePanel.Instance)
 			{
-				BX.SidePanel.Instance.open(url.href, {cacheable: false});
+				BX.SidePanel.Instance.open(url.href, NS.ChatView ? NS.ChatView.linkOptions(url.pathname) : {cacheable: false});
 			}
 			else
 			{

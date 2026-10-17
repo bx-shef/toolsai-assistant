@@ -45,6 +45,18 @@
 				: pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
 		},
 
+		/**
+		 * Параметры слайдера для ссылки своего портала (1.4.0): справка
+		 * shef.toolsai (/shef/toolsai/kb/…) — как «?» на странице его настроек,
+		 * остальное — как раньше.
+		 */
+		linkOptions: function(pathname)
+		{
+			return String(pathname || '').indexOf('/shef/toolsai/kb/') === 0
+				? {width: 760, cacheable: false, allowChangeHistory: false}
+				: {cacheable: false};
+		},
+
 		/** Роль по коду из списка открытых; нет — null. */
 		role: function(roles, code)
 		{

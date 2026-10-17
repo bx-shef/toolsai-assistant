@@ -55,5 +55,9 @@ same('по записи и базе', w.scope, 'Отвечаю по истори
 same('готовые вопросы', w.examples, ['Что дальше?']);
 same('без роли', V.welcome(null, {}).title, 'ИИ-помощник');
 
+console.log('\nссылки');
+same('справка toolsai — 760, без истории', V.linkOptions('/shef/toolsai/kb/calls/'), { width: 760, cacheable: false, allowChangeHistory: false });
+same('другая страница портала — как раньше', V.linkOptions('/crm/deal/details/5/'), { cacheable: false });
+
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }
