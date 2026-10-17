@@ -87,7 +87,7 @@ namespace
 	Check::same(
 		'подписки: реестр промптов и вид «ИИ» shef.toolsai, панель',
 		array_map(static fn(array $e): string => $e['from']['module'].':'.$e['from']['event'], $settings['installEvents']['value']),
-		['shef.toolsai:OnPromptRegistryBuild', 'shef.toolsai:OnViewRowActionsBuild', 'main:OnProlog']
+		['shef.toolsai:OnPromptRegistryBuild', 'shef.toolsai:OnViewRowActionsBuild', 'shef.toolsai:OnViewToolbarBuild', 'main:OnProlog']
 	);
 
 	Check::group('подписка и снятие — парные');
@@ -96,7 +96,7 @@ namespace
 	$registered = array_map(static fn(array $r): string => implode('|', $r), EventManager::$registered);
 	$installer->UnInstallEvents();
 	$unregistered = array_map(static fn(array $r): string => implode('|', $r), EventManager::$unregistered);
-	Check::same('установка подписала все три', count($registered), 3);
+	Check::same('установка подписала все четыре', count($registered), 4);
 	Check::same('удаление сняло ровно то, что подписано', array_values(array_diff($registered, $unregistered)), []);
 
 	Check::group('раскладка файлов');

@@ -6,6 +6,7 @@ use Bitrix\Main\Application;
 use Shef\ToolsAiAssistant\Access\UserAccess;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Container;
+use Shef\ToolsAiAssistant\Panel\SidePanel;
 use Shef\ToolsAiAssistant\Public\Service\ChatPanel;
 
 /**
@@ -16,7 +17,8 @@ use Shef\ToolsAiAssistant\Public\Service\ChatPanel;
  * открывает чат в верхнем окне), авторизованный сотрудник с правом «Пользоваться чатом». Кнопка
  * попадает в ui.toolbar: шаблон портала выводит его отложенным буфером
  * (ui/install/components/bitrix/ui.toolbar/class.php, addBufferContent), так
- * что кнопку можно добавить и здесь, до кода страницы.
+ * что кнопку можно добавить и здесь, до кода страницы. В виде «ИИ» (shef.toolsai
+ * 1.53+) кнопку ставит сам вид по событию OnViewToolbarBuild — здесь только панель.
  *
  * Legacy-событие без параметров: регистрируется как compatible
  * (installEvents в .settings.php).
@@ -45,7 +47,11 @@ final class OnPrologEventHandler
 			{
 				return;
 			}
-			ChatPanel::addToolbarButton();
+			// Вид «ИИ» с shef.toolsai 1.53+ ставит кнопку сам по OnViewToolbarBuild (1.3.1)
+			if(SidePanel::needsOwnToolbarButton((string)$request->getRequestUri(), class_exists(\Shef\ToolsAi\Public\Event\ViewToolbarBuildEvent::class)))
+			{
+				ChatPanel::addToolbarButton();
+			}
 			ChatPanel::load();
 		}
 		catch(\Throwable $throwable)

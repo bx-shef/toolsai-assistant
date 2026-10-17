@@ -262,7 +262,7 @@
 			}
 		},
 
-		/** Кнопка «ИИ: чат» верхней панели: звёздочка и открыть/закрыть. */
+		/** Кнопка «✦ ИИ: чат» верхней панели: открыть/закрыть. Кнопку не правим — её перестраивает BX.UI.Toolbar (1.3.1). */
 		bindButton: function()
 		{
 			var self = this;
@@ -272,12 +272,6 @@
 				return;
 			}
 			button.setAttribute('data-shef-bound', '1');
-			var text = button.querySelector('.ui-btn-text') || button;
-			if(!text.querySelector('.shef-ai-chat-star'))
-			{
-				var star = el('span', 'shef-ai-chat-star', '✦');
-				text.insertBefore(star, text.firstChild);
-			}
 			button.addEventListener('click', function(e)
 			{
 				e.preventDefault();
