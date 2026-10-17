@@ -99,3 +99,8 @@ final class OnChatPlacesCollectEventHandler
 Аргумент — `Bitrix\Main\Event`, а не класс события этого модуля: так обработчику
 не нужен этот модуль при загрузке (правило `event.md` навыка
 `bitrix-best-practice-core`).
+
+## Свои события агента (1.10.0)
+
+`OnAgentToolsCollect`, `OnBeforeAgentToolCall`, `OnAfterAgentToolCall` и события
+окна `Shef.ToolsAiAssistant.Agent:*` — [10-agent.md](10-agent.md), «Участие других модулей».

@@ -13,6 +13,14 @@ use Shef\ToolsAiAssistant\Chat\Gateway\UserOptionRateStore;
 use Shef\ToolsAiAssistant\Chat\RoleChoiceStore;
 use Shef\ToolsAiAssistant\Feedback\FeedbackStore;
 use Shef\ToolsAiAssistant\Main\Constants;
+use Shef\ToolsAiAssistant\Agent\AgentEvents;
+use Shef\ToolsAiAssistant\Agent\AgentService;
+use Shef\ToolsAiAssistant\Agent\PendingStore;
+use Shef\ToolsAiAssistant\Mcp\BitrixHttpTransport;
+use Shef\ToolsAiAssistant\Mcp\McpConnection;
+use Shef\ToolsAiAssistant\Mcp\OptionStateStore;
+use Shef\ToolsAiAssistant\Mcp\SessionStateStore;
+use Shef\ToolsAiAssistant\Mcp\TokenStore;
 
 /**
  * Сборка сервисов модуля на портале: реальные шлюзы к shef.toolsai и
@@ -37,6 +45,20 @@ final class Container
 			new FeedbackStore(),
 			WidgetCatalog::instructions(WidgetCatalog::collect()),
 		);
+	}
+
+	/** Подключение сотрудников к MCP-серверу из настроек (1.10.0). */
+	public static function getMcpConnection(?Config $config = null): McpConnection
+	{
+		return new McpConnection(($config ?? Config::current())->agentUrl, new BitrixHttpTransport(), new TokenStore(), new SessionStateStore(), new OptionStateStore());
+	}
+
+	/** Режим «Агент» (1.10.0): цикл инструментов MCP поверх сценария чата. */
+	public static function getAgentService(): AgentService
+	{
+		$config = Config::current();
+
+		return new AgentService(static::getAnswerService(), new ToolsAiModelGateway(), static::getMcpConnection($config), new PendingStore(), new AgentEvents(), $config);
 	}
 
 	/** Подменить сценарий (тесты контроллера); null — вернуть настоящий. */

@@ -52,8 +52,16 @@ Check::group('умолчания и страница настроек');
 
 $shef_toolsaiassistant_default_option = [];
 require $root.'/default_option.php';
+Check::group('агент (1.10.0)');
+Check::same('пусто — агент выключен, адреса нет, 6 шагов, чтение без вопроса, 8000 знаков', [$empty->agentEnabled, $empty->agentUrl, $empty->agentSteps, $empty->agentAutoRead, $empty->agentResultMax, $empty->agentReady()], [false, '', 6, true, 8000, false]);
+$agent = Config::fromValues([Config::OPTION_AGENT_ENABLED => 'Y', Config::OPTION_AGENT_URL => 'https://Box.Example.by/mcp-ai/mcp/', Config::OPTION_AGENT_STEPS => '99', Config::OPTION_AGENT_AUTOREAD => 'N', Config::OPTION_AGENT_RESULT => '10']);
+Check::same('адрес — база без /mcp, хост строчными; шаги не больше 15; результат не меньше 1000', [$agent->agentUrl, $agent->agentSteps, $agent->agentAutoRead, $agent->agentResultMax, $agent->agentReady()], ['https://box.example.by/mcp-ai', 15, false, 1000, true]);
+Check::same('адрес: не https, с логином, с параметрами, с кавычкой — нет', array_map(static fn($u) => Config::mcpUrl($u), ['http://box.by/mcp', 'https://u:p@box.by', 'https://box.by/mcp?x=1', 'https://box.by/"x', 'javascript:alert(1)']), [null, null, null, null, null]);
+Check::same('/connect в конце — тоже убирается, порт остаётся', Config::mcpUrl('https://box.by:8443/connect'), 'https://box.by:8443');
+Check::same('включён без адреса — агента нет', Config::fromValues([Config::OPTION_AGENT_ENABLED => 'Y', Config::OPTION_AGENT_URL => 'http://x'])->agentReady(), false);
+
 $defaults = Config::fromValues($shef_toolsaiassistant_default_option);
-Check::same('default_option.php даёт те же умолчания, что Config', [$defaults->enabled, $defaults->paths, $defaults->history, $defaults->kbLimit, $defaults->rateLimit], [$empty->enabled, $empty->paths, $empty->history, $empty->kbLimit, $empty->rateLimit]);
+Check::same('default_option.php даёт те же умолчания, что Config', [$defaults->enabled, $defaults->paths, $defaults->history, $defaults->kbLimit, $defaults->rateLimit, $defaults->agentEnabled, $defaults->agentUrl, $defaults->agentSteps, $defaults->agentAutoRead, $defaults->agentResultMax], [$empty->enabled, $empty->paths, $empty->history, $empty->kbLimit, $empty->rateLimit, $empty->agentEnabled, $empty->agentUrl, $empty->agentSteps, $empty->agentAutoRead, $empty->agentResultMax]);
 
 $tabs = require $root.'/options_conf.php';
 $codes = [];
@@ -68,7 +76,8 @@ foreach($tabs as $tab)
 	}
 }
 sort($codes);
-$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT, Config::OPTION_FEEDBACK_DAYS];
+$expected = [Config::OPTION_ENABLED, Config::OPTION_PATHS, Config::OPTION_HISTORY, Config::OPTION_KB_LIMIT, Config::OPTION_RATE_LIMIT, Config::OPTION_FEEDBACK_DAYS,
+	Config::OPTION_AGENT_ENABLED, Config::OPTION_AGENT_URL, Config::OPTION_AGENT_STEPS, Config::OPTION_AGENT_AUTOREAD, Config::OPTION_AGENT_RESULT];
 sort($expected);
 $pathsField = null;
 foreach($tabs as $tab) { foreach($tab->getOptionList() as $option) { if($tab->getCode().'_'.$option->getCode() === Config::OPTION_PATHS) { $pathsField = $option; } } }
@@ -80,7 +89,7 @@ Check::same('у каждой опции есть умолчание', $defaultKe
 
 \Bitrix\Main\Localization\Loc::loadLangFile($root.'/lang/ru/options.php');
 $missing = [];
-foreach(['PANEL', 'CHAT'] as $tab)
+foreach(['PANEL', 'CHAT', 'AGENT'] as $tab)
 {
 	foreach(['NAME', 'TITLE'] as $key)
 	{

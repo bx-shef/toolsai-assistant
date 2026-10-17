@@ -83,7 +83,7 @@ const settings = { button: 'b', assets: ['/bitrix/js/shef/toolsaiassistant/chat/
 chat.Frame.init(settings, topWindow);
 same('без вызова ничего не грузится (лениво)', loads.length, 0);
 same('в верхнем окне — заглушка', topWindow.ShefAiChat.stub, true);
-same('посредник фрейма: open, close, toggle, isOpen, openCurrent', Object.keys(frameWindow.ShefAiChat), ['open', 'close', 'toggle', 'isOpen', 'openCurrent']);
+same('посредник фрейма: open, close, toggle, isOpen, openCurrent, agent (1.10.0)', Object.keys(frameWindow.ShefAiChat), ['open', 'close', 'toggle', 'isOpen', 'openCurrent', 'agent']);
 same('isOpen до загрузки — нет', frameWindow.ShefAiChat.isOpen(), false);
 frameWindow.ShefAiChat.toggle(null);
 topWindow.ShefAiChat.open({ context: 'docs' });          // справка без BX — через заглушку

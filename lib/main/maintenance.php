@@ -116,6 +116,8 @@ final class Maintenance
 				\Shef\ToolsAiAssistant\Access\RoleStore::install();
 				\Shef\ToolsAiAssistant\Chat\RoleChoiceStore::install();
 				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::install();
+				\Shef\ToolsAiAssistant\Mcp\TokenStore::install();
+				\Shef\ToolsAiAssistant\Agent\PendingStore::install();
 			},
 			'events' => static function() use ($settings): void
 			{

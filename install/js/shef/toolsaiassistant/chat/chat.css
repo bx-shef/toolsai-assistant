@@ -231,3 +231,18 @@ body.shef-aia-push .bx-layout-inner-table { width: calc(100% - var(--shef-aia-pu
 .shef-aia-msg-files { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .shef-aia-msg-files .shef-aia-file { padding-right: 10px; background: rgba(255, 255, 255, .6); }
 #shef-aia-chat.--drop .shef-aia-form { outline: 2px dashed var(--shef-aia-accent); outline-offset: 2px; }
+
+/* Режим «Агент» (1.10.0): кнопка в шапке, шаги инструментов, карточка подтверждения */
+.shef-aia-agent-toggle { border: 1px solid var(--ui-color-base-20, #dfe0e3); background: none; border-radius: 14px; padding: 3px 10px; margin-right: 4px; font: inherit; font-size: 12px; cursor: pointer; color: #525c69; white-space: nowrap; }
+.shef-aia-agent-toggle:hover { background: #f1f3f5; }
+.shef-aia-agent-toggle.--on { background: var(--shef-aia-accent, #8e52ec); border-color: var(--shef-aia-accent, #8e52ec); color: #fff; }
+.shef-aia-agent-toggle:disabled { opacity: .6; cursor: default; }
+.shef-aia-agent-steps { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px; font-size: 12px; color: #6a737f; }
+.shef-aia-agent-step { padding: 2px 8px; border-left: 2px solid var(--ui-color-base-20, #dfe0e3); }
+.shef-aia-agent-step.--error, .shef-aia-agent-step.--denied { color: #c0392b; border-left-color: #e89b94; }
+.shef-aia-agent-step.--declined { color: #a8adb4; }
+.shef-aia-agent-pending { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--shef-aia-accent, #8e52ec); border-radius: 10px; background: #fff; }
+.shef-aia-agent-pending-title { font-weight: 600; margin-bottom: 6px; }
+.shef-aia-agent-pending-args { display: block; max-height: 240px; overflow: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; background: #f5f7f8; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
+.shef-aia-agent-pending-buttons { display: flex; gap: 8px; }
+.shef-aia-agent-pending-done { font-size: 12px; color: #6a737f; }

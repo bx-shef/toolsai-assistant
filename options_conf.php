@@ -8,7 +8,7 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * Опции для страницы настроек модуля (options.php из shef.options — как есть).
  *
  * Языковой файл — lang/ru/options.php (его подключает options.php). Tab(prefix)->Option(code) ~>
- * код настройки prefix_code. Коды вкладок (PANEL, CHAT) и опций менять
+ * код настройки prefix_code. Коды вкладок (PANEL, CHAT, AGENT) и опций менять
  * нельзя — их читает Shef\ToolsAiAssistant\Config.
  */
 
@@ -68,6 +68,43 @@ $options->addTab(
 			(new Options\NumberInt('feedbackdays'))
 				->setTitle(Loc::getMessage($options->moduleId.'_TAB_CHAT_feedbackdays'))
 				->setDescription(Loc::getMessage($options->moduleId.'_TAB_CHAT_feedbackdays_descr'))
+		)
+);
+
+// Агент (1.10.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp
+$options->addTab(
+	(new Options\Tab('AGENT'))
+		->setName(Loc::getMessage($options->moduleId.'_TAB_AGENT_NAME'))
+		->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_TITLE'))
+		->addOption(
+			(new Options\RowInfo('ABOUT'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_ABOUT'))
+				->setType(Options\TypeUIAlert::Note)
+		)
+		->addOption(
+			(new Options\Checkbox('enabled'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_enabled'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_enabled_descr'))
+		)
+		->addOption(
+			(new Options\Text('mcpurl'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_mcpurl'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_mcpurl_descr'))
+		)
+		->addOption(
+			(new Options\NumberInt('steps'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_steps'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_steps_descr'))
+		)
+		->addOption(
+			(new Options\Checkbox('autoread'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_autoread'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_autoread_descr'))
+		)
+		->addOption(
+			(new Options\NumberInt('resultmax'))
+				->setTitle(Loc::getMessage($options->moduleId.'_TAB_AGENT_resultmax'))
+				->setDescription(Loc::getMessage($options->moduleId.'_TAB_AGENT_resultmax_descr'))
 		)
 );
 
