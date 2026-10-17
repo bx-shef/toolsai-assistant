@@ -61,16 +61,17 @@ class shef_toolsaiassistant extends CModule
 		'ui',
 	];
 	/**
-	 * shef.toolsai 1.50.0 — выпуск, где чат вынесен в этот модуль (до него у
-	 * shef.toolsai своя панель с тем же window.ShefAiChat). Реестр промптов —
-	 * с 1.48.0, история записи — с 1.45.0.
+	 * shef.toolsai 1.54.0 — роли и «Кому доступна» в библиотеке промптов
+	 * (PromptService::roles/isAvailable для сотрудника, iconUrl, type). Чат
+	 * вынесен в этот модуль с 1.50.0. То же требование сверяет
+	 * Main\Maintenance::NEED_TOOLSAI при обновлении без установщика.
 	 *
 	 * @var array
 	 */
 	public $NEED_MODULES_BY_VERSION = [
 		'shef.options' => '3.0.0',
 		'shef.problems' => '2.0.0',
-		'shef.toolsai' => '1.50.0',
+		'shef.toolsai' => '1.54.0',
 	];
 
 	/** @var \CMain */

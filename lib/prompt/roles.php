@@ -125,23 +125,18 @@ final class Roles
 	}
 
 	/**
-	 * Заготовки ролей доступа (Access\RoleStore::seed): название => открытые роли.
-	 * Продавцу роль руководителя и аналитика узких мест не открыта.
+	 * Заготовки ролей доступа (Access\RoleStore::seed): название => права
+	 * модуля. С 1.6.0 роли помощника здесь не раздаются — кому открыта роль,
+	 * задаётся в библиотеке промптов shef.toolsai («Кому доступна»).
 	 *
 	 * @return array<string, list<string>>
 	 */
 	public static function accessPresets(): array
 	{
 		return [
-			'Продавец' => static::sellerRoles(),
-			'Руководитель продаж' => static::codes(),
+			'Продавец' => [\Shef\ToolsAiAssistant\Access\Actions::CHAT_USE],
+			'Руководитель продаж' => [\Shef\ToolsAiAssistant\Access\Actions::CHAT_USE],
 		];
-	}
-
-	/** Роли продавца: про свою сделку и рост, без контроля других. @return list<string> */
-	public static function sellerRoles(): array
-	{
-		return [self::MANAGER, self::DEAL_QUALITY, self::COACH, self::CUSTOMER];
 	}
 
 	/** Коды всех ролей модуля. @return list<string> */

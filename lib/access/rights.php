@@ -5,7 +5,10 @@ namespace Shef\ToolsAiAssistant\Access;
 /**
  * Права одного сотрудника в модуле.
  *
- * Администратор портала может всё: чат и любую роль. Остальным — объединение
+ * Администратор портала получает все права модуля (чат, оценки). Роли
+ * помощника здесь не раздаются — с 1.6.0 их открывает библиотека промптов
+ * shef.toolsai («Кому доступна»), и администратор подчиняется ей так же,
+ * как все: закрытая ему роль в чате не видна. Остальным — объединение
  * прав ролей доступа, чьи коды (U<id>, DR<id>) пересекаются с кодами
  * сотрудника (\CAccess::GetUserCodesArray: там уже DR<id> всех отделов выше по
  * дереву). Схема та же, что у прав shef.toolsai (Access\Rights).
@@ -58,7 +61,7 @@ final class Rights
 		return new self(false, []);
 	}
 
-	/** Есть ли право (Actions::CHAT_USE, FEEDBACK_VIEW или role:<код>). Администратору — постоянные; роли администратора — canRole(). */
+	/** Есть ли право (Actions::CHAT_USE, FEEDBACK_VIEW, FEEDBACK_EDIT). Администратору — все. */
 	public function can(string $action): bool
 	{
 		return ($this->isAdmin && isset(Actions::getList()[$action])) || in_array($action, $this->actions, true);
@@ -80,28 +83,6 @@ final class Rights
 	public function canUseChat(): bool
 	{
 		return $this->can(Actions::CHAT_USE);
-	}
-
-	/** Открыта ли сотруднику роль помощника. Администратору — любая. */
-	public function canRole(string $promptCode): bool
-	{
-		return $this->isAdmin || in_array(Actions::roleRight($promptCode), $this->actions, true);
-	}
-
-	/**
-	 * Коды открытых ролей; null — все (администратор). Это и есть $allowed для
-	 * RegistryService::compose() shef.toolsai.
-	 *
-	 * @return list<string>|null
-	 */
-	public function allowedRoles(): ?array
-	{
-		if($this->isAdmin)
-		{
-			return null;
-		}
-
-		return array_values(array_filter(array_map(static fn(string $a): ?string => Actions::roleOf($a), $this->actions)));
 	}
 
 	/** @return list<string> */

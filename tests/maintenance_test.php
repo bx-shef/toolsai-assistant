@@ -57,7 +57,9 @@ namespace
 	$agents = 0;
 	Option::set('shef.toolsaiassistant', 'LEGACY_migrated', 'Y');
 	Option::set('shef.toolsaiassistant', 'CHAT_feedbackdays', '30');
-	$report = Maintenance::ensure('/srv/portal', $root, static function() use (&$tables): void { $tables++; }, static function() use (&$agents): void { $agents++; });
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.54.0';
+	$purged = 0;
+	$report = Maintenance::ensure('/srv/portal', $root, static function() use (&$tables): void { $tables++; }, static function() use (&$agents): void { $agents++; }, static function() use (&$purged): void { $purged++; });
 	Check::same('файлы — свои каталоги, с заменой', array_map(static fn(array $c): array => [str_replace($root, '', $c[0]), $c[1], $c[2]], $GLOBALS['copied']), [
 		['/install/js/shef/toolsaiassistant', '/srv/portal/bitrix/js/shef/toolsaiassistant', true],
 		['/install/components/shef/toolsaiassistant.rights', '/srv/portal/local/components/shef/toolsaiassistant.rights', true],
@@ -66,12 +68,26 @@ namespace
 	Check::same('подписки — все из installEvents', count(EventManager::$registered), count($settings['installEvents']['value']));
 	Check::same('отметка переноса из shef.toolsai удалена, прочие опции целы', [Option::get('shef.toolsaiassistant', 'LEGACY_migrated', null), Option::get('shef.toolsaiassistant', 'CHAT_feedbackdays')], [null, '30']);
 	Check::same('установщик больше не переносит права', str_contains((string)file_get_contents($root.'/install/index.php'), 'LegacyRights'), false);
-	Check::same('таблицы и агент', [$tables, $agents], [1, 1]);
+	Check::same('таблицы, агент и чистка мёртвых прав role:<код>', [$tables, $agents, $purged], [1, 1, 1]);
 	Check::same('всё получилось — версия записана', [in_array(false, $report, true), Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, Maintenance::moduleVersion($root)]);
 
 	Option::set('shef.toolsaiassistant', Maintenance::OPTION_VERSION, '1.0.0');
-	$report = Maintenance::ensure('/srv/portal', $root, static function(): void { throw new \RuntimeException('нет базы'); }, static function(): void {});
+	$report = Maintenance::ensure('/srv/portal', $root, static function(): void { throw new \RuntimeException('нет базы'); }, static function(): void {}, static function(): void {});
 	Check::same('сбой таблиц — в отчёте, версия не записана', [$report['tables'], Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, '1.0.0']);
+
+	Check::group('версия shef.toolsai (1.6.0)');
+
+	Check::same('1.54.0 и новее — подходит; старее и пусто — нет', [Maintenance::toolsaiReady('1.54.0'), Maintenance::toolsaiReady('1.60.2'), Maintenance::toolsaiReady('1.53.1'), Maintenance::toolsaiReady('')], [true, true, false, false]);
+	Check::same('требование — то же, что у установщика', Maintenance::NEED_TOOLSAI, preg_match("/'shef\\.toolsai' => '([0-9.]+)'/", (string)file_get_contents($root.'/install/index.php'), $m) === 1 ? $m[1] : null);
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.53.1';
+	Option::set('shef.toolsaiassistant', Maintenance::OPTION_VERSION, '1.0.0');
+	$report = Maintenance::ensure('/srv/portal', $root, static function(): void {}, static function(): void {}, static function(): void {});
+	Check::same('shef.toolsai старее — в отчёте, но версия файлов записана: доведение не гоняется на каждом хите (отказ даёт чат)', [$report['toolsai'], Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, Maintenance::moduleVersion($root)]);
+	Check::same('отказ чата на старом shef.toolsai — в ToolsAiPromptSource::assertVersion', str_contains((string)file_get_contents($root.'/lib/chat/gateway/toolsaipromptsource.php'), "method_exists(PromptService::class, 'isAvailable')"), true);
+	Option::set('shef.toolsaiassistant', Maintenance::OPTION_VERSION, '1.0.0');
+	$report = Maintenance::ensure('/srv/portal', $root, static function(): void {}, static function(): void {}, static function(): void { throw new \RuntimeException('нет базы'); });
+	Check::same('сбой чистки прав — версия не записана', [$report['rights'], Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, '1.0.0']);
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.54.0';
 
 	Check::group('где запускается');
 

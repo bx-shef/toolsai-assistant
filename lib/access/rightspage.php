@@ -17,10 +17,9 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * права, кому роль назначена. Как права генератора документов
  * (documentgenerator.settings.perms) и права shef.toolsai (Access\RightsPage).
  *
- * Права — два раздела: «Чат ИИ-помощника» (chat.use) и «Роли помощника» —
- * переключатель на каждую включённую роль реестра промптов shef.toolsai.
- * Роль, которую потом выключили в «Библиотеке промптов», со страницы
- * пропадает, а её право в базе остаётся — включили снова, и права вернулись.
+ * Права — один раздел «Чат ИИ-помощника»: пользоваться чатом, смотреть и
+ * разбирать оценки. Роли помощника с 1.6.0 открывает библиотека промптов
+ * shef.toolsai 1.54.0 («Кому доступна» у роли) — здесь их нет.
  *
  * Сохраняет JS: BX.ajax.runComponentAction(RIGHTS_COMPONENT, 'save', {mode:
  * 'ajax'}) — ядро ищет ajax.php рядом с компонентом
@@ -32,10 +31,8 @@ final class RightsPage
 	public const CONTAINER_ID = 'shef-toolsaiassistant-access-rights';
 	public const ACTION_SAVE = 'save';
 
-	/**
-	 * @param list<array{code: string, title: string, description: string}> $promptRoles роли реестра промптов
-	 */
-	public static function options(array $promptRoles): Options
+	/** Настройки страницы: права модуля и роли доступа из базы. */
+	public static function options(): Options
 	{
 		return (new Options(Constants::RIGHTS_COMPONENT, self::CONTAINER_ID))
 			->setModuleId(Constants::MODULE_ID)
@@ -56,30 +53,21 @@ final class RightsPage
 					->setAddStructureRolesProviderTab(false)
 					->setUseStructureDepartmentsProviderTab(false);
 			})
-			->setAccessRights(static::sections($promptRoles))
+			->setAccessRights(static::sections())
 			->setUserGroups(static::userGroups(RoleStore::load()));
 	}
 
-	/**
-	 * @param list<array{code: string, title: string, description: string}> $promptRoles
-	 * @return list<RightSection>
-	 */
-	public static function sections(array $promptRoles): array
+	/** @return list<RightSection> */
+	public static function sections(): array
 	{
 		$chat = [];
 		foreach(Actions::getList() as $code => $action)
 		{
 			$chat[] = static::toggler($code, $action['title'], $action['hint']);
 		}
-		$roles = [];
-		foreach($promptRoles as $role)
-		{
-			$roles[] = static::toggler(Actions::roleRight($role['code']), $role['title'], $role['description'] !== '' ? $role['description'] : $role['code']);
-		}
 
 		return [
 			(new RightSection(Actions::GROUPS[Actions::GROUP_CHAT]))->setCode(Actions::GROUP_CHAT)->setRightItems($chat),
-			(new RightSection(Actions::GROUPS[Actions::GROUP_ROLES]))->setCode(Actions::GROUP_ROLES)->setRightItems($roles),
 		];
 	}
 
@@ -111,7 +99,7 @@ final class RightsPage
 				}
 				$group->addMember($code, Member::fromAccessRightEntity($entity));
 			}
-			foreach($role['actions'] as $action)
+			foreach(Actions::normalize($role['actions']) as $action)
 			{
 				$group->addAccessRight(new Member\Access($action, '1'));
 			}

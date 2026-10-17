@@ -28,7 +28,7 @@
 
 | что | где |
 |---|---|
-| роли помощника (тексты, коды, заготовки прав) | `lib/prompt/roles.php` |
+| роли помощника (тексты, коды, заготовки ролей доступа) | `lib/prompt/roles.php` |
 | обработчик реестра промптов | `lib/internals/integration/toolsai/eventhandler/` |
 | панель на страницах CRM | `lib/internals/integration/main/eventhandler/onprologeventhandler.php` |
 | сценарий ответа (права → роль → квота → запись → kb → модель) | `lib/chat/answerservice.php` |
@@ -50,10 +50,17 @@
 
 ## Решения и ловушки
 
-- **Право роли проверяет сервер на каждом ответе** (`Chat\RoleSelector`): присланная
-  роль, не открытая сотруднику, — отказ, а не тихая подмена. Запомненная, но
-  закрытая потом роль — не берётся.
-- **От shef.toolsai — только `Shef\ToolsAi\Public\…`** (1.50.0): `LlmService`,
+- **Доступ к ролям — у библиотеки промптов shef.toolsai** (1.6.0, «Кому доступна»,
+  shef.toolsai 1.54.0): свой раздел прав на роли убран, старые `role:<код>`
+  удаляет `Main\Maintenance` (без переноса). Сервер на каждом ответе: роль из
+  `PromptService::roles(null, $userId)` (`Chat\RoleSelector`) и
+  `isAvailable($роль, $userId)` — сотрудник явно, не `-1`: без `$USER` это «без
+  проверки». Администратор тоже подчиняется «Кому доступна».
+  Присланная закрытая роль — отказ, а не тихая подмена.
+- **Готовые вопросы и навык `type = template` — в поле ввода, не отправка** (1.6.0):
+  `chat.js` `prefill()`, первое `[ … ]` выделено, Tab — к следующему
+  (`View.placeholder`, `tests/chatinput_test.mjs`).
+- **От shef.toolsai — только `Shef\ToolsAi\Public\…`** (1.54.0): `LlmService`,
   `PromptService` (место `PLACE_ASSISTANT`), `RecordService`, событие
   `OnViewRowActionsBuild`. Внутренние классы shef.toolsai не трогаем.
 - **Переноса прав из shef.toolsai нет** (убран в 1.2.0): опцию `LEGACY_migrated`
@@ -97,7 +104,7 @@
   `/shef/toolsaiassistant` (`tests/install_test.php`).
 - **Частота ответов** ограничена на сотрудника (`Chat\RateLimit`, `CHAT_ratelimit`):
   отметка ставится до вызова модели — сбои тоже считаются.
-- **Выкладка**: сначала shef.toolsai 1.50.0, потом этот модуль
+- **Выкладка**: сначала shef.toolsai 1.54.0, потом этот модуль
   ([docs/private/project-map.md](docs/private/project-map.md)).
 - Фильтры контроллеров — через `configureActions()`, не атрибутами: модуль
   ставится на main от 22.600.

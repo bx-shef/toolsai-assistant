@@ -59,5 +59,23 @@ console.log('\nссылки');
 same('справка toolsai — 760, без истории', V.linkOptions('/shef/toolsai/kb/calls/'), { width: 760, cacheable: false, allowChangeHistory: false });
 same('другая страница портала — как раньше', V.linkOptions('/crm/deal/details/5/'), { cacheable: false });
 
+console.log('\nкартинка роли (1.6.0)');
+same('путь портала — да', V.iconUrlOf({ iconUrl: '/upload/shef/icon.png' }), '/upload/shef/icon.png');
+same('https — да', V.iconUrlOf({ iconUrl: 'https://cdn.example/i.png' }), 'https://cdn.example/i.png');
+same('javascript:, //хост, кавычки, пусто — нет', ['javascript:alert(1)', '//evil/x.png', '/a".png', '/a b.png', ''].map((u) => V.iconUrlOf({ iconUrl: u })), ['', '', '', '', '']);
+same('приветствие и сообщение несут картинку', [V.welcome({ title: 'Р', iconUrl: '/upload/i.png' }, {}).iconUrl, V.message({ role: 'assistant', text: 'x', roleCode: 'r' }, [{ code: 'r', title: 'Р', iconUrl: '/upload/i.png' }]).iconUrl], ['/upload/i.png', '/upload/i.png']);
+
+console.log('\nуточнения [ … ] (1.6.0)');
+same('первое уточнение — со скобками', V.placeholder('Разбери звонок с [клиент] за [период]'), { start: 17, end: 25 });
+same('следующее — от позиции', V.placeholder('Разбери звонок с [клиент] за [период]', 25), { start: 29, end: 37 });
+same('пустые скобки и перевод строки — не уточнение', [V.placeholder('a [] b'), V.placeholder('a [x\ny] b'), V.placeholder('a [ ] [ok]')], [null, null, { start: 6, end: 10 }]);
+same('нет уточнений — null', V.placeholder('Что дальше?'), null);
+same('пустые «[ ]» подряд пропускаются', V.placeholder('[ ] [  ] [x]'), { start: 9, end: 12 });
+same('вложенные — внутреннее уточнение', V.placeholder('a [b [c] d] e'), { start: 5, end: 8 });
+same('незакрытая скобка — не уточнение; следующая пара — да', [V.placeholder('a [b c'), V.placeholder('a [b [c]')], [null, { start: 5, end: 8 }]);
+same('перевод строки \\r — не уточнение', V.placeholder('a [x\ry]'), null);
+same('ровно 200 знаков — да, 201 — нет', [V.placeholder('[' + 'я'.repeat(200) + ']'), V.placeholder('[' + 'я'.repeat(201) + ']')], [{ start: 0, end: 202 }, null]);
+same('200 знаков считаются знаками, а не половинками UTF-16 (как /u в PHP)', V.placeholder('[' + '😀'.repeat(200) + ']'), { start: 0, end: 402 });
+
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }

@@ -4,7 +4,6 @@ defined('B_PROLOG_INCLUDED') && B_PROLOG_INCLUDED === true || die();
 
 use Bitrix\Main\Loader;
 use Shef\ToolsAiAssistant\Access\RightsPage;
-use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
 use Shef\ToolsAiAssistant\Container;
 
 /**
@@ -13,8 +12,8 @@ use Shef\ToolsAiAssistant\Container;
  * Страница на штатном ui.accessrights.v2 — как
  * documentgenerator.settings.perms (bitrix/modules/documentgenerator/install/
  * components/bitrix/documentgenerator.settings.perms/class.php). Конфиг —
- * Access\RightsPage::options(), роли помощника — из реестра промптов
- * shef.toolsai. Только администратору портала.
+ * Access\RightsPage::options(); роли помощника (1.6.0) открывает библиотека
+ * промптов shef.toolsai, не эта страница. Только администратору портала.
  *
  * Установщик копирует компонент в /local/components/shef/ (installDir в
  * .settings.php), удаление убирает его оттуда.
@@ -39,7 +38,7 @@ class ShefToolsAiAssistantRightsComponent extends CBitrixComponent
 		{
 			try
 			{
-				$this->arResult['options'] = RightsPage::options((new ToolsAiPromptSource())->roles(null));
+				$this->arResult['options'] = RightsPage::options();
 			}
 			catch(\Throwable $throwable)
 			{

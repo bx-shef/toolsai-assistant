@@ -62,11 +62,7 @@ final class FeedbackPage
 	{
 		global $APPLICATION;
 
-		$roles = [];
-		foreach((new ToolsAiPromptSource())->roles(null) as $role)
-		{
-			$roles[$role['code']] = $role['title'];
-		}
+		$roles = (new ToolsAiPromptSource())->titles();
 
 		$filterParams = [
 			'FILTER_ID' => GridFilter::FILTER_ID,

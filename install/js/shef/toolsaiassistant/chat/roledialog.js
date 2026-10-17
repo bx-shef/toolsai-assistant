@@ -58,7 +58,7 @@
 		/**
 		 * Роли справа. Поиск — по названию и описанию во всех ролях (категория
 		 * не важна), без учёта регистра и «ё».
-		 * @return {Array<{code, title, description, icon, favorite, selected}>}
+		 * @return {Array<{code, title, description, icon, iconUrl, favorite, selected}>}
 		 */
 		items: function(roles, prefs, category, query, selected)
 		{
@@ -91,6 +91,7 @@
 					title: String(r.title || r.code),
 					description: String(r.description || ''),
 					icon: NS.ChatView ? NS.ChatView.iconOf(r) : 'o-copilot',
+					iconUrl: NS.ChatView ? NS.ChatView.iconUrlOf(r) : '',
 					favorite: favorite.indexOf(r.code) !== -1,
 					selected: r.code === selected
 				};

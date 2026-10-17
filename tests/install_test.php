@@ -148,7 +148,7 @@ namespace
 
 	Check::group('версии зависимостей');
 
-	Check::same('shef.toolsai — с выпуска, где чат вынесен', $installer->NEED_MODULES_BY_VERSION['shef.toolsai'] ?? null, '1.50.0');
+	Check::same('shef.toolsai — с выпуска, где роли и доступ в библиотеке промптов', $installer->NEED_MODULES_BY_VERSION['shef.toolsai'] ?? null, '1.54.0');
 	Check::same('shef.toolsaikb установка не требует', array_key_exists('shef.toolsaikb', $installer->NEED_MODULES_BY_VERSION) || in_array('shef.toolsaikb', $installer->NEED_MODULES, true), false);
 	Check::same('страница настроек: права группы', $installer->MODULE_GROUP_RIGHTS, 'Y');
 
