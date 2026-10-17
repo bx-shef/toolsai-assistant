@@ -6,7 +6,7 @@ use Bitrix\Main\Event;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * shef.toolsaiassistant:OnBeforeAgentToolCall (1.9.0) — агент сейчас вызовет
+ * shef.toolsaiassistant:OnBeforeAgentToolCall (1.10.0) — агент сейчас вызовет
  * инструмент MCP (чтение — сам, запись — после «Выполнить»).
  *
  * Параметры: userId (int), tool (string), title (string), readOnly (bool),

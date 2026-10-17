@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Agent;
 
 /**
- * Участие других модулей в работе агента (1.9.0) — события модуля
+ * Участие других модулей в работе агента (1.10.0) — события модуля
  * (AgentEvents на портале, подмена в тестах; контракт — docs/guide/04-events.md):
  *
  *   OnAgentToolsCollect     — правила для списка инструментов (ToolCatalog);

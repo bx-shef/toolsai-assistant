@@ -6,7 +6,7 @@ use Bitrix\Main\Event;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * shef.toolsaiassistant:OnAfterAgentToolCall (1.9.0) — агент вызвал
+ * shef.toolsaiassistant:OnAfterAgentToolCall (1.10.0) — агент вызвал
  * инструмент MCP. Для журнала и уведомлений; ответ обработчика не читается.
  *
  * Параметры: userId (int), tool (string), title (string), readOnly (bool),

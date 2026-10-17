@@ -1,6 +1,6 @@
 /**
- * Ширина и место панели чата (install/js/.../chat/layout.js, 1.4.0): поверх
- * страницы, clamp ширины по окну, место под полосу мессенджера справа.
+ * Ширина и место панели чата (install/js/.../chat/layout.js, 1.4.0, 1.9.0):
+ * clamp ширины по окну, место под полосу мессенджера, колонка Air или поверх.
  * Гоняет build.sh: node tests/layout_test.mjs.
  */
 import { readFileSync } from 'node:fs';
@@ -54,6 +54,18 @@ same('панель встаёт левее полосы', L.compute(1084, 60, nu
 
 console.log('\nрастягивание');
 same('от курсора до полосы', L.dragWidth(1084, 60, 500), 524);
+
+console.log('\nместо панели (1.9.0)');
+same('Air, широкое окно — колонка шаблона', L.mode(1280, true), 'air');
+same('Air, ровно 768 — колонка', L.mode(768, true), 'air');
+same('Air, 767 — колонки нет (как в ядре), поверх', L.mode(767, true), 'overlay');
+same('не Air — поверх', L.mode(1920, false), 'overlay');
+same('мусор в ширине — поверх', L.mode('abc', true), 'overlay');
+
+console.log('\nсужение колонки старого шаблона (1.9.0)');
+same('панель и полоса', L.push(L.compute(1280, 60, '500', limits)), 560);
+same('узкий экран — не сужаем', L.push(L.compute(700, 0, null, limits)), 0);
+same('пусто — 0', L.push(null), 0);
 
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }

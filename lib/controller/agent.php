@@ -16,7 +16,7 @@ use Shef\ToolsAiAssistant\Main\Constants;
 use Shef\ToolsAiAssistant\Mcp\McpException;
 
 /**
- * Режим «Агент» (1.9.0): BX.ajax.runAction('shef:toolsaiassistant.agent.<действие>').
+ * Режим «Агент» (1.10.0): BX.ajax.runAction('shef:toolsaiassistant.agent.<действие>').
  *
  *   status     — включён ли агент сотруднику и подключён ли он к MCP;
  *   connect    — адрес входа в MCP-сервер (окно откроет его в новом окне);

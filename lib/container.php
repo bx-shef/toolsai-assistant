@@ -47,13 +47,13 @@ final class Container
 		);
 	}
 
-	/** Подключение сотрудников к MCP-серверу из настроек (1.9.0). */
+	/** Подключение сотрудников к MCP-серверу из настроек (1.10.0). */
 	public static function getMcpConnection(?Config $config = null): McpConnection
 	{
 		return new McpConnection(($config ?? Config::current())->agentUrl, new BitrixHttpTransport(), new TokenStore(), new SessionStateStore(), new OptionStateStore());
 	}
 
-	/** Режим «Агент» (1.9.0): цикл инструментов MCP поверх сценария чата. */
+	/** Режим «Агент» (1.10.0): цикл инструментов MCP поверх сценария чата. */
 	public static function getAgentService(): AgentService
 	{
 		$config = Config::current();

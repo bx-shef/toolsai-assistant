@@ -52,7 +52,7 @@ Check::group('умолчания и страница настроек');
 
 $shef_toolsaiassistant_default_option = [];
 require $root.'/default_option.php';
-Check::group('агент (1.9.0)');
+Check::group('агент (1.10.0)');
 Check::same('пусто — агент выключен, адреса нет, 6 шагов, чтение без вопроса, 8000 знаков', [$empty->agentEnabled, $empty->agentUrl, $empty->agentSteps, $empty->agentAutoRead, $empty->agentResultMax, $empty->agentReady()], [false, '', 6, true, 8000, false]);
 $agent = Config::fromValues([Config::OPTION_AGENT_ENABLED => 'Y', Config::OPTION_AGENT_URL => 'https://Box.Example.by/mcp-ai/mcp/', Config::OPTION_AGENT_STEPS => '99', Config::OPTION_AGENT_AUTOREAD => 'N', Config::OPTION_AGENT_RESULT => '10']);
 Check::same('адрес — база без /mcp, хост строчными; шаги не больше 15; результат не меньше 1000', [$agent->agentUrl, $agent->agentSteps, $agent->agentAutoRead, $agent->agentResultMax, $agent->agentReady()], ['https://box.example.by/mcp-ai', 15, false, 1000, true]);

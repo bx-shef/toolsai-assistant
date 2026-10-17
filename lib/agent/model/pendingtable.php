@@ -8,7 +8,7 @@ use Bitrix\Main\ORM\Fields\StringField;
 use Bitrix\Main\ORM\Fields\TextField;
 
 /**
- * Вызовы агента, ждущие «Выполнить» (1.9.0). Своя таблица, а не опция
+ * Вызовы агента, ждущие «Выполнить» (1.10.0). Своя таблица, а не опция
  * сотрудника: личные опции сотрудник пишет сам штатным ajax ядра — вызов
  * можно было бы подложить. PAYLOAD — JSON {tool, title, arguments, trace};
  * забирается один раз (DELETE по ID, Agent\PendingStore).

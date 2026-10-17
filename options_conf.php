@@ -71,7 +71,7 @@ $options->addTab(
 		)
 );
 
-// Агент (1.9.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp
+// Агент (1.10.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp
 $options->addTab(
 	(new Options\Tab('AGENT'))
 		->setName(Loc::getMessage($options->moduleId.'_TAB_AGENT_NAME'))

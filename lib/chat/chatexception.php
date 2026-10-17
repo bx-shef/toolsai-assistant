@@ -17,7 +17,7 @@ final class ChatException extends \RuntimeException
 	public const RECORD = 'record';
 	public const MODEL = 'model';
 	public const FEEDBACK = 'feedback';
-	/** Режим «Агент»: ждущее действие устарело, инструмент пропал (1.9.0). Отказы MCP — коды Mcp\McpException (mcp_auth …). */
+	/** Режим «Агент»: ждущее действие устарело, инструмент пропал (1.10.0). Отказы MCP — коды Mcp\McpException (mcp_auth …). */
 	public const AGENT = 'agent';
 
 	/** Текст — для сотрудника; $errorCode — константа класса (уходит кодом ошибки ajax). */

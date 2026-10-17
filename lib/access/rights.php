@@ -67,7 +67,7 @@ final class Rights
 		return ($this->isAdmin && isset(Actions::getList()[$action])) || in_array($action, $this->actions, true);
 	}
 
-	/** Режим «Агент»: инструменты MCP от имени сотрудника (1.9.0). */
+	/** Режим «Агент»: инструменты MCP от имени сотрудника (1.10.0). */
 	public function canUseAgent(): bool
 	{
 		return $this->can(Actions::AGENT_USE);

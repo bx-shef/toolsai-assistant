@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Mcp;
 
 /**
- * HTTP до MCP-сервера (1.9.0). На портале — BitrixHttpTransport (HttpClient ядра),
+ * HTTP до MCP-сервера (1.10.0). На портале — BitrixHttpTransport (HttpClient ядра),
  * в тестах — подмена: клиенты MCP и OAuth проверяются без сети.
  */
 interface HttpTransportInterface

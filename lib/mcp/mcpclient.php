@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Mcp;
 
 /**
- * Инструменты MCP-сервера (1.9.0): JSON-RPC 2.0 по Streamable HTTP —
+ * Инструменты MCP-сервера (1.10.0): JSON-RPC 2.0 по Streamable HTTP —
  * tools/list и tools/call с токеном сотрудника. Ответ сервер шлёт JSON или
  * событием text/event-stream (data: {...}) — разбираются оба.
  *

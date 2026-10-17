@@ -63,7 +63,7 @@ class Chat extends Controller
 		return $this->guarded(fn(): array => static::withPrefs(Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context), ChatPlaces::view($view)), $this->userId())
 			// 1.7.0: виджеты модулей (расширения подключит окно) и библиотека промптов shef.toolsai
 			+ ['widgets' => WidgetCatalog::forClient(WidgetCatalog::collect()), 'library' => ChatPlaces::LIBRARY_URL]
-			// 1.9.0: режим «Агент» — кнопка и подключение к MCP
+			// 1.10.0: режим «Агент» — кнопка и подключение к MCP
 			+ ['agent' => \Shef\ToolsAiAssistant\Agent\AgentStatus::of(UserAccess::current(), Config::current(), $this->userId())]);
 	}
 

@@ -6,7 +6,7 @@ use Bitrix\Main\Event;
 use Shef\ToolsAiAssistant\Main\Constants;
 
 /**
- * shef.toolsaiassistant:OnAgentToolsCollect (1.9.0) — правила для инструментов
+ * shef.toolsaiassistant:OnAgentToolsCollect (1.10.0) — правила для инструментов
  * MCP в режиме «Агент» перед каждым вопросом.
  *
  * Параметры: userId (int), tools (list<string> — имена инструментов сервера).

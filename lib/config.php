@@ -24,7 +24,7 @@ final class Config
 	public const RATE_LIMIT_MAX = 120;
 	public const DEFAULT_FEEDBACK_DAYS = 90;
 	public const FEEDBACK_DAYS_MAX = 3650;
-	/** Агент (1.9.0): шагов инструментов на один вопрос и знаков результата инструмента для модели. */
+	/** Агент (1.10.0): шагов инструментов на один вопрос и знаков результата инструмента для модели. */
 	public const DEFAULT_AGENT_STEPS = 6;
 	public const AGENT_STEPS_MAX = 15;
 	public const DEFAULT_AGENT_RESULT = 8000;
@@ -56,7 +56,7 @@ final class Config
 		public readonly int $kbLimit = self::DEFAULT_KB_LIMIT,
 		public readonly int $rateLimit = self::DEFAULT_RATE_LIMIT,
 		public readonly int $feedbackDays = self::DEFAULT_FEEDBACK_DAYS,
-		/** Режим «Агент» (1.9.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp. */
+		/** Режим «Агент» (1.10.0): чат работает с порталом через инструменты MCP-сервера toolsai-mcp. */
 		public readonly bool $agentEnabled = false,
 		/** Базовый адрес MCP-сервера (https, без «/mcp»); пусто — агента нет. */
 		public readonly string $agentUrl = '',
