@@ -1,9 +1,8 @@
 /* Панель чата справа (перенос стилей Assistant\SidePanel shef.toolsai) и окно чата. */
 /*
- * 1.4.0: панель лежит поверх страницы и слайдеров, страницу не сдвигает
- * (раньше body получал padding-right — сдвигалась полоса мессенджера, а по ней
- * слайдер считает ширину и сжимался). Ширину и отступ справа под полосу
- * мессенджера ставит chat.js (layout.js) переменными на самой панели.
+ * Без шаблона Air и на узком экране (1.9.0) — фиксированная панель у правого
+ * края, ниже слайдеров. Ширину и отступ справа под полосу мессенджера ставит
+ * chat.js (layout.js) переменными на самой панели.
  */
 #shef-aia-chat {
 	position: fixed; top: 0; right: var(--shef-aia-chat-r, 0px); bottom: 0;
@@ -20,6 +19,25 @@
 #shef-aia-chat.--drag { user-select: none; }
 #shef-aia-chat .shef-aia-drag { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
 #shef-aia-chat.--narrow .shef-aia-drag { display: none; }
+
+/*
+ * 1.9.0 — в шаблоне Air панель стоит в правой колонке шаблона (#app__right-panel,
+ * как чат Марты): колонку и её ширину ведёт ядро (сетка .root, --air-right-panel-width,
+ * ручка .right-panel-resize-handle с z-index 11 — над панелью). Панель — на всю колонку.
+ */
+#shef-aia-chat.--air {
+	position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+	width: auto; max-width: none; z-index: 1 !important;
+	transform: none; transition: none; box-shadow: none;
+	border-left: 1px solid var(--ui-color-divider-default, #e6e8ea);
+}
+#shef-aia-chat.--air .shef-aia-drag { display: none; }
+
+/*
+ * 1.9.0 — шаблон не Air (старый bitrix24): колонка контента сужается на ширину
+ * панели (chat.js, setPush()). Не body padding и не #right-bar.
+ */
+body.shef-aia-push .bx-layout-inner-table { width: calc(100% - var(--shef-aia-push, 0px)); margin-left: 0; min-width: 0; }
 
 .shef-aia-bar { display: flex; align-items: center; gap: 4px; height: 52px; padding: 0 12px 0 20px; border-bottom: 1px solid #e6e8ea; flex: none; }
 .shef-aia-bar-title { flex: 1; font-size: 16px; font-weight: 600; }

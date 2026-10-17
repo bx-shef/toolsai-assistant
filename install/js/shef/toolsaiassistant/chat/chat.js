@@ -1,9 +1,12 @@
 /**
  * Панель справа и окно чата ИИ-помощника (shef.toolsaiassistant).
  *
- * Панель — перенос Assistant\SidePanel::script() shef.toolsai без смены смысла:
- * фиксированный блок у правого края поверх страницы, ширина тянется мышью и
- * запоминается в браузере (localStorage, удобство — не данные), «открыт» —
+ * Панель — как чат Марты (1.9.0): в шаблоне Air встаёт в правую колонку
+ * шаблона (#app__right-panel) публичным BX.Intranet.Bitrix24.Template.
+ * getRightPanel(): страница сужается, слайдеры открываются левее, ширину
+ * тянет ручка ядра. Шаблон не Air и узкий экран — фиксированный блок у
+ * правого края (ширина тянется мышью и запоминается в localStorage), слайдер
+ * поверх него (docs/guide/01-overview.md, «Панель и слайдер»). «Открыт» —
  * только в этой вкладке (sessionStorage, 1.7.1): новая вкладка и другая
  * страница в новой вкладке чат сами не открывают; кнопка — элемент с id из настроек (кнопка «ИИ: чат» верхней панели),
  * клик открывает и закрывает; window.ShefAiChat.open({entityTypeId, id, title})
@@ -34,8 +37,8 @@
 	var VIEW_BUTTON_ID = 'shef-ai-chat-view-btn';
 	/** Карточки CRM: адрес /crm/<код>/details/<id>/ → entityTypeId (\CCrmOwnerType). */
 	var DETAIL_TYPES = {lead: 1, deal: 2, contact: 3, company: 4, quote: 7};
-	/** Атрибут ui.a11y FocusTrap: элемент не делать inert при открытом слайдере (1.7.1). */
-	var INERT_OPT_OUT = 'data-a11y-ignore-inert';
+	/** Класс ручки ширины ядра в правой колонке Air (right-panel.js, #initResizeHandle()). */
+	var CORE_HANDLE = 'right-panel-resize-handle';
 
 	function get(key) { try { return window.localStorage.getItem(key); } catch(e) { return null; } }
 	function put(key, value) { try { window.localStorage.setItem(key, value); } catch(e) {} }
@@ -48,6 +51,43 @@
 	var OPEN_KEY = 'shef-ai-chat-open';
 	function tabOpen() { try { return window.sessionStorage.getItem(OPEN_KEY) === '1'; } catch(e) { return false; } }
 	function setTabOpen(open) { try { window.sessionStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch(e) {} }
+
+	/**
+	 * Шаблон Air (1.9.0): публичный объект шаблона ядра
+	 * (intranet/install/templates/bitrix24/src/index.js — BX.Intranet.Bitrix24.Template),
+	 * у него getRightPanel() — правая колонка. Нет — шаблон не Air.
+	 */
+	function airTemplate()
+	{
+		var t = BX.Reflection && BX.Reflection.getClass ? BX.Reflection.getClass('BX.Intranet.Bitrix24.Template') : null;
+		return t && typeof t.getRightPanel === 'function' ? t : null;
+	}
+
+	/** Правая колонка шаблона (RightPanel ядра) с контейнером #app__right-panel или null. */
+	function airPanel()
+	{
+		var t = airTemplate();
+		try
+		{
+			var panel = t ? t.getRightPanel() : null;
+			return panel && typeof panel.expand === 'function' && panel.getContainer() ? panel : null;
+		}
+		catch(e) { return null; }
+	}
+
+	/** Чат Марты в той же колонке (RightPanelAiChat ядра) или null. */
+	function martaChat()
+	{
+		var t = airTemplate();
+		try { return t && typeof t.getRightPanelAiChat === 'function' ? t.getRightPanelAiChat() : null; }
+		catch(e) { return null; }
+	}
+
+	function martaOpen()
+	{
+		var marta = martaChat();
+		return !!(marta && typeof marta.isExpanded === 'function' && marta.isExpanded());
+	}
 
 	function el(tag, className, text)
 	{
@@ -209,8 +249,10 @@
 		requestId: 0,
 		/** Идущий поток ответа ({abort}) — обрываем при смене чата и очистке. */
 		pending: null,
-		/** До этого момента (мс) не поднимать панель над открывающимся слайдером: его открыли из чата. */
-		ownSliderUntil: 0,
+		/** Где панель (1.9.0): «air» — правая колонка шаблона, «overlay» — поверх у края (layout.js, mode()). */
+		mode: 'overlay',
+		/** Идёт передача колонки от Марты нам: её сворачивание наш чат не закрывает. */
+		handover: false,
 		/** Перерисовка по кускам потока — не чаще кадра. */
 		frame: 0,
 		/** Подключённые расширения виджетов модулей (1.7.0). */
@@ -241,7 +283,7 @@
 			}
 			this.buildPanel();
 			this.bindButton();
-			this.watchSliders();
+			this.watchAirPanel();
 			var self = this;
 			BX.ready(function() { self.bindButton(); });
 			window.ShefAiChat = {
@@ -261,6 +303,122 @@
 			{
 				this.open(null);
 			}
+			else
+			{
+				this.releaseStaleAirPanel();
+			}
+		},
+
+		/**
+		 * Колонка Air помнит «развёрнута» во вкладке сама (sessionStorage
+		 * b24_right_panel_expanded, AirTemplate::restoreRightPanelBodyState()).
+		 * Наш чат в этой вкладке закрыт, а колонка развёрнута и пуста (в ней
+		 * только ручка ядра и наша панель) — свернуть штатно, чтобы не висела
+		 * пустая колонка.
+		 */
+		releaseStaleAirPanel: function()
+		{
+			var rp = airPanel();
+			if(!rp || !rp.isExpanded() || martaOpen())
+			{
+				return;
+			}
+			var panel = this.panel;
+			var empty = Array.prototype.every.call(rp.getContainer().children, function(child)
+			{
+				return child === panel || (child.classList && child.classList.contains(CORE_HANDLE));
+			});
+			if(empty)
+			{
+				rp.collapse();
+			}
+		},
+
+		/**
+		 * Соседство с Мартой и с ядром (1.9.0): Марта открылась — наш чат
+		 * уступает колонку (колонку не сворачиваем, она её); колонку свернул
+		 * кто-то другой — наш чат закрыт.
+		 */
+		watchAirPanel: function()
+		{
+			var self = this;
+			var rp = airPanel();
+			if(rp && typeof rp.subscribe === 'function')
+			{
+				rp.subscribe('onCollapse', function()
+				{
+					if(self.isOpen() && self.mode === 'air' && !self.handover) { self.close(true); }
+				});
+			}
+			var marta = martaChat();
+			if(marta && typeof marta.subscribe === 'function')
+			{
+				marta.subscribe('onExpand', function()
+				{
+					if(self.isOpen() && self.mode === 'air') { self.close(true); }
+				});
+			}
+		},
+
+		/**
+		 * Место панели (1.9.0): в колонке Air — внутрь #app__right-panel, иначе
+		 * в <body>. Вызывается при каждом пересчёте: окно сузилось меньше 768 —
+		 * колонку ядро прячет, панель уходит поверх, и обратно.
+		 */
+		place: function()
+		{
+			var rp = airPanel();
+			var mode = NS.ChatLayout ? NS.ChatLayout.mode(window.innerWidth, !!rp) : (rp ? 'air' : 'overlay');
+			var parent = mode === 'air' ? rp.getContainer() : document.body;
+			if(this.panel.parentNode !== parent)
+			{
+				parent.appendChild(this.panel);
+			}
+			this.mode = mode;
+			this.panel.classList.toggle('--air', mode === 'air');
+			return rp;
+		},
+
+		/**
+		 * Развернуть колонку Air под наш чат. Открыта Марта — сначала свернуть
+		 * её штатно (RightPanelAiChat.collapse(): она сама сворачивает колонку
+		 * и убирает своё окно), потом развернуть колонку снова.
+		 */
+		showAir: function(rp)
+		{
+			var self = this;
+			if(!martaOpen())
+			{
+				rp.expand();
+				return;
+			}
+			this.handover = true;
+			var done = false;
+			var go = function()
+			{
+				if(done) { return; }
+				done = true;
+				self.handover = false;
+				if(self.isOpen() && self.mode === 'air') { rp.expand(); }
+			};
+			rp.subscribeOnce('onCollapseComplete', go);
+			// Запас: конец анимации ширины (0.3 с) не пришёл
+			setTimeout(go, 1000);
+			martaChat().collapse();
+		},
+
+		/**
+		 * Сузить колонку контента старого шаблона bitrix24 (1.9.0): класс на
+		 * body и ширина переменной; правило — в chat.css (.bx-layout-inner-table).
+		 * body padding и #right-bar не трогаем.
+		 */
+		setPush: function(px)
+		{
+			document.body.classList.toggle('shef-aia-push', px > 0);
+			if(document.documentElement && document.documentElement.style)
+			{
+				document.documentElement.style.setProperty('--shef-aia-push', (px > 0 ? px : 0) + 'px');
+			}
 		},
 
 		/** Отступ справа под полосу мессенджера портала (#right-bar шаблона), см. layout.js. */
@@ -272,14 +430,27 @@
 		},
 
 		/**
-		 * Ширина и место панели (1.4.0): поверх страницы, страницу не сдвигаем —
-		 * иначе сдвигается и полоса мессенджера, а по ней слайдер считает свою
-		 * ширину (intranet/sidepanel/air, getRightBoundary()) и сжимался.
+		 * Место и ширина панели. В колонке Air ширину ведёт ядро
+		 * (--air-right-panel-width, ручка и CUserOptions intranet/right_panel_width),
+		 * панель занимает колонку целиком. Поверх (не Air, узкий экран) — как
+		 * в 1.4.0: ширина из layout.js левее полосы мессенджера; в старом
+		 * шаблоне колонка контента сужается на ширину панели.
 		 */
 		applyLayout: function(width)
 		{
 			if(!this.panel)
 			{
+				return;
+			}
+			var rp = this.place();
+			if(this.mode === 'air')
+			{
+				this.panel.classList.remove('--narrow');
+				this.setPush(0);
+				if(this.isOpen() && !this.handover && !rp.isExpanded() && !martaOpen())
+				{
+					rp.expand();
+				}
 				return;
 			}
 			var s = this.settings;
@@ -292,6 +463,7 @@
 			this.panel.style.setProperty('--shef-aia-chat-r', layout.right + 'px');
 			this.panel.classList.toggle('--narrow', layout.narrow);
 			this.width = layout.width;
+			this.setPush(this.isOpen() && !airTemplate() && NS.ChatLayout ? NS.ChatLayout.push(layout) : 0);
 		},
 
 		buildPanel: function()
@@ -300,14 +472,16 @@
 
 			var panel = el('div');
 			panel.id = 'shef-aia-chat';
-			// Запасной слой: без ZIndexManager ядра (ниже — регистрация в его стопке)
+			// Слой «поверх» (не Air, узкий экран): ниже стопки слайдеров и попапов
+			// ядра (ZIndexStack, baseIndex 1000) — слайдер встаёт над чатом (1.9.0).
+			// В колонке Air слой задаёт chat.css (.--air).
 			panel.style.zIndex = String(this.settings.z);
 			panel.setAttribute('role', 'complementary');
 			panel.setAttribute('aria-label', 'ИИ: чат');
-			// Слайдер ставит inert всем соседям своего слоя в <body> (FocusTrap ui.a11y,
-			// isolateOutside: true): панель видна, но клики проходят сквозь неё во фрейм
-			// слайдера. Штатный отказ — этот атрибут (так же у BX.UI.Notification) (1.7.1).
-			panel.setAttribute(INERT_OPT_OUT, 'true');
+			// data-a11y-ignore-inert больше не ставим (1.9.0): в Air колонка
+			// #app__right-panel — в исключениях ловушки фокуса слайдера
+			// (intranet/sidepanel/air, focusTrap.outsideExceptionSelectors), а поверх
+			// слайдер закрывает чат — пусть будет inert, как вся страница под ним.
 
 			var drag = el('div', 'shef-aia-drag');
 			drag.title = 'Потяните, чтобы изменить ширину';
@@ -323,7 +497,7 @@
 			bar.appendChild(closeButton);
 			panel.appendChild(bar);
 
-			// Подтверждение очистки — в самой панели: всплывающее окно ядра легло бы под панель (она поверх всего)
+			// Подтверждение очистки — в самой панели, без всплывающего окна
 			var confirmRow = el('div', 'shef-aia-confirm');
 			confirmRow.setAttribute('role', 'alert');
 			confirmRow.appendChild(el('span', 'shef-aia-confirm-text', 'Очистить диалог? Переписка удалится из этого браузера.'));
@@ -414,15 +588,6 @@
 			document.body.appendChild(panel);
 			this.panel = panel;
 			this.applyLayout();
-			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слои
-			// слайдеров и попапов. Без alwaysOnTop (1.4.0): панель поднимаем
-			// bringToFront() при открытии чата и слайдера (raise()), а попапы ядра
-			// (MessageBox, меню, entity-selector) при показе сами делают
-			// bringToFront() (main/popup/src/popup/popup.js, show()) и встают выше.
-			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
-			{
-				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
-			}
 			var relayout = function() { self.applyLayout(); };
 			window.addEventListener('resize', relayout);
 
@@ -445,34 +610,6 @@
 				document.addEventListener('mousemove', move);
 				document.addEventListener('mouseup', up);
 			});
-		},
-
-		/**
-		 * Поверх слайдеров (1.3.0): BX.SidePanel кладёт слой слайдера в стопку
-		 * ZIndexManager и поднимает его наверх при открытии
-		 * (main/install/js/main/sidepanel/src/slider.js). Открытый чат
-		 * поднимаем следом — он остаётся над верхним слайдером.
-		 */
-		watchSliders: function()
-		{
-			var self = this;
-			// Слайдер, открытый ссылкой из чата (статья справки), — над чатом: читать целиком (1.4.0)
-			var lift = function() { self.applyLayout(); if(self.isOpen() && Date.now() > self.ownSliderUntil) { self.raise(); } };
-			if(BX.Event && BX.Event.EventEmitter)
-			{
-				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpen', function() { setTimeout(lift, 0); });
-				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onOpenComplete', lift);
-				BX.Event.EventEmitter.subscribe('SidePanel.Slider:onCloseComplete', lift);
-			}
-		},
-
-		/** Поднять панель над всем в стопке ядра; без ZIndexManager — свой z-index. */
-		raise: function()
-		{
-			if(BX.ZIndexManager && BX.ZIndexManager.getComponent && BX.ZIndexManager.getComponent(this.panel))
-			{
-				BX.ZIndexManager.bringToFront(this.panel);
-			}
 		},
 
 		/** Кнопка «✦ ИИ: чат» верхней панели: открыть/закрыть. Кнопку не правим — её перестраивает BX.UI.Toolbar (1.3.1). */
@@ -510,22 +647,34 @@
 			{
 				this.input.value = record.question;
 			}
-			this.applyLayout();
 			this.panel.classList.add('--open');
-			this.panel.removeAttribute('inert');
-			this.raise();
-			// Только метка «открыт»: страницу не сдвигаем (1.4.0)
 			document.body.classList.add('shef-ai-chat-open');
+			this.applyLayout();
+			if(this.mode === 'air')
+			{
+				var rp = airPanel();
+				if(rp) { this.showAir(rp); }
+			}
 			this.markButtons(true);
 			setTabOpen(true);
 			var input = this.input;
 			setTimeout(function() { input.focus({preventScroll: true}); }, 50);
 		},
 
-		close: function()
+		/**
+		 * Закрыть. keepColumn — колонку Air не сворачивать: её забрала Марта
+		 * или уже свернул кто-то другой.
+		 */
+		close: function(keepColumn)
 		{
 			this.panel.classList.remove('--open');
 			document.body.classList.remove('shef-ai-chat-open');
+			this.setPush(0);
+			if(this.mode === 'air' && keepColumn !== true && !martaOpen())
+			{
+				var rp = airPanel();
+				if(rp) { rp.collapse(); }
+			}
 			this.markButtons(false);
 			setTabOpen(false);
 		},
@@ -986,8 +1135,6 @@
 			try { url = new URL(link.getAttribute('href'), window.location.href); } catch(err) { return; }
 			if(url.origin === window.location.origin && BX.SidePanel && BX.SidePanel.Instance)
 			{
-				// Не поднимать чат над этим слайдером: он открыт из чата (события onOpen/onOpenComplete — в ближайшие секунды)
-				this.ownSliderUntil = Date.now() + 3000;
 				BX.SidePanel.Instance.open(url.href, NS.ChatView ? NS.ChatView.linkOptions(url.pathname) : {cacheable: false});
 			}
 			else
@@ -1601,7 +1748,7 @@
 		normalizeRecord: normalizeRecord,
 		/** Для тестов: запись CRM по адресу карточки (1.4.0). */
 		recordFromPath: recordFromPath,
-		/** Для тестов: атрибут отказа от inert слайдера (1.7.1). */
-		INERT_OPT_OUT: INERT_OPT_OUT
+		/** Для тестов: класс ручки ширины ядра в колонке Air (1.9.0). */
+		CORE_HANDLE: CORE_HANDLE
 	};
 })();

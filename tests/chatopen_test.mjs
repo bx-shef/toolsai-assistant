@@ -96,57 +96,120 @@ same('после загрузки — настоящий чат, не заглу
 frameWindow.ShefAiChat.close();
 same('дальше — сразу, без загрузки', [loads.length, calls[calls.length - 1][0], frameWindow.ShefAiChat.isOpen()], [1, 'close', false]);
 
-console.log('\nверхнее окно: inert слайдера и автооткрытие (1.7.1)');
+console.log('\nверхнее окно: автооткрытие (1.7.1) и место панели (1.9.0)');
 // Минимальный DOM: любой узел принимает любые вызовы; атрибуты и классы запоминаем
 function fakeNode(tag) {
   const attrs = {};
   const classes = new Set();
   const node = {
-    tagName: tag, attrs, children: [], style: { setProperty() {} }, dataset: {},
+    tagName: tag, attrs, children: [], parentNode: null, style: { setProperty() {} }, dataset: {},
     classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c), toggle: (c, on) => { (on ?? !classes.has(c)) ? classes.add(c) : classes.delete(c); } },
     setAttribute: (k, v) => { attrs[k] = String(v); }, getAttribute: (k) => attrs[k] ?? null, removeAttribute: (k) => { delete attrs[k]; },
-    appendChild: (c) => { node.children.push(c); return c; }, addEventListener() {}, removeEventListener() {}, focus() {}, querySelector: () => null, querySelectorAll: () => [],
+    appendChild: (c) => { if (c.parentNode) { const i = c.parentNode.children.indexOf(c); if (i >= 0) { c.parentNode.children.splice(i, 1); } } c.parentNode = proxy; node.children.push(c); return c; },
+    addEventListener() {}, removeEventListener() {}, focus() {}, querySelector: () => null, querySelectorAll: () => [],
     getBoundingClientRect: () => ({ left: 0, right: 0, width: 0, top: 0, bottom: 0 }), offsetWidth: 0,
   };
-  return new Proxy(node, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' && /^(insert|replace|remove|scroll|select)/.test(k) ? () => {} : undefined)), set: (t, k, v) => { t[k] = v; return true; } });
+  const proxy = new Proxy(node, { get: (t, k) => (k in t ? t[k] : (typeof k === 'string' && /^(insert|replace|remove|scroll|select)/.test(k) ? () => {} : undefined)), set: (t, k, v) => { t[k] = v; return true; } });
+  return proxy;
 }
-function runTop(session, local) {
+/** Правая колонка ядра (RightPanel) и чат Марты (RightPanelAiChat) — с теми же методами и событиями. */
+function fakeAir({ expanded = false, marta = false } = {}) {
+  const container = fakeNode('div');
+  const handle = fakeNode('div');
+  handle.classList.add('right-panel-resize-handle');
+  container.appendChild(handle);
+  const subs = {};
+  const once = {};
+  const emit = (name) => { (subs[name] || []).forEach((f) => f()); const o = once[name] || []; once[name] = []; o.forEach((f) => f()); };
+  const log = [];
+  const rp = {
+    state: expanded,
+    getContainer: () => container,
+    isExpanded: () => rp.state,
+    expand() { if (rp.state) { return; } rp.state = true; log.push('expand'); emit('onExpand'); },
+    collapse() { if (!rp.state) { return; } rp.state = false; log.push('collapse'); emit('onCollapse'); emit('onCollapseComplete'); },
+    subscribe: (n, f) => { (subs[n] = subs[n] || []).push(f); },
+    subscribeOnce: (n, f) => { (once[n] = once[n] || []).push(f); },
+  };
+  const mSubs = {};
+  const m = {
+    open: marta,
+    isExpanded: () => m.open,
+    collapse() { m.open = false; log.push('marta.collapse'); rp.collapse(); },
+    expand() { m.open = true; rp.expand(); (mSubs.onExpand || []).forEach((f) => f()); },
+    subscribe: (n, f) => { (mSubs[n] = mSubs[n] || []).push(f); },
+  };
+  const template = { getRightPanel: () => rp, getRightPanelAiChat: () => m };
+  return { rp, marta: m, container, log, template };
+}
+function runTop(session, local, { air = null, width = 1600 } = {}) {
   const ns2 = {};
   const body = fakeNode('body');
   const byId = {};
   const doc = {
-    body, createElement: (t) => fakeNode(t), createTextNode: (t) => ({ textContent: t }),
+    body, documentElement: fakeNode('html'), createElement: (t) => fakeNode(t), createTextNode: (t) => ({ textContent: t }),
     getElementById: (id) => byId[id] || null, addEventListener() {}, removeEventListener() {}, querySelectorAll: () => [],
   };
-  body.appendChild = (c) => { if (c.id) { byId[c.id] = c; } body.children.push(c); return c; };
+  const append = body.appendChild;
+  body.appendChild = (c) => { if (c.id) { byId[c.id] = c; } return append(c); };
   const store = (data) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } });
-  const win = { innerWidth: 1600, localStorage: store(local), sessionStorage: store(session), addEventListener() {} };
+  const win = { innerWidth: width, localStorage: store(local), sessionStorage: store(session), addEventListener() {} };
   win.top = win;
   const BX2 = {
     namespace: () => ns2, ready: () => {}, addCustomEvent() {}, cleanNode() {},
     ajax: { runAction: () => ({ then() {} }) },
+    Reflection: { getClass: (name) => (name === 'BX.Intranet.Bitrix24.Template' && air ? air.template : null) },
   };
-  vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/chat.js'), 'utf8'), { BX: BX2, window: win, document: doc, setTimeout: () => 0, Date, JSON, Object, Array, String, Number, Math });
+  const ctx = { BX: BX2, window: win, document: doc, setTimeout: () => 0, Date, JSON, Object, Array, String, Number, Math };
+  vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/layout.js'), 'utf8'), ctx);
+  vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/chat.js'), 'utf8'), ctx);
   ns2.Chat.init({ button: 'btn', z: 990, min: 380, max: 900, def: 440 });
-  return { panel: byId['shef-aia-chat'], win, session, local };
+  return { panel: byId['shef-aia-chat'], win, session, local, body };
 }
 {
   const t = runTop({}, { 'shef-ai-chat-open': '1' });
-  same('панель не делается inert слайдером (data-a11y-ignore-inert)', t.panel && t.panel.getAttribute(chat.INERT_OPT_OUT), 'true');
-  same('атрибут — штатный ui.a11y FocusTrap', chat.INERT_OPT_OUT, 'data-a11y-ignore-inert');
+  same('атрибут отказа от inert больше не ставим (1.9.0)', t.panel && t.panel.getAttribute('data-a11y-ignore-inert'), null);
   same('метка «открыт» 1.7.0 в localStorage — не открывает и стирается', [t.win.ShefAiChat.isOpen(), 'shef-ai-chat-open' in t.local], [false, false]);
   t.win.ShefAiChat.open(null);
   same('открыли — метка в этой вкладке (sessionStorage)', [t.win.ShefAiChat.isOpen(), t.session['shef-ai-chat-open'], 'shef-ai-chat-open' in t.local], [true, '1', false]);
-  t.panel.setAttribute('inert', 'true');
+  same('не Air — панель в body, колонка контента сужается', [t.panel.parentNode === t.body, t.panel.classList.contains('--air'), t.body.classList.contains('shef-aia-push')], [true, false, true]);
   t.win.ShefAiChat.close();
-  t.win.ShefAiChat.open(null);
-  same('открытие снимает inert, если его уже поставили', t.panel.getAttribute('inert'), null);
-  t.win.ShefAiChat.close();
-  same('закрыли — метка «0»', t.session['shef-ai-chat-open'], '0');
+  same('закрыли — метка «0», колонка контента обратно', [t.session['shef-ai-chat-open'], t.body.classList.contains('shef-aia-push')], ['0', false]);
 }
 {
   const t = runTop({ 'shef-ai-chat-open': '1' }, {});
   same('эта вкладка открывала чат — после перезагрузки открыт', t.win.ShefAiChat.isOpen(), true);
+}
+{
+  const air = fakeAir();
+  const t = runTop({}, {}, { air });
+  t.win.ShefAiChat.open(null);
+  same('Air: панель в колонке #app__right-panel, колонка развёрнута штатно', [t.panel.parentNode === air.container, t.panel.classList.contains('--air'), air.rp.state, t.body.classList.contains('shef-aia-push')], [true, true, true, false]);
+  t.win.ShefAiChat.close();
+  same('Air: закрыли — колонка свёрнута', [air.rp.state, air.log.join(',')], [false, 'expand,collapse']);
+  t.win.ShefAiChat.open(null);
+  air.rp.collapse();
+  same('Air: колонку свернул кто-то другой — чат закрыт', t.win.ShefAiChat.isOpen(), false);
+}
+{
+  const air = fakeAir({ expanded: true, marta: true });
+  const t = runTop({}, {}, { air });
+  same('Air: Марта открыта — пустой колонку не считаем, не сворачиваем', air.rp.state, true);
+  t.win.ShefAiChat.open(null);
+  same('Air: открыли при Марте — Марта свёрнута штатно, колонка снова наша', [air.marta.open, air.rp.state, t.win.ShefAiChat.isOpen(), air.log.join(',')], [false, true, true, 'marta.collapse,collapse,expand']);
+  air.marta.expand();
+  same('Air: открылась Марта — наш чат уступил, колонку не свернул', [t.win.ShefAiChat.isOpen(), air.rp.state], [false, true]);
+}
+{
+  const air = fakeAir({ expanded: true });
+  runTop({}, {}, { air });
+  same('Air: колонка осталась развёрнутой от прошлой страницы, чат закрыт — свернуть пустую', air.rp.state, false);
+}
+{
+  const air = fakeAir();
+  const t = runTop({}, {}, { air, width: 700 });
+  t.win.ShefAiChat.open(null);
+  same('Air, окно уже 768 — поверх, в body (колонку ядро прячет)', [t.panel.parentNode === t.body, t.panel.classList.contains('--air'), t.panel.classList.contains('--narrow'), t.body.classList.contains('shef-aia-push')], [true, false, true, false]);
 }
 
 console.log(`\n${count - errors.length} из ${count}`);
