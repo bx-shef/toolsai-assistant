@@ -184,7 +184,7 @@ final class AnswerService
 		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
 
-		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages(trim($composed['system']."\n\n".$this->widgetHint), $recordText, $articles, $request->history), ContextBuilder::sources($articles));
+		return new PreparedAnswer($userId, $key, $role, ContextBuilder::messages(trim($composed['system']."\n\n".$this->widgetHint), $recordText, $articles, $request->history, $request->files), ContextBuilder::sources($articles));
 	}
 
 	/**

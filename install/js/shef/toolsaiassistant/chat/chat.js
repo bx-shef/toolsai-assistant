@@ -73,6 +73,22 @@
 		return record && !record.docs ? {entityTypeId: record.entityTypeId, id: record.id} : {};
 	}
 
+	/**
+	 * PDF для files.js (1.8.0) — штатный ui.pdfjs ядра, как просмотрщик
+	 * документов портала (ui/viewer, item-document.js): тот же адрес воркера.
+	 */
+	function loadPdf(bytes)
+	{
+		if(!BX.Runtime || !BX.Runtime.loadExtension) { return Promise.reject(new Error('no runtime')); }
+		return BX.Runtime.loadExtension('ui.pdfjs').then(function()
+		{
+			var lib = BX.UI && BX.UI.Pdfjs;
+			if(!lib) { throw new Error('no pdfjs'); }
+			if(!lib.GlobalWorkerOptions.workerSrc) { lib.GlobalWorkerOptions.workerSrc = '/bitrix/js/ui/pdfjs/dist/pdfjs.worker.bundle.js'; }
+			return lib.getDocument({data: bytes}).promise;
+		});
+	}
+
 	/** Вид окна для меню промптов (1.7.0): «list» — список CRM без записи; карточку сервер узнаёт по записи. */
 	function viewOf(record)
 	{
@@ -201,6 +217,9 @@
 		widgetExtensions: {},
 		/** Слой меню промптов (1.7.0). */
 		promptsLayer: null,
+		/** Файлы к следующему вопросу (1.8.0): {id, name, status: reading|ok|error, file, error}. */
+		attachments: [],
+		attachSeq: 0,
 
 		/** Запуск на странице: один раз и только в верхнем окне. */
 		init: function(settings)
@@ -362,7 +381,25 @@
 			this.sendButton = iconButton('shef-aia-send', 'arrow-top-m', 'Спросить (Enter)');
 			this.sendButton.type = 'submit';
 			form.addEventListener('submit', function(e) { e.preventDefault(); self.send(self.input.value); });
+			// Файлы к вопросу (1.8.0): до 5, текст достаётся в браузере (files.js)
+			this.attachRow = el('div', 'shef-aia-attachments');
+			this.attachRow.hidden = true;
+			form.appendChild(this.attachRow);
+			this.fileInput = el('input');
+			this.fileInput.type = 'file';
+			this.fileInput.multiple = true;
+			this.fileInput.hidden = true;
+			if(NS.Files) { this.fileInput.accept = NS.Files.ACCEPT; }
+			this.fileInput.addEventListener('change', function() { self.addFiles(self.fileInput.files); self.fileInput.value = ''; });
+			form.appendChild(this.fileInput);
+			panel.addEventListener('dragover', function(e) { if(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) { e.preventDefault(); panel.classList.add('--drop'); } });
+			panel.addEventListener('dragleave', function(e) { if(e.target === panel) { panel.classList.remove('--drop'); } });
+			panel.addEventListener('drop', function(e) { panel.classList.remove('--drop'); if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); self.addFiles(e.dataTransfer.files); } });
+
 			var row = el('div', 'shef-aia-row');
+			this.attachButton = iconButton('shef-aia-prompts-btn shef-aia-attach-btn', 'o-attach', 'Приложить файлы (до 5): PDF, Word, Excel, PowerPoint, CSV, TXT');
+			this.attachButton.addEventListener('click', function() { self.fileInput.click(); });
+			row.appendChild(this.attachButton);
 			// Меню промптов (1.7.0): избранные, для записи или списка, общие, «Библиотека промптов»
 			this.promptsButton = iconButton('shef-aia-prompts-btn', 'o-copilot', 'Промпты (/)');
 			this.promptsButton.addEventListener('click', function() { self.isPromptsOpen() ? self.closePrompts() : self.openPrompts(); });
@@ -573,12 +610,25 @@
 		saveMessages: function()
 		{
 			// Временное (идёт поток, отправка оценки, ошибка оценки) не храним
-			put(this.storageKey(), JSON.stringify(this.messages.filter(function(m) { return !m.streaming; }).slice(-HISTORY_KEEP).map(function(m)
+			var list = this.messages.filter(function(m) { return !m.streaming; }).slice(-HISTORY_KEEP).map(function(m)
 			{
 				var copy = {};
 				Object.keys(m).forEach(function(k) { if(k !== 'rating' && k !== 'rateError' && k !== 'askComment') { copy[k] = m[k]; } });
 				return copy;
-			})));
+			});
+			try
+			{
+				window.localStorage.setItem(this.storageKey(), JSON.stringify(list));
+			}
+			catch(e)
+			{
+				// Места в браузере не хватило (большие файлы, 1.8.0): храним переписку без текста файлов —
+				// имена остаются, а сам текст модель уже видела в этом окне
+				put(this.storageKey(), JSON.stringify(list.map(function(m)
+				{
+					return m.files ? Object.assign({}, m, {files: m.files.map(function(f) { return {name: f.name, kind: f.kind, text: '', truncated: f.truncated}; })}) : m;
+				})));
+			}
 		},
 
 		/** Показать / спрятать подтверждение «Очистить диалог?». */
@@ -685,15 +735,85 @@
 			return true;
 		},
 
+		/** Добавить файлы (1.8.0): сверх пяти — не берём, каждый читается в браузере. */
+		addFiles: function(list)
+		{
+			var self = this;
+			var F = NS.Files;
+			if(!F || !list || this.busy) { return; }
+			var files = Array.prototype.slice.call(list, 0, F.room(this.attachments.length, list.length));
+			if(files.length < list.length) { this.lastError = 'К вопросу — не больше ' + F.MAX_FILES + ' файлов.'; this.render(); }
+			files.forEach(function(file)
+			{
+				var item = {id: ++self.attachSeq, name: file.name, status: 'reading'};
+				self.attachments.push(item);
+				F.extract({name: file.name, size: file.size, bytes: function() { return file.arrayBuffer(); }}, {loadPdf: loadPdf}).then(function(result)
+				{
+					item.status = 'ok';
+					item.file = result;
+					self.renderAttachments();
+				}, function(error)
+				{
+					item.status = 'error';
+					item.error = error && error.message ? error.message : 'не удалось прочитать файл';
+					self.renderAttachments();
+				});
+			});
+			this.renderAttachments();
+		},
+
+		removeAttachment: function(id)
+		{
+			this.attachments = this.attachments.filter(function(a) { return a.id !== id; });
+			this.renderAttachments();
+		},
+
+		/** Чипы файлов над полем ввода: имя, «читаю…» или причина отказа, ×. */
+		renderAttachments: function()
+		{
+			var self = this;
+			BX.cleanNode(this.attachRow);
+			this.attachRow.hidden = !this.attachments.length;
+			this.attachments.forEach(function(a)
+			{
+				var chip = el('span', 'shef-aia-file --' + a.status);
+				chip.title = a.status === 'error' ? a.error : (a.file && a.file.truncated ? 'Длинный файл: помощник прочитает начало' : a.name);
+				chip.appendChild(el('span', 'shef-aia-file-name', a.name));
+				if(a.status !== 'ok') { chip.appendChild(el('span', 'shef-aia-file-note', a.status === 'reading' ? 'читаю…' : a.error)); }
+				else if(a.file.truncated) { chip.appendChild(el('span', 'shef-aia-file-note', 'начало')); }
+				var x = el('button', 'shef-aia-file-x', '×');
+				x.type = 'button';
+				x.title = 'Убрать файл';
+				x.addEventListener('click', function() { self.removeAttachment(a.id); });
+				chip.appendChild(x);
+				self.attachRow.appendChild(chip);
+			});
+			this.attachButton.disabled = this.busy || (NS.Files ? this.attachments.length >= NS.Files.MAX_FILES : true);
+		},
+
 		send: function(text)
 		{
 			var question = String(text || '').trim();
-			if(!question || this.busy || !this.info || this.info.error) { return; }
+			if(this.busy || !this.info || this.info.error) { return; }
+			// Файлы (1.8.0): ждём, пока дочитаются; без вопроса — просим разобрать
+			if(this.attachments.some(function(a) { return a.status === 'reading'; }))
+			{
+				this.lastError = 'Дочитываю файлы — отправьте через секунду.';
+				this.render();
+				return;
+			}
+			var files = this.attachments.filter(function(a) { return a.status === 'ok'; }).map(function(a) { return a.file; });
+			if(!question && files.length) { question = files.length > 1 ? 'Разбери приложенные файлы: главное, цифры, риски, что сделать.' : 'Разбери приложенный файл: главное, цифры, риски, что сделать.'; }
+			if(!question) { return; }
+			this.attachments = [];
+			this.renderAttachments();
 			this.input.value = '';
 			this.prefilled = null;
 			this.prefilledTemplate = false;
 			this.lastError = '';
-			this.messages.push({role: 'user', text: question, time: Date.now()});
+			var message = {role: 'user', text: question, time: Date.now()};
+			if(files.length) { message.files = files; }
+			this.messages.push(message);
 			this.saveMessages();
 			this.ask();
 		},
@@ -714,7 +834,7 @@
 			this.startStatus();
 			this.render();
 			this.pending = NS.Stream.request(ACTION + 'stream', {
-				messages: this.messages.map(function(m) { return {role: m.role, text: m.text}; }),
+				messages: this.messages.map(function(m) { return m.files ? {role: m.role, text: m.text, files: m.files} : {role: m.role, text: m.text}; }),
 				record: recordData(this.record), context: contextOf(this.record),
 				role: this.info && this.info.role ? this.info.role : ''
 			}, {
@@ -1164,6 +1284,7 @@
 			if(!this.messages.length) { this.askClear(false); }
 			this.promptsButton.style.display = info && info.prompts && info.prompts.length ? '' : 'none';
 			this.promptsButton.disabled = this.busy;
+			this.attachButton.disabled = this.busy || !NS.Files || this.attachments.length >= NS.Files.MAX_FILES;
 			this.disclaimer.textContent = 'Ответы ' + (info && info.model ? info.model : 'ИИ') + ' могут быть неточны, проверяйте важную информацию.';
 
 			var box = this.scroller;
@@ -1222,6 +1343,12 @@
 					var mine = el('div', 'shef-aia-msg shef-aia-msg-user');
 					var bubble = el('div', 'shef-aia-bubble --mine');
 					bubble.innerHTML = view.html; // экранировано (view.js)
+					if(message.files && message.files.length)
+					{
+						var chips = el('div', 'shef-aia-msg-files');
+						message.files.forEach(function(f) { chips.appendChild(el('span', 'shef-aia-file --ok', '📄 ' + f.name)); });
+						bubble.appendChild(chips);
+					}
 					if(view.time) { bubble.appendChild(el('span', 'shef-aia-time', view.time)); }
 					mine.appendChild(bubble);
 					box.appendChild(mine);

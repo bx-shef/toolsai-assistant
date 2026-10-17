@@ -198,3 +198,18 @@
 .shef-aiw-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .shef-aiw-action { padding: 6px 12px; border: 1px solid var(--shef-aia-accent); border-radius: 16px; background: transparent; color: var(--shef-aia-accent); cursor: pointer; font: inherit; font-size: 13px; }
 .shef-aiw-action:hover { background: #f3ecfe; }
+
+/* Файлы к вопросу (1.8.0): чипы над полем, в своём сообщении — имена */
+.shef-aia-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.shef-aia-attachments[hidden] { display: none; }
+.shef-aia-file { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 10px; border-radius: 14px; background: var(--ui-color-base-05, #f1f2f4); font-size: 12px; line-height: 18px; }
+.shef-aia-file.--ok { background: #f3ecfe; }
+.shef-aia-file.--error { background: #fdecec; color: #b3261e; }
+.shef-aia-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.shef-aia-file-note { color: var(--ui-color-base-70, #6a737f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.shef-aia-file.--error .shef-aia-file-note { color: inherit; }
+.shef-aia-file-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; color: inherit; }
+.shef-aia-file-x:hover { background: rgba(0, 0, 0, .08); }
+.shef-aia-msg-files { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.shef-aia-msg-files .shef-aia-file { padding-right: 10px; background: rgba(255, 255, 255, .6); }
+#shef-aia-chat.--drop .shef-aia-form { outline: 2px dashed var(--shef-aia-accent); outline-offset: 2px; }
