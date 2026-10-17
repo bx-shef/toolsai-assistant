@@ -70,7 +70,7 @@ final class Rights
 		return $this->can(Actions::FEEDBACK_VIEW);
 	}
 
-	/** Разбирать оценки ответов: статус, ожидаемый ответ, выгрузка кейсов (1.4.0). */
+	/** Разбирать оценки ответов: статус, ожидаемый ответ, выгрузка кейсов (1.5.0). */
 	public function canEditFeedback(): bool
 	{
 		return $this->can(Actions::FEEDBACK_EDIT);

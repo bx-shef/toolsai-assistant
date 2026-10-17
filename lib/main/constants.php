@@ -23,7 +23,7 @@ final class Constants
 	public const FEEDBACK_URL = '/shef/toolsaiassistant/feedback/';
 	/**
 	 * «Библиотека промптов» shef.toolsai — там правят тексты ролей помощника
-	 * (1.4.0, ссылка «Править промпт роли» со страницы оценок). Адрес страницы,
+	 * (1.5.0, ссылка «Править промпт роли» со страницы оценок). Адрес страницы,
 	 * не API: раздел promptlib, Settings\Sections shef.toolsai.
 	 */
 	public const TOOLSAI_PROMPT_LIBRARY_URL = '/shef/toolsai/?section=promptlib';

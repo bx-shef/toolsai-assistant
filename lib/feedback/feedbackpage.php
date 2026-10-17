@@ -11,7 +11,7 @@ use Shef\ToolsAiAssistant\Container;
 /**
  * Страница «Оценки ответов»: /shef/toolsaiassistant/feedback/.
  *
- * С 1.4.0 — штатные main.ui.filter (период, оценка, статус, роль, сотрудник,
+ * С 1.5.0 — штатные main.ui.filter (период, оценка, статус, роль, сотрудник,
  * чат / запись; GridFilter) и main.ui.grid (постраничка Main\UI\PageNavigation,
  * сортировка и настройка колонок — Grid\Options ядра). Над гридом — сводка
  * «доля полезно по ролям» со ссылкой «Править промпт роли» (RoleSummary).

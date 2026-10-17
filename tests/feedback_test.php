@@ -3,7 +3,7 @@
 /**
  * Оценки ответов (1.1.0): разбор присланной оценки (Feedback\Rating),
  * вёрстка страницы «Оценки ответов» (экранирование всего, что пришло от
- * сотрудника и модели) и право feedback.view. С 1.4.0 — грид и фильтр,
+ * сотрудника и модели) и право feedback.view. С 1.5.0 — грид и фильтр,
  * сводка по ролям, статус и ожидаемое (Review), обезличивание (Anonymizer),
  * кейс проверки промптов (EvalCase), колонки разбора, право feedback.edit.
  */
@@ -19,6 +19,7 @@ use Shef\ToolsAiAssistant\Feedback\Anonymizer;
 use Shef\ToolsAiAssistant\Feedback\EvalCase;
 use Shef\ToolsAiAssistant\Feedback\FeedbackPage;
 use Shef\ToolsAiAssistant\Feedback\GridFilter;
+use Shef\ToolsAiAssistant\Feedback\RecordNames;
 use Shef\ToolsAiAssistant\Feedback\Review;
 use Shef\ToolsAiAssistant\Feedback\RoleSummary;
 use Shef\ToolsAiAssistant\Main\TableInstaller;
@@ -50,7 +51,7 @@ Check::same('id строки и действие «Открыть»', [$grid[0][
 Check::same('чужой адрес записи — без ссылки', [FeedbackPage::chatCell('record:2:7', static fn(): string => '//evil.example/'), FeedbackPage::chatCell('record:2:7', static fn(): string => 'javascript:alert(1)')], ['запись CRM: тип 2, № 7', 'запись CRM: тип 2, № 7']);
 Check::same('общий чат и справка — без ссылки', [FeedbackPage::chatCell('general', $url), FeedbackPage::chatTitle('docs')], ['общий чат', 'чат справки']);
 $old = FeedbackPage::gridRows([['STATUS' => null, 'EXPECTED' => null, 'REVIEWED_BY' => null] + $row], [], [], null);
-Check::same('строка до 1.4.0: статус «Новая», ожидаемого нет', [str_contains($old[0]['columns']['STATUS'], 'Новая'), str_contains($old[0]['columns']['EXPECTED'], '—'), $old[0]['columns']['REVIEWED']], [true, true, '']);
+Check::same('строка до 1.5.0: статус «Новая», ожидаемого нет', [str_contains($old[0]['columns']['STATUS'], 'Новая'), str_contains($old[0]['columns']['EXPECTED'], '—'), $old[0]['columns']['REVIEWED']], [true, true, '']);
 Check::same('кратко: до PREVIEW_MAX, одной строкой, ссылка — текстом', [mb_strlen(FeedbackPage::preview(str_repeat('я ', 500))) <= FeedbackPage::PREVIEW_MAX, FeedbackPage::preview("# Итог\n- раз\n- [два](/crm/)"), FeedbackPage::preview('`код`')], [true, 'Итог раз два', 'код']);
 $client = FeedbackPage::clientRows([$row], [], [5 => 'Иван'], $url);
 Check::same('окно: текст целиком, адрес записи и промпта роли', [$client[1]['answer'], $client[1]['recordUrl'], $client[1]['promptUrl'], $client[1]['status']], [$row['ANSWER'], '/crm/deal/details/7/', '/shef/toolsai/?section=promptlib&tab=roles&code=shef.toolsaiassistant%3Amanager', 'eval']);
@@ -100,8 +101,21 @@ Check::group('обезличивание');
 
 Check::same('почта и телефон', Anonymizer::clean('Пишите ivan.petrov@mail.ru или +7 (912) 345-67-89, 8-912-345-67-89; сумма 150000 руб., 12.10.2026'), 'Пишите [почта] или [телефон], [телефон]; сумма 150000 руб., 12.10.2026');
 Check::same('известное имя и его слова', Anonymizer::clean('Ответ для Иван Петров. Петров звонил, Иван — нет.', ['Иван Петров']), 'Ответ для [имя]. [имя] звонил, [имя] — нет.');
-Check::same('«Имя Фамилия» не в начале предложения', Anonymizer::clean('Клиент Анна Сергеевна Котова просила счёт. Что мешает?'), 'Клиент [имя] просила счёт. Что мешает?');
-Check::same('начало предложения и одиночные слова — как есть', Anonymizer::clean('Сделка Ромашка. Что Мешает закрыть?'), 'Сделка Ромашка. Что Мешает закрыть?');
+Check::same('«Имя Фамилия» после роли', Anonymizer::clean('Клиент Анна Сергеевна Котова просила счёт. Что мешает?'), 'Клиент [имя] просила счёт. Что мешает?');
+Check::same('имя из двух слов в начале предложения', Anonymizer::clean('Котова Анна просила счёт. Звонил. Пётр Сидоров перезвонит.'), '[имя] просила счёт. Звонил. [имя] перезвонит.');
+Check::same('роль и одно имя', Anonymizer::clean('Клиент Анна ждёт'), 'Клиент [имя] ждёт');
+Check::same('обычное начало предложения и одиночные слова — как есть', Anonymizer::clean('Сделка Ромашка. Что Мешает закрыть?'), 'Сделка Ромашка. Что Мешает закрыть?');
+Check::same('инициалы до и после фамилии', Anonymizer::clean('Договорился Петров И.И. и И. И. Сидоров'), 'Договорился [имя] и [имя]');
+Check::same('инициалы за известной фамилией', Anonymizer::clean('Звонил Петров И.И.', ['Петров']), 'Звонил [имя]');
+Check::same('имя заглавными; сокращения — как есть', Anonymizer::clean('Звонил ИВАН ПЕТРОВ из ООО, ИНН в CRM'), 'Звонил [имя] из ООО, ИНН в CRM');
+Check::same('известная компания', Anonymizer::clean('счёт для ООО «Ромашка», ромашка ждёт', ['ООО «Ромашка»']), 'счёт для [имя], [имя] ждёт');
+Check::same('почта нестандартно', Anonymizer::clean('ivan (at) mail (dot) ru и petr собака yandex.ru, у клиента собака лает'), '[почта] и [почта], у клиента собака лает');
+Check::same('телефон от 7 цифр с разделителями; сумма — нет', Anonymizer::clean('Тел. 345-67-89, 123 45 67, (017) 2345678; сумма 1 500 000 и 1500000'), 'Тел. [телефон], [телефон], [телефон]; сумма 1 500 000 и 1500000');
+Check::same('карта 16–19 цифр', Anonymizer::clean('Карта 4276 1234 5678 9012 и 4276123456789012345'), 'Карта [карта] и [карта]');
+Check::same('паспорт, ИНН, СНИЛС', Anonymizer::clean('паспорт 4506 123456, ИНН: 7701234567, СНИЛС 123-456-789 01, КПП 770101001'), 'паспорт [документ], ИНН: [документ], СНИЛС [документ], КПП [документ]');
+Check::same('СНИЛС по виду', Anonymizer::clean('номер 123-456-789 01'), 'номер [документ]');
+Check::same('адрес по маркерам', Anonymizer::clean('Адрес: ул. Ленина, д. 5, кв. 7. Ещё д. 12, кв. 3, а дом клиента большой'), 'Адрес: [адрес]. Ещё [адрес], а дом клиента большой');
+Check::same('проспект и офис', Anonymizer::clean('Офис: пр-т Независимости 12, оф. 301.'), 'Офис: [адрес].');
 Check::same('короткие и пустые имена не трогают текст', Anonymizer::clean('Я из CRM', ['', 'Я', '#5']), 'Я из CRM');
 
 Check::group('кейс проверки');
@@ -125,6 +139,11 @@ Check::same('note «полезно» без комментария', $result['ca
 Check::same('JSON: кириллица как есть, читаемый', [str_contains(EvalCase::json($result['cases']), 'нет следующего шага'), str_contains(EvalCase::json($result['cases']), "\n    ")], [true, true]);
 Check::same('тип и номер записи из ключа чата', [EvalCase::entityTypeId('record:2:7'), EvalCase::recordId('record:2:7'), EvalCase::entityTypeId('general')], [2, 7, null]);
 
+Check::group('имена из записи CRM');
+
+Check::same('ФИО, компания лида, связанные; без пустых и повторов', RecordNames::fromFields(['TITLE' => 'Лид с сайта', 'NAME' => 'Анна', 'SECOND_NAME' => '', 'LAST_NAME' => 'Котова', 'COMPANY_TITLE' => 'ООО Ромашка'], ['ООО Ромашка', 'Пётр Сидоров', '', 'x']), ['Лид с сайта', 'Анна', 'Котова', 'ООО Ромашка', 'Анна Котова', 'Пётр Сидоров']);
+Check::same('сделка: заголовок и связанные', RecordNames::fromFields(['TITLE' => 'Поставка', 'NAME' => null], ['ИП Иванов']), ['Поставка', 'ИП Иванов']);
+
 Check::group('колонки разбора в старой таблице');
 
 // FeedbackTable::REVIEW_COLUMNS — сущность ORM без ядра не грузится; список сверяем с исходником
@@ -133,6 +152,14 @@ Check::same('список колонок — как в FeedbackTable', str_conta
 
 Check::same('недостающие колонки без учёта регистра', TableInstaller::missingColumns(['ID', 'status', 'COMMENT'], $reviewColumns), ['EXPECTED', 'REVIEWED_BY', 'REVIEWED_AT']);
 Check::same('все есть — ничего', TableInstaller::missingColumns($reviewColumns, $reviewColumns), []);
+$esc = static fn(string $v): string => addslashes($v);
+Check::same('часть ALTER: обязательная — NOT NULL DEFAULT, прочая — NULL', [TableInstaller::columnSql('`STATUS`', 'varchar(16)', true, 'new', $esc), TableInstaller::columnSql('`EXPECTED`', 'longtext', false, null, $esc), TableInstaller::columnSql('`N`', 'int', true, 0, $esc), TableInstaller::columnSql('`S`', 'varchar(5)', true, "a'b", $esc)], ["ADD COLUMN `STATUS` varchar(16) NOT NULL DEFAULT 'new'", 'ADD COLUMN `EXPECTED` longtext NULL', 'ADD COLUMN `N` int NOT NULL DEFAULT 0', "ADD COLUMN `S` varchar(5) NOT NULL DEFAULT 'a\\'b'"]);
+$tableSource = (string)file_get_contents($root.'/lib/feedback/model/feedbacktable.php');
+Check::same('индекс разбора — STATUS + CREATED_AT', str_contains($tableSource, "'columns' => ['STATUS', 'CREATED_AT']"), true);
+$installerSource = (string)file_get_contents($root.'/lib/main/tableinstaller.php');
+Check::same('ALTER — один, под блокировкой, с перечитыванием', [substr_count($installerSource, "queryExecute('ALTER TABLE"), str_contains($installerSource, '->lock($lock, 0)'), str_contains($installerSource, '->unlock($lock)')], [1, true, true]);
+$storeSource = (string)file_get_contents($root.'/lib/feedback/feedbackstore.php');
+Check::same('запись оценки не падает из-за ensure()', (bool)preg_match('/function add\(.*?try\s*\{\s*static::ensure\(\);\s*\}\s*catch\(\\\\Throwable/s', $storeSource), true);
 
 Check::group('право feedback.view');
 

@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Feedback;
 
 /**
- * Разбор оценки (1.4.0): что с ней сделали и что должно было быть в ответе.
+ * Разбор оценки (1.5.0): что с ней сделали и что должно было быть в ответе.
  *
  * Оценка — сырьё для проверки промптов shef.toolsai (docs/private/prompt-evals.md
  * там): «не помогло» → человек пишет, что должно было быть → оценка уходит
@@ -48,7 +48,7 @@ final class Review
 		return is_string($value) && isset(self::STATUSES[$value]) ? $value : null;
 	}
 
-	/** Подпись статуса; неизвестный — «Новая» (старые строки до 1.4.0). */
+	/** Подпись статуса; неизвестный — «Новая» (старые строки до 1.5.0). */
 	public static function title(?string $status): string
 	{
 		return self::STATUSES[$status ?? ''] ?? self::STATUSES[self::NEW];

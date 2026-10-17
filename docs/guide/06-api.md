@@ -153,7 +153,7 @@ shef.toolsai уже внутри `LlmService::stream()`**, поэтому их �
 их удаляет агент `FeedbackStore::cleanAgent()`. Список — страница
 `/shef/toolsaiassistant/feedback/` ([02-rights.md](02-rights.md)).
 
-## Разбор оценок (1.4.0)
+## Разбор оценок (1.5.0)
 
 `shef:toolsaiassistant.feedback.<действие>` — POST, авторизация, sessid, право
 `feedback.edit` (`Controller\Feedback`):
@@ -164,7 +164,7 @@ shef.toolsai уже внутри `LlmService::stream()`**, поэтому их �
 | `expect` | `id`, `expected` — по факту на строку, до 4000 знаков | `{id, status, expected}` |
 | `export` | `ids` (до 200) | `{cases, json, exported, skipped, reasons}`; выгруженные — статус `eval` |
 
-Колонки таблицы с 1.4.0: `STATUS` (`new` / `reviewed` / `eval` / `rejected`),
+Колонки таблицы с 1.5.0: `STATUS` (`new` / `reviewed` / `eval` / `rejected`),
 `EXPECTED`, `REVIEWED_BY`, `REVIEWED_AT`. Формат кейса — [08-feedback.md](08-feedback.md).
 
 `shef:toolsaiassistant.access.save` — сохранение страницы прав (только администратор).

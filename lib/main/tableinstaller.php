@@ -16,7 +16,7 @@ use Bitrix\Main\ORM\Fields\ScalarField;
  * индекс createDbTable() не строит — его добавляет createIndex() соединения
  * (main/lib/db/mysqlcommonconnection.php, тип Connection::INDEX_UNIQUE).
  *
- * Новые колонки в уже созданной таблице (1.4.0) — addColumns(): createDbTable()
+ * Новые колонки в уже созданной таблице (1.5.0) — addColumns(): createDbTable()
  * их не добавит, а установщик на портале не запускается. Колонка — по полю
  * ORM: тип даёт getColumnTypeByField() помощника SQL ядра
  * (main/lib/db/mysqlisqlhelper.php), обязательной колонке нужен DEFAULT — у
@@ -58,38 +58,62 @@ final class TableInstaller
 	{
 		$connection = Application::getConnection();
 		$name = $table::getTableName();
-		if(!$connection->isTableExists($name))
+		if(!$connection->isTableExists($name) || static::missingColumns(array_keys($connection->getTableFields($name)), $columns) === [])
 		{
 			return [];
 		}
-		$missing = static::missingColumns(array_keys($connection->getTableFields($name)), $columns);
-		$helper = $connection->getSqlHelper();
-		$entity = $table::getEntity();
-		foreach($missing as $column)
+		// Два хита сразу (OnProlog и первая оценка) не должны добавлять колонку дважды:
+		// под блокировкой перечитать колонки. Не взяли блокировку — доведёт следующий хит.
+		$lock = 'shef_taia_alter_'.$name;
+		if(!$connection->lock($lock, 0))
 		{
-			$field = $entity->getField($column);
-			if(!$field instanceof ScalarField)
-			{
-				continue;
-			}
-			$sql = 'ALTER TABLE '.$helper->quote($name).' ADD COLUMN '.$helper->quote($column).' '.$helper->getColumnTypeByField($field);
-			if($field->isRequired())
-			{
-				$default = $field->getDefaultValue();
-				$sql .= ' NOT NULL'.(is_scalar($default) ? ' DEFAULT '.(is_int($default) ? (string)$default : "'".$helper->forSql((string)$default)."'") : '');
-			}
-			else
-			{
-				$sql .= ' NULL';
-			}
-			$connection->queryExecute($sql);
+			return [];
 		}
-		if($missing !== [])
+		try
 		{
 			$connection->clearCaches();
+			$missing = static::missingColumns(array_keys($connection->getTableFields($name)), $columns);
+			$helper = $connection->getSqlHelper();
+			$entity = $table::getEntity();
+			$parts = [];
+			foreach($missing as $column)
+			{
+				$field = $entity->getField($column);
+				if($field instanceof ScalarField)
+				{
+					$parts[] = static::columnSql($helper->quote($column), $helper->getColumnTypeByField($field), $field->isRequired(), $field->getDefaultValue(), static fn(string $v): string => $helper->forSql($v));
+				}
+			}
+			if($parts !== [])
+			{
+				// Одним ALTER: таблица перестраивается один раз
+				$connection->queryExecute('ALTER TABLE '.$helper->quote($name).' '.implode(', ', $parts));
+				$connection->clearCaches();
+			}
+
+			return $parts !== [] ? $missing : [];
+		}
+		finally
+		{
+			$connection->unlock($lock);
+		}
+	}
+
+	/**
+	 * Часть ALTER TABLE для одной колонки: обязательной — NOT NULL и DEFAULT
+	 * (у старых строк значения нет), прочей — NULL.
+	 *
+	 * @param \Closure(string): string $escape экранирование строки (forSql помощника)
+	 */
+	public static function columnSql(string $quotedName, string $type, bool $required, mixed $default, \Closure $escape): string
+	{
+		$sql = 'ADD COLUMN '.$quotedName.' '.$type;
+		if(!$required)
+		{
+			return $sql.' NULL';
 		}
 
-		return $missing;
+		return $sql.' NOT NULL'.(is_int($default) ? ' DEFAULT '.$default : (is_string($default) ? " DEFAULT '".$escape($default)."'" : ''));
 	}
 
 	/**

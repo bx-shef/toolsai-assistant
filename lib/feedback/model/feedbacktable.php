@@ -16,7 +16,7 @@ use Bitrix\Main\ORM\Fields\TextField;
  * кратко (Feedback\Rating), оценка 1 / -1, комментарий, время. Список — на
  * странице «Оценки ответов» (Feedback\FeedbackPage), право feedback.view.
  *
- * Разбор (1.4.0, право feedback.edit): STATUS — Feedback\Review (new /
+ * Разбор (1.5.0, право feedback.edit): STATUS — Feedback\Review (new /
  * reviewed / eval / rejected), EXPECTED — «что должно было быть» (факты по
  * строке, Feedback\Review::facts()), REVIEWED_BY и REVIEWED_AT — кто и когда
  * разобрал. Колонки на портале добавляет Feedback\FeedbackStore::install()
@@ -24,13 +24,20 @@ use Bitrix\Main\ORM\Fields\TextField;
  */
 class FeedbackTable extends DataManager
 {
-	/** Индекс по времени: список идёт от свежих. */
+	/**
+	 * Индексы под запросы страницы:
+	 *   CREATED_AT — грид от свежих, период фильтра, сводка по ролям за период, агент очистки;
+	 *   STATUS + CREATED_AT (1.5.0) — главный разбор «новые за период, от свежих»:
+	 *     равенство по статусу, дальше диапазон и сортировка по дате из того же индекса.
+	 * ROLE_CODE + CREATED_AT не берём: фильтр по роли — редкий, а сводка по ролям
+	 * всё равно читает весь период (GROUP BY по ROLE_CODE, RATING).
+	 */
 	public const INDEXES = [
 		'IX_SHEF_TAIA_FEEDBACK_AT' => ['columns' => ['CREATED_AT'], 'unique' => false],
-		'IX_SHEF_TAIA_FEEDBACK_ST' => ['columns' => ['STATUS'], 'unique' => false],
+		'IX_SHEF_TAIA_FEEDBACK_ST' => ['columns' => ['STATUS', 'CREATED_AT'], 'unique' => false],
 	];
 
-	/** Колонки разбора (1.4.0): их нет в таблицах, созданных до 1.4.0. */
+	/** Колонки разбора (1.5.0): их нет в таблицах, созданных до 1.5.0. */
 	public const REVIEW_COLUMNS = ['STATUS', 'EXPECTED', 'REVIEWED_BY', 'REVIEWED_AT'];
 
 	/** Имя таблицы в базе. */

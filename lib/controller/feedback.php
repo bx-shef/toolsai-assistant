@@ -11,10 +11,11 @@ use Shef\ToolsAiAssistant\Container;
 use Shef\ToolsAiAssistant\Feedback\EvalCase;
 use Shef\ToolsAiAssistant\Feedback\FeedbackPage;
 use Shef\ToolsAiAssistant\Feedback\FeedbackStore;
+use Shef\ToolsAiAssistant\Feedback\RecordNames;
 use Shef\ToolsAiAssistant\Feedback\Review;
 
 /**
- * Разбор оценок ответов (1.4.0): BX.ajax.runAction('shef:toolsaiassistant.feedback.<действие>').
+ * Разбор оценок ответов (1.5.0): BX.ajax.runAction('shef:toolsaiassistant.feedback.<действие>').
  *
  *   status — групповое действие грида: «Разобрано», «Отклонить», «Вернуть в новые»;
  *   expect — «что должно было быть» из окна оценки;
@@ -117,6 +118,8 @@ class Feedback extends Controller
 				{
 					continue;
 				}
+				// Имена записи (ФИО, компания, контакты, ответственный) — в обезличивание
+				$names[$rowId] = array_merge($names[$rowId], RecordNames::load($type, $recordId, $userId));
 				try
 				{
 					$records[$rowId] = $source->get($type, $recordId, $userId);

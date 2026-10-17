@@ -24,7 +24,7 @@ final class FeedbackStore implements FeedbackStoreInterface
 
 	/**
 	 * Создать таблицу (установка и первая оценка после обновления модуля);
-	 * таблица до 1.4.0 — добавить колонки разбора (до индексов: индекс по
+	 * таблица до 1.5.0 — добавить колонки разбора (до индексов: индекс по
 	 * STATUS без колонки не построить).
 	 */
 	public static function install(): void
@@ -56,7 +56,16 @@ final class FeedbackStore implements FeedbackStoreInterface
 				static::install();
 			}
 			self::$ensured = true;
+			self::$reviewColumns = true;
 		}
+	}
+
+	/** Колонки разбора уже есть (ensure() дошёл до конца). */
+	private static bool $reviewColumns = false;
+
+	private static function hasReviewColumns(): bool
+	{
+		return self::$reviewColumns;
 	}
 
 	/** Имя агента очистки (CAgent). */
@@ -105,7 +114,16 @@ final class FeedbackStore implements FeedbackStoreInterface
 	/** Сохранить оценку; вернуть ID. */
 	public function add(int $userId, array $rating): int
 	{
-		static::ensure();
+		// Довести таблицу не вышло (нет прав на ALTER, блокировка) — оценку всё равно
+		// пишем: таблица до 1.5.0 примет её без колонок разбора.
+		try
+		{
+			static::ensure();
+		}
+		catch(\Throwable $throwable)
+		{
+			\Shef\ToolsAiAssistant\Container::getLogger(self::class)?->error($throwable);
+		}
 		$result = FeedbackTable::add([
 			'CREATED_AT' => new DateTime(),
 			'USER_ID' => $userId,
@@ -115,8 +133,7 @@ final class FeedbackStore implements FeedbackStoreInterface
 			'ANSWER' => $rating['answer'],
 			'RATING' => $rating['rating'],
 			'COMMENT' => $rating['comment'] !== '' ? $rating['comment'] : null,
-			'STATUS' => Review::NEW,
-		]);
+		] + (static::hasReviewColumns() ? ['STATUS' => Review::NEW] : []));
 		if(!$result->isSuccess())
 		{
 			throw new \RuntimeException(implode('; ', $result->getErrorMessages()));

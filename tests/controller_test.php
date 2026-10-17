@@ -161,7 +161,7 @@ $GLOBALS['USER'] = new CUser(0, false);
 $chat = new Chat();
 Check::same('без права — access', [$chat->rateAction('up', Roles::MANAGER, [], 'q', 'a'), $errors($chat)[0][0] ?? null], [null, 'access']);
 
-Check::group('контроллер разбора оценок (1.4.0)');
+Check::group('контроллер разбора оценок (1.5.0)');
 
 $fbConfig = (new FeedbackController())->configureActions();
 Check::same('три действия, все — авторизация, POST, sessid', [array_keys($fbConfig), $classes($fbConfig['export']['prefilters']), $classes($fbConfig['status']['prefilters'])], [['status', 'expect', 'export'], ['Authentication', 'HttpMethod', 'Csrf'], ['Authentication', 'HttpMethod', 'Csrf']]);

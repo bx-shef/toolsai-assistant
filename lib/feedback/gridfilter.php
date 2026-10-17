@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Feedback;
 
 /**
- * Фильтр страницы «Оценки ответов» (1.4.0) — штатный main.ui.filter над
+ * Фильтр страницы «Оценки ответов» (1.5.0) — штатный main.ui.filter над
  * штатным гридом main.ui.grid, как «ИИ: отчёт по звонкам» shef.toolsai
  * (Calls\UiFilter там).
  *

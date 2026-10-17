@@ -3,7 +3,7 @@
 namespace Shef\ToolsAiAssistant\Feedback;
 
 /**
- * Оценка ответа → кейс проверки промптов shef.toolsai (1.4.0).
+ * Оценка ответа → кейс проверки промптов shef.toolsai (1.5.0).
  *
  * Формат — как у tools/prompt-evals/cases/*.json shef.toolsai, задача «chat»
  * (поддержку задачи раннер shef.toolsai добавляет у себя — что нужно, в
