@@ -119,6 +119,7 @@
 		{
 			var mine = message.role === 'user';
 			var role = mine ? null : this.role(roles, message.roleCode);
+			var full = !mine && md() && md().renderFull ? md().renderFull(message.text) : null;
 			return {
 				side: mine ? 'right' : 'left',
 				author: mine ? '' : (role ? role.title : 'ИИ-помощник'),
@@ -127,7 +128,9 @@
 				time: this.time(message.time, offsetMinutes),
 				html: mine
 					? escape(message.text).replace(/\n/g, '<br>')
-					: (md() ? md().render(message.text) : escape(message.text))
+					: (full ? full.html : (md() ? md().render(message.text) : escape(message.text))),
+				// 1.7.0: виджеты ответа — для <div data-shef-widget="N"> (рисует widgets.js)
+				widgets: full ? full.widgets : []
 			};
 		}
 	};

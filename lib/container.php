@@ -4,6 +4,7 @@ namespace Shef\ToolsAiAssistant;
 
 use Psr\Log\LoggerInterface;
 use Shef\ToolsAiAssistant\Chat\AnswerService;
+use Shef\ToolsAiAssistant\Chat\WidgetCatalog;
 use Shef\ToolsAiAssistant\Chat\Gateway\KbSource;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiModelGateway;
 use Shef\ToolsAiAssistant\Chat\Gateway\ToolsAiPromptSource;
@@ -34,6 +35,7 @@ final class Container
 			Config::current(),
 			null,
 			new FeedbackStore(),
+			WidgetCatalog::instructions(WidgetCatalog::collect()),
 		);
 	}
 

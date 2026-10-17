@@ -7,7 +7,8 @@
 
 | событие | обработчик | что делает |
 |---|---|---|
-| `shef.toolsai:OnPromptRegistryBuild` (D7) | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler::handle(Event): EventResult` | отдаёт шесть ролей: `EventResult(SUCCESS, ['prompts' => Roles::raw()], 'shef.toolsaiassistant')` |
+| `shef.toolsai:OnPromptRegistryBuild` (D7) | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler::handle(Event): EventResult` | отдаёт шесть ролей и типовые запросы меню промптов (1.7.0): `EventResult(SUCCESS, ['prompts' => [...Roles::raw(), ...TypicalPrompts::raw()]], 'shef.toolsaiassistant')` |
+| `shef.toolsai:OnPromptPlacesCollect` (D7, 1.54.0; у нас 1.7.0) | `Internals\Integration\ToolsAi\EventHandler\OnPromptPlacesCollectEventHandler::handle(Event): EventResult` | места чата для «Где доступен» в библиотеке промптов: `chat`, `chat.list`, `chat.card` (`Prompt\ChatPlaces`); в навыке хранятся как `shef.toolsaiassistant:<место>` |
 | `shef.toolsai:OnViewRowActionsBuild` (D7, 1.50.0) | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler::handle(Event): EventResult` | пункт «✦ Спросить ИИ» в меню строки вида «ИИ»: `['actions' => [['text', 'onclick']]]`, только при праве на чат |
 | `shef.toolsai:OnViewToolbarBuild` (D7, 1.53.0; у нас 1.3.1) | `Internals\Integration\ToolsAi\EventHandler\OnViewToolbarBuildEventHandler::handle(Event): EventResult` | кнопка «✦ ИИ: чат» в шапке вида «ИИ»: `['buttons' => [['text', 'onclick', 'id']]]` — если чат включён, вид входит в «Где показывать чат» и у сотрудника есть право. Вид ставит её штатным Toolbar API с иконкой свёрнутого режима. Без shef.toolsai 1.53 событие не приходит — кнопку ставит `OnProlog`, как раньше |
 | `shef.toolsai:OnViewSettingsMenuBuild` (D7, 1.53.0; у нас 1.5.1) | `Internals\Integration\ToolsAi\EventHandler\OnViewSettingsMenuBuildEventHandler::handle(Event): EventResult` | пункты в меню шестерёнки вида «ИИ»: `['items' => [['text', 'url']]]` — «ИИ чат с ролями: настройки» (право на модуль от R) и «Оценки ответов» (право `feedback.view`). Без shef.toolsai 1.53 событие не приходит |
@@ -20,6 +21,13 @@
 
 `shef.toolsai:OnPromptChanged` модуль не слушает: своего кеша промптов у него нет,
 текст роли берётся из реестра на каждом ответе.
+
+## Своё событие: `shef.toolsaiassistant:OnChatWidgetsCollect` (1.7.0)
+
+Виджеты модулей в ответах чата — [09-prompts-widgets.md](09-prompts-widgets.md).
+Шлёт `Chat\WidgetCatalog::collect()` (D7, параметров нет), раз за хит: при сборке
+подсказки модели и ответе `info` окну. Ответ модуля:
+`new EventResult(EventResult::SUCCESS, ['widgets' => [['type' => '…', 'extension' => '…', 'description' => '…']]], '<модуль>')`.
 
 ## Своё событие: `shef.toolsaiassistant:OnChatPlacesCollect` (1.3.0)
 

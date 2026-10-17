@@ -5,6 +5,7 @@ namespace Shef\ToolsAiAssistant\Chat\Gateway;
 use Shef\ToolsAi\Public\Service\PromptService;
 use Shef\ToolsAiAssistant\Chat\ChatException;
 use Shef\ToolsAiAssistant\Chat\RoleIcon;
+use Shef\ToolsAiAssistant\Prompt\ChatPlaces;
 
 /**
  * Роли и текст для модели — публичный API shef.toolsai 1.54.0
@@ -112,6 +113,38 @@ final class ToolsAiPromptSource implements PromptSourceInterface
 	}
 
 	/** @throws ChatException shef.toolsai без доступа к ролям из библиотеки (старее 1.54.0) */
+	/** Промпты меню в поле ввода (1.7.0); shef.toolsai старее 1.58.0 — пусто. */
+	public function prompts(string $roleCode, ?int $entityTypeId, array $places, int $userId): array
+	{
+		static::assertVersion();
+		$user = static::user($userId);
+		if($places === [] || !method_exists(PromptService::class, 'skills'))
+		{
+			return [];
+		}
+		$out = [];
+		foreach(PromptService::skills($roleCode, $places, $entityTypeId ?? 0, $user) as $item)
+		{
+			$text = trim((string)($item['text'] ?? ''));
+			if($text === '')
+			{
+				continue;
+			}
+			$out[] = [
+				'code' => (string)$item['code'],
+				'title' => mb_substr((string)$item['title'], 0, 120),
+				'text' => mb_substr($text, 0, 4000),
+				'type' => ($item['type'] ?? '') === 'template' ? 'template' : 'plain',
+				'icon' => RoleIcon::of((string)$item['code'], $item['icon'] ?? null),
+				'iconUrl' => RoleIcon::url((string)($item['iconUrl'] ?? '')),
+				'favorite' => (bool)($item['favorite'] ?? false),
+				'group' => ChatPlaces::group((array)($item['places'] ?? [])),
+			];
+		}
+
+		return array_slice($out, 0, 40);
+	}
+
 	private static function assertVersion(): void
 	{
 		if(!method_exists(PromptService::class, 'isAvailable'))

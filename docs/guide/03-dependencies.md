@@ -21,7 +21,7 @@ shef.toolsai от этого модуля не зависит: связь — с
 
 | класс и метод | зачем | где у нас |
 |---|---|---|
-| событие `shef.toolsai:OnPromptRegistryBuild` (`RegistryService::EVENT_BUILD`) | регистрация шести ролей | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler` |
+| событие `shef.toolsai:OnPromptRegistryBuild` (`RegistryService::EVENT_BUILD`) | регистрация шести ролей и типовых запросов меню промптов (1.7.0, `Prompt\TypicalPrompts`) | `Internals\Integration\ToolsAi\EventHandler\OnPromptRegistryBuildEventHandler` |
 | событие `shef.toolsai:OnViewRowActionsBuild` (`Public\Event\ViewRowActionsBuildEvent`) | «✦ Спросить ИИ» в меню строки вида «ИИ» | `Internals\Integration\ToolsAi\EventHandler\OnViewRowActionsBuildEventHandler` |
 | событие `shef.toolsai:OnViewToolbarBuild` (`Public\Event\ViewToolbarBuildEvent`, 1.53.0) | «✦ ИИ: чат» в шапке вида «ИИ»; мягко — нет события, кнопку ставит `OnProlog` | `Internals\Integration\ToolsAi\EventHandler\OnViewToolbarBuildEventHandler` |
 | событие `shef.toolsai:OnViewSettingsMenuBuild` (`Public\Event\ViewSettingsMenuBuildEvent`, 1.53.0) | пункты «ИИ чат с ролями: настройки» и «Оценки ответов» в меню шестерёнки вида «ИИ»; мягко — нет события, нет пунктов | `Internals\Integration\ToolsAi\EventHandler\OnViewSettingsMenuBuildEventHandler` |
@@ -30,6 +30,8 @@ shef.toolsai от этого модуля не зависит: связь — с
 | `PromptService::isAvailable($role, $userId)` (1.54.0) | проверка роли на каждом ответе и у оценки | там же |
 | `PromptService::compose($role, PromptService::PLACE_ASSISTANT, $entityTypeId, null, $userId)` | текст роли (+ её навык), готовые вопросы, `role` — какую роль взяла библиотека (не та — отказ смены роли), `type` навыка: `template` — его текст (`PromptService::get($skill)['text']`, только если `isAvailable($skill, $userId)`) уходит в окно шаблоном для поля ввода | там же |
 | `PromptService::get($code)` | текст навыка «с уточнениями» | `Chat\Gateway\ToolsAiPromptSource` |
+| `PromptService::skills($role, $places, $entityTypeId, $userId)` (1.58.0; мягко — `method_exists`, старее — меню промптов не появится) | меню промптов в поле ввода (1.7.0): навыки роли и общие навыки мест окна — `shef.toolsaiassistant:chat`, `:chat.list`, `:chat.card` (`Prompt\ChatPlaces`) | `Chat\Gateway\ToolsAiPromptSource::prompts()` |
+| событие `shef.toolsai:OnPromptPlacesCollect` (`Prompt\Places::EVENT`, 1.54.0) | места чата в «Где доступен» мастера библиотеки промптов: администратор кладёт свой промпт в меню чата | `Internals\Integration\ToolsAi\EventHandler\OnPromptPlacesCollectEventHandler` |
 | `PromptService::forget()` | перечитать реестр после установки | `install/index.php` |
 | `Public\Service\RecordService::get($entityTypeId, $id, $userId)` | история записи с правами CRM; с 1.5.0 — и запись в кейсе проверки при выгрузке оценок | `Chat\Gateway\ToolsAiRecordSource` |
 | `Public\Service\LlmService::stream(LlmService::CATEGORY_ASSISTANT, $messages, $onDelta, $userId)` | ответ потоком (окно, 1.1.0); квота до вызова и журнал расхода — внутри | `Chat\Gateway\ToolsAiModelGateway` |

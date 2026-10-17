@@ -4,6 +4,12 @@
  * что нужно ответу: абзацы, списки, **жирный**, *курсив*, `код`, блоки ```,
  * ссылки [текст](адрес) — только на путь своего портала («/…») или http(s).
  *
+ * Виджеты (1.7.0): блок ```widget с JSON {"type": "…", …} не печатается как
+ * код — на его месте пустой <div data-shef-widget="N">, а разобранный JSON
+ * отдаётся в renderFull().widgets; рисует его реестр виджетов (widgets.js)
+ * своими DOM-узлами, без innerHTML. Незакрытый блок (ответ ещё печатается) —
+ * заглушка «Готовлю виджет…»; негодный JSON — обычный блок кода.
+ *
  * Без зависимостей: в браузере — BX.Shef.ToolsAiAssistant.Markdown, в тесте
  * (node, tests/markdown_test.mjs) — module.exports.
  */
@@ -57,10 +63,29 @@
 		return text.replace(/\u0000(\d+)\u0000/g, function(m, i) { return codes[+i]; });
 	}
 
+	/** Разбор JSON виджета: {type, data} или null (тип — латиница, цифры, «.», «-», «_», «:»). */
+	function parseWidget(json)
+	{
+		var data;
+		try { data = JSON.parse(json); } catch(e) { return null; }
+		if(!data || typeof data !== 'object' || Array.isArray(data)) { return null; }
+		var type = typeof data.type === 'string' ? data.type.trim().toLowerCase() : '';
+		return /^[a-z0-9][a-z0-9_.:-]{0,60}$/.test(type) ? {type: type, data: data} : null;
+	}
+
 	/** Markdown ответа -> HTML. */
 	function render(source)
 	{
-		var lines = escape(String(source || '').replace(/\r\n?/g, '\n')).split('\n');
+		return renderFull(source).html;
+	}
+
+	/** Markdown ответа -> {html, widgets}: widgets[N] — для <div data-shef-widget="N">. */
+	function renderFull(source)
+	{
+		var rawLines = String(source || '').replace(/\r\n?/g, '\n').split('\n');
+		var lines = rawLines.map(escape);
+		var widgets = [];
+		var widget = null;
 		var html = [];
 		var paragraph = [];
 		var list = null;
@@ -86,6 +111,36 @@
 		for(var i = 0; i < lines.length; i++)
 		{
 			var line = lines[i];
+			if(widget !== null)
+			{
+				if(/^\s*```\s*$/.test(line))
+				{
+					var parsed = parseWidget(widget.raw.join('\n'));
+					if(parsed)
+					{
+						widgets.push(parsed);
+						html.push('<div class="shef-aia-widget" data-shef-widget="' + (widgets.length - 1) + '"></div>');
+					}
+					else
+					{
+						html.push('<pre><code>' + widget.lines.join('\n') + '</code></pre>');
+					}
+					widget = null;
+				}
+				else
+				{
+					widget.raw.push(rawLines[i]);
+					widget.lines.push(line);
+				}
+				continue;
+			}
+			if(code === null && /^\s*```\s*widget\s*$/i.test(line))
+			{
+				flushParagraph();
+				flushList();
+				widget = {raw: [], lines: []};
+				continue;
+			}
 			if(code !== null)
 			{
 				if(/^\s*```/.test(line))
@@ -137,11 +192,16 @@
 		}
 		flushParagraph();
 		flushList();
+		if(widget !== null)
+		{
+			// Ответ ещё печатается: JSON виджета не показываем сырым
+			html.push('<div class="shef-aia-widget --pending">Готовлю виджет…</div>');
+		}
 
-		return html.join('');
+		return {html: html.join(''), widgets: widgets};
 	}
 
-	var api = {render: render, escape: escape, safeUrl: safeUrl};
+	var api = {render: render, renderFull: renderFull, parseWidget: parseWidget, escape: escape, safeUrl: safeUrl};
 
 	if(typeof module === 'object' && module.exports)
 	{
