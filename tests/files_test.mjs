@@ -32,7 +32,10 @@ const x = await F.extract(fixture('price.xlsx'));
 same('XLSX: листы по имени, строки, числа, пустые ячейки на месте', x.text.split('\n'), ['## Лист «Прайс»', 'Артикул | Наименование | Цена', 'A-1 | Окно 1200×1400 | 350', 'A-2 | Подоконник |  |  | Нет в наличии', '## Лист «Скидки»', 'От 10 шт | 5%']);
 const p = await F.extract(fixture('deck.pptx'));
 same('PPTX: слайды по порядку', p.text, '## Слайд 1\nПочему мы\nГарантия 5 лет\nМонтаж за 1 день\n\n## Слайд 2\nЦены\nОт 350 BYN');
-const c = await F.extract(fixture('leads-1251.csv'));
+// windows-1251 собирается здесь: build.sh требует UTF-8 у всех файлов репозитория
+const cp1251 = s => Uint8Array.from([...s].map(ch => { const k = ch.charCodeAt(0); return k === 0x401 ? 0xa8 : k === 0x451 ? 0xb8 : k >= 0x410 && k <= 0x44f ? k - 0x350 : k; }));
+const csv = cp1251('Клиент;Телефон;Статус\nИванов;+375291112233;Новый\n');
+const c = await F.extract({ name: 'leads.csv', size: csv.length, bytes: () => csv });
 same('CSV в windows-1251 — по-русски', [c.kind, c.text.split('\n')[1]], ['csv', 'Иванов;+375291112233;Новый']);
 const utf = await F.extract({ name: 'a.txt', size: 6, bytes: () => new TextEncoder().encode('﻿Привет') });
 same('TXT в UTF-8, без BOM', utf.text, 'Привет');
