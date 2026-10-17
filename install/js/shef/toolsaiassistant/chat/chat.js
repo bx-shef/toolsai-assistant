@@ -39,6 +39,8 @@
 	var DETAIL_TYPES = {lead: 1, deal: 2, contact: 3, company: 4, quote: 7};
 	/** Класс ручки ширины ядра в правой колонке Air (right-panel.js, #initResizeHandle()). */
 	var CORE_HANDLE = 'right-panel-resize-handle';
+	/** Окно Марты в колонке (right-panel-ai-chat.js, #initContainer()). */
+	var MARTA_SELECTOR = '.right-panel-ai-chat';
 
 	function get(key) { try { return window.localStorage.getItem(key); } catch(e) { return null; } }
 	function put(key, value) { try { window.localStorage.setItem(key, value); } catch(e) {} }
@@ -253,6 +255,13 @@
 		mode: 'overlay',
 		/** Идёт передача колонки от Марты нам: её сворачивание наш чат не закрывает. */
 		handover: false,
+		/** Колонку Air развернули мы (expand() из чата): закрытие чата её и свернёт, в любом месте панели. */
+		ownColumn: false,
+		/** На какие объекты ядра уже подписаны (watchAirPanel(), идемпотентно). */
+		watchedPanel: null,
+		watchedMarta: null,
+		/** Идёт init(): решение «открыть ли чат» ещё не принято. */
+		booting: false,
 		/** Перерисовка по кускам потока — не чаще кадра. */
 		frame: 0,
 		/** Подключённые расширения виджетов модулей (1.7.0). */
@@ -281,11 +290,14 @@
 			{
 				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.icon-set.main', 'ui.design-tokens']); } catch(e) {}
 			}
+			// Пока решаем, открыть ли чат, пустую колонку не сворачиваем: иначе при
+			// перезагрузке с открытым чатом колонка мигнёт (свернётся и развернётся)
+			this.booting = true;
 			this.buildPanel();
 			this.bindButton();
 			this.watchAirPanel();
 			var self = this;
-			BX.ready(function() { self.bindButton(); });
+			BX.ready(function() { self.bindButton(); self.watchAirPanel(); });
 			window.ShefAiChat = {
 				open: function(rec) { self.open(rec); },
 				close: function() { self.close(); },
@@ -299,6 +311,7 @@
 			// Запущен из фрейма (Frame.top) — откроет тот, кто позвал; сам не открываемся
 			// Старая метка 1.7.0 и раньше (localStorage, на все вкладки) — убираем
 			drop(OPEN_KEY);
+			this.booting = false;
 			if(!settings.fromFrame && tabOpen() && window.innerWidth > 760)
 			{
 				this.open(null);
@@ -319,7 +332,7 @@
 		releaseStaleAirPanel: function()
 		{
 			var rp = airPanel();
-			if(!rp || !rp.isExpanded() || martaOpen())
+			if(!rp || !rp.isExpanded() || martaOpen() || this.handover || this.booting)
 			{
 				return;
 			}
@@ -330,8 +343,16 @@
 			});
 			if(empty)
 			{
+				this.ownColumn = false;
 				rp.collapse();
 			}
+		},
+
+		/** Развернуть колонку Air и запомнить, что это сделали мы. */
+		expandColumn: function(rp)
+		{
+			this.ownColumn = true;
+			rp.expand();
 		},
 
 		/**
@@ -341,20 +362,28 @@
 		 */
 		watchAirPanel: function()
 		{
+			// Лениво и идемпотентно: шаблон мог появиться позже нашего init()
+			// (зовём из init(), BX.ready и place()); на тот же объект — один раз
 			var self = this;
 			var rp = airPanel();
-			if(rp && typeof rp.subscribe === 'function')
+			if(rp && rp !== this.watchedPanel && typeof rp.subscribe === 'function')
 			{
+				this.watchedPanel = rp;
 				rp.subscribe('onCollapse', function()
 				{
-					if(self.isOpen() && self.mode === 'air' && !self.handover) { self.close(true); }
+					if(self.handover) { return; }
+					self.ownColumn = false;
+					if(self.isOpen() && self.mode === 'air') { self.close(true); }
 				});
 			}
 			var marta = martaChat();
-			if(marta && typeof marta.subscribe === 'function')
+			if(marta && marta !== this.watchedMarta && typeof marta.subscribe === 'function')
 			{
+				this.watchedMarta = marta;
 				marta.subscribe('onExpand', function()
 				{
+					// Колонка теперь Марты: закрывая чат, её не сворачиваем
+					self.ownColumn = false;
 					if(self.isOpen() && self.mode === 'air') { self.close(true); }
 				});
 			}
@@ -368,6 +397,7 @@
 		place: function()
 		{
 			var rp = airPanel();
+			if(rp) { this.watchAirPanel(); }
 			var mode = NS.ChatLayout ? NS.ChatLayout.mode(window.innerWidth, !!rp) : (rp ? 'air' : 'overlay');
 			var parent = mode === 'air' ? rp.getContainer() : document.body;
 			if(this.panel.parentNode !== parent)
@@ -389,22 +419,35 @@
 			var self = this;
 			if(!martaOpen())
 			{
-				rp.expand();
+				this.expandColumn(rp);
 				return;
 			}
 			this.handover = true;
 			var done = false;
+			var tries = 0;
 			var go = function()
 			{
 				if(done) { return; }
 				done = true;
 				self.handover = false;
-				if(self.isOpen() && self.mode === 'air') { rp.expand(); }
+				if(typeof rp.unsubscribe === 'function') { rp.unsubscribe('onCollapseComplete', go); }
+				if(self.isOpen() && self.mode === 'air') { self.expandColumn(rp); }
 			};
-			rp.subscribeOnce('onCollapseComplete', go);
-			// Запас: конец анимации ширины (0.3 с) не пришёл
-			setTimeout(go, 1000);
+			// Запас, если конца анимации (onCollapseComplete) нет: только когда окно
+			// Марты ушло из колонки (его убирает она сама по концу сворачивания) —
+			// иначе ждём дальше (до ~3 с). isExpanded() тут не годится: класс body
+			// снимается сразу, а expand() до конца анимации отменил бы уборку Марты.
+			var check = function()
+			{
+				if(done) { return; }
+				var container = rp.getContainer();
+				var martaGone = !container || !container.querySelector || !container.querySelector(MARTA_SELECTOR);
+				if(martaGone || ++tries >= 10) { go(); return; }
+				setTimeout(check, 300);
+			};
+			rp.subscribe('onCollapseComplete', go);
 			martaChat().collapse();
+			setTimeout(check, 300);
 		},
 
 		/**
@@ -447,11 +490,19 @@
 			{
 				this.panel.classList.remove('--narrow');
 				this.setPush(0);
-				if(this.isOpen() && !this.handover && !rp.isExpanded() && !martaOpen())
+				if(!this.isOpen())
 				{
-					rp.expand();
+					this.releaseStaleAirPanel();
+				}
+				else if(!this.handover && !rp.isExpanded() && !martaOpen())
+				{
+					this.expandColumn(rp);
 				}
 				return;
+			}
+			if(!this.isOpen())
+			{
+				this.releaseStaleAirPanel();
 			}
 			var s = this.settings;
 			var inset = this.inset();
@@ -670,10 +721,13 @@
 			this.panel.classList.remove('--open');
 			document.body.classList.remove('shef-ai-chat-open');
 			this.setPush(0);
-			if(this.mode === 'air' && keepColumn !== true && !martaOpen())
+			// Колонку сворачиваем, если её развернули мы, — и после ухода
+			// панели поверх (окно сузилось меньше 768): колонка осталась развёрнутой
+			if(keepColumn !== true && this.ownColumn && !martaOpen())
 			{
 				var rp = airPanel();
-				if(rp) { rp.collapse(); }
+				this.ownColumn = false;
+				if(rp && rp.isExpanded()) { rp.collapse(); }
 			}
 			this.markButtons(false);
 			setTabOpen(false);

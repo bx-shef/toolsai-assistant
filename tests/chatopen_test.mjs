@@ -113,22 +113,34 @@ function fakeNode(tag) {
   return proxy;
 }
 /** Правая колонка ядра (RightPanel) и чат Марты (RightPanelAiChat) — с теми же методами и событиями. */
-function fakeAir({ expanded = false, marta = false } = {}) {
+function fakeAir({ expanded = false, marta = false, async = false, silent = false } = {}) {
   const container = fakeNode('div');
   const handle = fakeNode('div');
   handle.classList.add('right-panel-resize-handle');
   container.appendChild(handle);
   const subs = {};
   const once = {};
-  const emit = (name) => { (subs[name] || []).forEach((f) => f()); const o = once[name] || []; once[name] = []; o.forEach((f) => f()); };
+  const emit = (name) => { (subs[name] || []).slice().forEach((f) => f()); const o = once[name] || []; once[name] = []; o.forEach((f) => f()); };
+  const martaBox = fakeNode('div');
+  if (marta) { container.appendChild(martaBox); }
+  container.querySelector = (sel) => (sel === '.right-panel-ai-chat' && container.children.includes(martaBox) ? martaBox : null);
+  const pending = [];
   const log = [];
   const rp = {
     state: expanded,
     getContainer: () => container,
     isExpanded: () => rp.state,
     expand() { if (rp.state) { return; } rp.state = true; log.push('expand'); emit('onExpand'); },
-    collapse() { if (!rp.state) { return; } rp.state = false; log.push('collapse'); emit('onCollapse'); emit('onCollapseComplete'); },
+    collapse() {
+      if (!rp.state) { return; } rp.state = false; log.push('collapse'); emit('onCollapse');
+      // Конец анимации: сразу, позже (async) или не приходит вовсе (silent)
+      const done = () => { const i = container.children.indexOf(martaBox); if (i >= 0) { container.children.splice(i, 1); } if (!silent) { emit('onCollapseComplete'); } };
+      async || silent ? pending.push(done) : done();
+    },
+    finish: () => { pending.splice(0).forEach((f) => f()); },
     subscribe: (n, f) => { (subs[n] = subs[n] || []).push(f); },
+    unsubscribe: (n, f) => { subs[n] = (subs[n] || []).filter((g) => g !== f); },
+    listeners: (n) => (subs[n] || []).length,
     subscribeOnce: (n, f) => { (once[n] = once[n] || []).push(f); },
   };
   const mSubs = {};
@@ -136,7 +148,7 @@ function fakeAir({ expanded = false, marta = false } = {}) {
     open: marta,
     isExpanded: () => m.open,
     collapse() { m.open = false; log.push('marta.collapse'); rp.collapse(); },
-    expand() { m.open = true; rp.expand(); (mSubs.onExpand || []).forEach((f) => f()); },
+    expand() { m.open = true; rp.expand(); container.appendChild(martaBox); (mSubs.onExpand || []).forEach((f) => f()); },
     subscribe: (n, f) => { (mSubs[n] = mSubs[n] || []).push(f); },
   };
   const template = { getRightPanel: () => rp, getRightPanelAiChat: () => m };
@@ -153,18 +165,22 @@ function runTop(session, local, { air = null, width = 1600 } = {}) {
   const append = body.appendChild;
   body.appendChild = (c) => { if (c.id) { byId[c.id] = c; } return append(c); };
   const store = (data) => ({ getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } });
-  const win = { innerWidth: width, localStorage: store(local), sessionStorage: store(session), addEventListener() {} };
+  const listeners = {};
+  const timers = [];
+  const win = { innerWidth: width, localStorage: store(local), sessionStorage: store(session), addEventListener: (n, f) => { (listeners[n] = listeners[n] || []).push(f); } };
+  const resize = (w) => { win.innerWidth = w; (listeners.resize || []).forEach((f) => f()); };
+  const tick = () => { timers.splice(0).forEach((f) => f()); };
   win.top = win;
   const BX2 = {
     namespace: () => ns2, ready: () => {}, addCustomEvent() {}, cleanNode() {},
     ajax: { runAction: () => ({ then() {} }) },
     Reflection: { getClass: (name) => (name === 'BX.Intranet.Bitrix24.Template' && air ? air.template : null) },
   };
-  const ctx = { BX: BX2, window: win, document: doc, setTimeout: () => 0, Date, JSON, Object, Array, String, Number, Math };
+  const ctx = { BX: BX2, window: win, document: doc, setTimeout: (f, ms) => { if (ms >= 300) { timers.push(f); } return 0; }, Date, JSON, Object, Array, String, Number, Math };
   vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/layout.js'), 'utf8'), ctx);
   vm.runInNewContext(readFileSync(path.join(root, 'install/js/shef/toolsaiassistant/chat/chat.js'), 'utf8'), ctx);
   ns2.Chat.init({ button: 'btn', z: 990, min: 380, max: 900, def: 440 });
-  return { panel: byId['shef-aia-chat'], win, session, local, body };
+  return { panel: byId['shef-aia-chat'], win, session, local, body, resize, tick };
 }
 {
   const t = runTop({}, { 'shef-ai-chat-open': '1' });
@@ -199,6 +215,57 @@ function runTop(session, local, { air = null, width = 1600 } = {}) {
   same('Air: открыли при Марте — Марта свёрнута штатно, колонка снова наша', [air.marta.open, air.rp.state, t.win.ShefAiChat.isOpen(), air.log.join(',')], [false, true, true, 'marta.collapse,collapse,expand']);
   air.marta.expand();
   same('Air: открылась Марта — наш чат уступил, колонку не свернул', [t.win.ShefAiChat.isOpen(), air.rp.state], [false, true]);
+}
+{
+  const air = fakeAir({ expanded: true, marta: true, async: true });
+  const t = runTop({}, {}, { air });
+  t.win.ShefAiChat.open(null);
+  same('Марта, конец анимации позже: колонку не разворачиваем раньше времени', [air.rp.state, air.log.join(',')], [false, 'marta.collapse,collapse']);
+  t.tick();
+  same('…и запасной таймер не разворачивает, пока окно Марты в колонке', air.rp.state, false);
+  air.rp.finish();
+  same('onCollapseComplete — колонка наша, подписка снята', [air.rp.state, t.win.ShefAiChat.isOpen(), air.rp.listeners('onCollapseComplete')], [true, true, 0]);
+}
+{
+  const air = fakeAir({ expanded: true, marta: true, silent: true });
+  const t = runTop({}, {}, { air });
+  t.win.ShefAiChat.open(null);
+  air.rp.finish();
+  t.tick();
+  same('конца анимации нет — колонка свёрнута, таймер разворачивает её под чат', [air.rp.state, t.win.ShefAiChat.isOpen(), air.rp.listeners('onCollapseComplete')], [true, true, 0]);
+}
+{
+  const air = fakeAir();
+  const t = runTop({}, {}, { air });
+  t.win.ShefAiChat.open(null);
+  t.resize(700);
+  same('Air→поверх при открытом чате: панель в body, колонка ещё развёрнута', [t.panel.parentNode === t.body, air.rp.state], [true, true]);
+  t.win.ShefAiChat.close();
+  same('закрыли поверх — колонку, развёрнутую нами, свернули', air.rp.state, false);
+  t.win.ShefAiChat.open(null);
+  same('открыли поверх — колонку не трогаем', air.rp.state, false);
+  t.resize(1400);
+  same('поверх→Air при открытом чате: панель в колонке, колонка развёрнута', [t.panel.parentNode === air.container, air.rp.state], [true, true]);
+  t.win.ShefAiChat.close();
+  same('закрыли в Air — колонка свёрнута', air.rp.state, false);
+}
+{
+  const air = fakeAir();
+  const t = runTop({}, {}, { air });
+  air.rp.expand();
+  t.resize(1300);
+  same('ресайз с закрытым чатом — пустую колонку убрали', air.rp.state, false);
+  t.resize(700);
+  air.rp.state = true;
+  t.resize(650);
+  same('…и поверх тоже', air.rp.state, false);
+}
+{
+  const air = fakeAir();
+  const t = runTop({}, {}, { air });
+  t.resize(1300);
+  t.resize(1200);
+  same('подписка на колонку — одна, сколько бы раз ни пересчитывали', air.rp.listeners('onCollapse'), 1);
 }
 {
   const air = fakeAir({ expanded: true });

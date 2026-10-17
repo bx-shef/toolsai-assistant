@@ -71,12 +71,34 @@ API «показать чужой контент» нет, но Марта де�
 **Узкий экран (меньше 768 px).** Как в ядре: колонки нет (`root.css`, `app.css`:
 `.app__right-panel { display: none }`). Чат открывается поверх, на всю ширину.
 
-**Шаблон не Air (старый `bitrix24`).** Запасной путь: панель фиксирована у правого края,
+**Шаблон не Air (старый `bitrix24`) — так и задумано.** Колонки и её API там нет.
+**Слайдер открывается поверх чата и закрывает его**; пока слайдер открыт, чат под ним
+недоступен (ловушка фокуса делает его `inert`, как всю страницу). «✦ Спросить ИИ» из
+карточки в слайдере откроет чат под слайдером — он виден, когда слайдер закроют.
+Запасной путь: панель фиксирована у правого края,
 левее полосы мессенджера, слой 990 — ниже слайдеров (стопка ядра начинается с 1000),
 слайдер открывается **поверх чата**. Колонка контента (`.bx-layout-inner-table`) сужается
 на ширину панели (класс `shef-aia-push` на `body` и переменная `--shef-aia-push`).
 `padding` у `body` и `#right-bar` не трогаем. Ширина тянется мышью и запоминается в
 браузере (`localStorage`).
+
+**Точки зависимости от ядра — проверять после обновления `intranet`.** Публичного
+контракта на колонку у ядра нет; опираемся на то, что ниже. Сломалось одно — чат
+уходит в режим «поверх» (`airPanel()` вернул null) или ведёт себя странно в колонке.
+
+| что берём | где в ядре | что проверить |
+|---|---|---|
+| `BX.Intranet.Bitrix24.Template`, `getRightPanel()`, `getRightPanelAiChat()` | `intranet/install/templates/bitrix24/src/index.js`, `site-template.js` | объект и методы есть |
+| `RightPanel`: `expand()`, `collapse()`, `isExpanded()`, `getContainer()`, `subscribe`/`unsubscribe` | `src/js/right-panel.js` | имена и смысл не менялись |
+| события `onCollapse`, `onCollapseComplete` (пространство `BX.Intranet.Bitrix24.Template.RightPanel`) | `right-panel.js` | приходят; `onCollapseComplete` — по концу анимации ширины |
+| `RightPanelAiChat`: `isExpanded()`, `collapse()`, событие `onExpand`; окно `.right-panel-ai-chat` | `src/js/right-panel-ai-chat.js` | Марта убирает окно по `onCollapseComplete` |
+| ручка `.right-panel-resize-handle` | `right-panel.js`, `src/css/right-panel.css` | класс тот же (по нему ищем пустую колонку), z-index выше нашей панели |
+| контейнер `#app__right-panel`, `body.--right-panel-expanded`, скрыт при < 768 | `footer.php`, `src/css/root.css`, `app.css` | id и порог 768 (`AIR_MIN` в `layout.js`) |
+| граница слайдера по колонке | `intranet/install/js/intranet/sidepanel/air/src/slider.js`, `getRightBoundary()` | считает по `#app__right-panel` |
+| колонка вне ловушки фокуса | `.../sidepanel/air/src/index.js`, `focusTrap.outsideExceptionSelectors` | там есть `#app__right-panel` — иначе чат станет `inert` при открытом слайдере |
+
+Проверка руками: открыть чат, открыть карточку (слайдер левее, чат кликабелен),
+потянуть ручку, перезагрузить, сузить окно меньше 768 и обратно.
 
 **Карточка CRM в слайдере.** «✦ Спросить ИИ» во фрейме зовёт чат верхнего окна
 ([06-api.md](06-api.md)). В Air чат встаёт в колонку, слайдер сужается.
