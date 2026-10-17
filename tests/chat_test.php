@@ -82,6 +82,11 @@ Check::same('статьи: без названия и мусор отброше�
 Check::same('адрес javascript: и чужой сайт — пусто', array_column($articles, 'url'), ['/notes/11/', '', '']);
 Check::same('источники — только со ссылкой', ContextBuilder::sources($articles), [['title' => 'Регламент', 'url' => '/notes/11/']]);
 Check::same('ответ сервиса не список — пусто', ContextBuilder::normalizeArticles(null, 5), []);
+Check::same('text shef.toolsaikb 1.3.0 — вместо сниппета, пустой text — сниппет, предел', array_column(ContextBuilder::normalizeArticles([
+	['id' => 1, 'title' => 'А', 'url' => '/a/', 'snippet' => 'кусок', 'text' => "## Раздел\nФрагменты статьи"],
+	['id' => 2, 'title' => 'Б', 'url' => '/b/', 'snippet' => 'кусок', 'text' => '  '],
+	['id' => 3, 'title' => 'В', 'url' => '/c/', 'snippet' => 'кусок', 'text' => str_repeat('я', 2000)],
+], 5), 'snippet'), ["## Раздел\nФрагменты статьи", 'кусок', str_repeat('я', ContextBuilder::SNIPPET_MAX)]);
 
 $messages = ContextBuilder::messages('Ты — помощник.', "Сделка #5: Окна\nКасаний пока нет.", array_slice($articles, 0, 1), [['role' => 'user', 'content' => 'Что мешает?']]);
 Check::same('первое — системное', $messages[0]['role'], 'system');
