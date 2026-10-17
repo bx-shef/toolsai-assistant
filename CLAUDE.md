@@ -35,6 +35,7 @@
 | вызов модели (`LlmService`: квота, журнал расхода) | `lib/chat/gateway/toolsaimodelgateway.php` |
 | «✦ Спросить ИИ» в виде «ИИ» | `lib/internals/integration/toolsai/eventhandler/onviewrowactionsbuildeventhandler.php` |
 | «✦ ИИ: чат» в шапке вида «ИИ» (событие `OnViewToolbarBuild`, 1.3.1) | `lib/internals/integration/toolsai/eventhandler/onviewtoolbarbuildeventhandler.php` |
+| пункты в меню шестерёнки вида «ИИ» (событие `OnViewSettingsMenuBuild`, 1.5.1) | `lib/internals/integration/toolsai/eventhandler/onviewsettingsmenubuildeventhandler.php` |
 | «✦ Спросить ИИ» в шапке карточки CRM (Toolbar API из OnProlog, 1.4.0) | `lib/public/service/chatpanel.php` (`addRecordToolbarButton()`), разбор адреса — `lib/panel/sidepanel.php` (`detailRecord()`) |
 | ширина и место панели (поверх, clamp, место под полосу мессенджера; 1.4.0) | `install/js/shef/toolsaiassistant/chat/layout.js` |
 | вид переписки (карточка роли, пузыри, время; 1.4.0) | `install/js/shef/toolsaiassistant/chat/view.js` |

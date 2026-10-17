@@ -1,5 +1,15 @@
 # Изменения
 
+## 1.5.1 — 2026-10-17
+
+- **Пункты в меню шестерёнки вида «ИИ» — событием `shef.toolsai:OnViewSettingsMenuBuild`**
+  (shef.toolsai 1.53.0): «ИИ чат с ролями: настройки» (право на модуль от R, как у
+  страницы настроек) и «Оценки ответов» (право `feedback.view`). Обработчик —
+  `OnViewSettingsMenuBuildEventHandler` (принимает `Main\Event`); без shef.toolsai
+  1.53 событие не приходит, пунктов просто нет.
+- Подписка — в `installEvents`; при обновлении без установщика её ставит
+  `Main\Maintenance`. Тест — `tests/viewsettingsmenu_test.php`.
+
 ## 1.5.0 — 2026-10-17
 
 - **«Оценки ответов» — штатные таблица и фильтр Битрикс24**: `main.ui.filter` (период,
