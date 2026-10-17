@@ -28,6 +28,8 @@ Check::same('мусор — записи нет', Record::fromArray(['entityType
 Check::same('пусто — записи нет', Record::fromArray([]), null);
 Check::same('ключ общего чата', ChatKey::of(null), 'general');
 Check::same('ключ чата записи', ChatKey::of(new Record(2, 15)), 'record:2:15');
+Check::same('запрос: контекст docs — принят, мусор — пусто', [\Shef\ToolsAiAssistant\Chat\ChatRequest::parse([], [], '', 10, 'docs')->context, \Shef\ToolsAiAssistant\Chat\ChatRequest::parse([], [], '', 10, ['x'])->context], ['docs', '']);
+Check::same('справка — свой ключ docs; с записью — ключ записи; чужой контекст — общий', [ChatKey::of(null, 'docs'), ChatKey::of(new Record(2, 15), 'docs'), ChatKey::of(null, ChatKey::context('x'))], ['docs', 'record:2:15', 'general']);
 Check::same('ключ влезает в колонку', strlen(ChatKey::of(new Record(9999999999, 9999999999))) <= ChatKey::MAX_LENGTH, true);
 
 Check::group('разбор запроса');

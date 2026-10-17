@@ -7,6 +7,7 @@ use Bitrix\Main\Engine\Controller;
 use Bitrix\Main\Error;
 use Shef\ToolsAiAssistant\Access\UserAccess;
 use Shef\ToolsAiAssistant\Chat\ChatException;
+use Shef\ToolsAiAssistant\Chat\ChatKey;
 use Shef\ToolsAiAssistant\Chat\ChatRequest;
 use Shef\ToolsAiAssistant\Chat\PreparedAnswer;
 use Shef\ToolsAiAssistant\Chat\StreamEvents;
@@ -54,27 +55,27 @@ class Chat extends Controller
 	}
 
 	/** Что показать в окне. $record — {entityTypeId, id} или пусто. */
-	public function infoAction(array $record = []): ?array
+	public function infoAction(array $record = [], string $context = ''): ?array
 	{
-		return $this->guarded(fn(): array => Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record)));
+		return $this->guarded(fn(): array => Container::getAnswerService()->info(UserAccess::current(), $this->userId(), Record::fromArray($record), ChatKey::context($context)));
 	}
 
 	/** Сменить роль в этом чате. */
-	public function roleAction(string $role = '', array $record = []): ?array
+	public function roleAction(string $role = '', array $record = [], string $context = ''): ?array
 	{
-		return $this->guarded(fn(): array => Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role));
+		return $this->guarded(fn(): array => Container::getAnswerService()->chooseRole(UserAccess::current(), $this->userId(), Record::fromArray($record), $role, ChatKey::context($context)));
 	}
 
 	/**
 	 * Ответ помощника. $messages — [{role: user|assistant, text}], последний —
 	 * вопрос; $role — код роли (пусто — запомненная или по умолчанию).
 	 */
-	public function answerAction(array $messages = [], array $record = [], string $role = ''): ?array
+	public function answerAction(array $messages = [], array $record = [], string $role = '', string $context = ''): ?array
 	{
 		return $this->guarded(fn(): array => Container::getAnswerService()->answer(
 			UserAccess::current(),
 			$this->userId(),
-			ChatRequest::parse($messages, $record, $role, Config::current()->history)
+			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context)
 		));
 	}
 
@@ -82,14 +83,14 @@ class Chat extends Controller
 	 * Ответ потоком. Параметры — как у answer. Отказ до вызова модели — ошибка
 	 * ajax; после — событие error в потоке.
 	 */
-	public function streamAction(array $messages = [], array $record = [], string $role = ''): StreamResponse|null
+	public function streamAction(array $messages = [], array $record = [], string $role = '', string $context = ''): StreamResponse|null
 	{
 		$service = Container::getAnswerService();
 		$userId = $this->userId();
 		$prepared = $this->guarded(fn(): PreparedAnswer => $service->prepare(
 			UserAccess::current(),
 			$userId,
-			ChatRequest::parse($messages, $record, $role, Config::current()->history)
+			ChatRequest::parse($messages, $record, $role, Config::current()->history, $context)
 		));
 		if(!$prepared instanceof PreparedAnswer)
 		{
@@ -121,10 +122,10 @@ class Chat extends Controller
 	 * $question и $answer — что спросили и что ответил помощник (хранится
 	 * кратко); $comment — по желанию.
 	 */
-	public function rateAction(string $rating = '', string $role = '', array $record = [], string $question = '', string $answer = '', string $comment = ''): ?array
+	public function rateAction(string $rating = '', string $role = '', array $record = [], string $question = '', string $answer = '', string $comment = '', string $context = ''): ?array
 	{
 		return $this->guarded(fn(): array => Container::getAnswerService()->rate(UserAccess::current(), $this->userId(), [
-			'rating' => $rating, 'role' => $role, 'record' => $record, 'question' => $question, 'answer' => $answer, 'comment' => $comment,
+			'rating' => $rating, 'role' => $role, 'record' => $record, 'question' => $question, 'answer' => $answer, 'comment' => $comment, 'context' => $context,
 		]));
 	}
 

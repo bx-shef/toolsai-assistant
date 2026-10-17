@@ -93,4 +93,27 @@ $providerSource = (string)file_get_contents($root.'/lib/internals/integration/ui
 Check::same('файл провайдера там, где его ищет автозагрузка, и та же сущность', str_contains($providerSource, "ENTITY_ID = 'shef-assistant-place'"), true);
 Check::same('событие: модуль и имя', [\Shef\ToolsAiAssistant\Main\Constants::MODULE_ID, \Shef\ToolsAiAssistant\Public\Event\OnChatPlacesCollectEvent::TYPE], ['shef.toolsaiassistant', 'OnChatPlacesCollect']);
 
+Check::group('поле настроек');
+
+require_once $root.'/tests/stub/options.php';
+use Shef\ToolsAiAssistant\Panel\PlacesOption;
+
+$urls = PlacesOption::savedUrls("/crm/\r\nhttps://evil/\n/shef/toolsai/view/?type=2&category=0\n/crm/\n javascript:x");
+Check::same('сохранённое: мусор и повторы отброшены', $urls, ['/crm/', '/shef/toolsai/view/?type=2&category=0']);
+Check::same('скрытое поле — формат PANEL_paths (строки)', PlacesOption::hiddenValue($urls), "/crm/\n/shef/toolsai/view/?type=2&category=0");
+Check::same('скрытое поле читается Config обратно так же', Config::fromValues([Config::OPTION_PATHS => PlacesOption::hiddenValue($urls)])->paths, $urls);
+Check::same('пусто — пусто (чат нигде)', PlacesOption::hiddenValue(PlacesOption::savedUrls('')), '');
+
+Check::group('шаблон адреса: PHP и JS — одно');
+
+$cases = ['/crm/', '/shef/toolsai/view/?type=2&category=0', '/раздел/', '/x/?q=a%20b', 'https://evil/', '//evil/', '/a b/', '/a/#x', '/a,b/', 'javascript:x', '/a/?x="1"'];
+$php = array_map(static fn(string $u): bool => (bool)preg_match('#'.PlaceUrl::PATTERN_BODY.'#u', $u), $cases);
+Check::same('PHP: свои пути да, чужое нет', $php, [true, true, true, true, false, false, false, false, false, false, false]);
+$node = trim((string)shell_exec('command -v node'));
+if($node !== '')
+{
+	$js = (string)shell_exec(escapeshellarg($node).' -e '.escapeshellarg('const re=new RegExp(process.argv[1],"u");console.log(JSON.stringify(JSON.parse(process.argv[2]).map(u=>re.test(u))))').' '.escapeshellarg(PlaceUrl::PATTERN_BODY).' '.escapeshellarg(json_encode($cases)));
+	Check::same('JS (new RegExp(..., "u")) решает так же', json_decode(trim($js), true), $php);
+}
+
 Check::finish();

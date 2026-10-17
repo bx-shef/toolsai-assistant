@@ -37,7 +37,7 @@
 
 	/**
 	 * Ключ чата — как Chat\ChatKey на сервере. Чат справки (1.3.0) — свой
-	 * ключ переписки в браузере («docs»); серверу он — общий чат.
+	 * ключ «docs» и в браузере, и на сервере (запомненная роль — своя).
 	 */
 	function chatKey(record)
 	{
@@ -49,6 +49,12 @@
 	function recordData(record)
 	{
 		return record && !record.docs ? {entityTypeId: record.entityTypeId, id: record.id} : {};
+	}
+
+	/** Контекст окна для сервера: «docs» — свой ключ чата справки (Chat\ChatKey::DOCS). */
+	function contextOf(record)
+	{
+		return record && record.docs ? 'docs' : '';
 	}
 
 	/**
@@ -121,7 +127,8 @@
 			};
 			// Мягкий вызов событием: BX.onCustomEvent('ShefAiChat:open', [{context: 'docs', ...}])
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { self.open(rec); });
-			if(get('shef-ai-chat-open') === '1' && window.innerWidth > 760)
+			// Запущен из фрейма (Frame.top) — откроет тот, кто позвал; сам не открываемся
+			if(!settings.fromFrame && get('shef-ai-chat-open') === '1' && window.innerWidth > 760)
 			{
 				this.open(null);
 			}
@@ -142,12 +149,8 @@
 
 			var panel = el('div');
 			panel.id = 'shef-aia-chat';
+			// Запасной слой: без ZIndexManager ядра (ниже — регистрация в его стопке)
 			panel.style.zIndex = String(this.settings.z);
-			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слайдеры
-			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
-			{
-				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
-			}
 			panel.setAttribute('role', 'complementary');
 			panel.setAttribute('aria-label', 'ИИ: чат');
 
@@ -209,6 +212,12 @@
 
 			document.body.appendChild(panel);
 			this.panel = panel;
+			// В общую стопку z-index ядра (main.core ZIndexManager), где живут слои
+			// слайдеров: уже в документе — ядро само выставит слой (style.zIndex)
+			if(BX.ZIndexManager && BX.ZIndexManager.getOrAddStack)
+			{
+				try { BX.ZIndexManager.getOrAddStack(document.body).register(panel); } catch(e) {}
+			}
 
 			drag.addEventListener('mousedown', function(e)
 			{
@@ -323,7 +332,7 @@
 			this.messages = this.loadMessages();
 			this.render();
 			var requestId = this.requestId;
-			BX.ajax.runAction(ACTION + 'info', {data: {record: recordData(record)}})
+			BX.ajax.runAction(ACTION + 'info', {data: {record: recordData(record), context: contextOf(record)}})
 				.then(function(response)
 				{
 					if(requestId !== self.requestId) { return; }
@@ -396,7 +405,7 @@
 			if(!this.info || code === this.info.role) { return; }
 			var previous = this.info.role;
 			this.info.role = code;
-			BX.ajax.runAction(ACTION + 'role', {data: {role: code, record: recordData(this.record)}})
+			BX.ajax.runAction(ACTION + 'role', {data: {role: code, record: recordData(this.record), context: contextOf(this.record)}})
 				.then(function(response)
 				{
 					self.info.role = response.data.role;
@@ -437,7 +446,7 @@
 			this.render();
 			this.pending = NS.Stream.request(ACTION + 'stream', {
 				messages: this.messages.map(function(m) { return {role: m.role, text: m.text}; }),
-				record: recordData(this.record),
+				record: recordData(this.record), context: contextOf(this.record),
 				role: this.info && this.info.role ? this.info.role : ''
 			}, {
 				onStart: function(event)
@@ -514,7 +523,7 @@
 			BX.ajax.runAction(ACTION + 'rate', {data: {
 				rating: rating,
 				role: message.roleCode || (this.info && this.info.role) || '',
-				record: recordData(this.record),
+				record: recordData(this.record), context: contextOf(this.record),
 				question: question,
 				answer: message.text,
 				comment: comment || ''
@@ -769,21 +778,29 @@
 
 	/**
 	 * Страница внутри слайдера (IFRAME=Y, 1.3.0): своей панели во фрейме нет,
-	 * чат открывается в верхнем окне. Расширения там нет — подгружаем его
-	 * файлы в верхнее окно (top.BX.load) и запускаем с теми же настройками.
+	 * чат открывается в верхнем окне. Расширение туда подгружается лениво —
+	 * только по первому open()/toggle() или клику по кнопке (top.BX.load), один
+	 * раз на верхнее окно, и запускается без автооткрытия (fromFrame).
+	 *
+	 * Для вложенных страниц без BX (справка shef.toolsai) в верхнем окне
+	 * ставится лёгкая заглушка window.top.ShefAiChat (stub: true): она грузит
+	 * расширение при первом вызове. Настоящий init() её заменяет.
 	 */
 	var Frame = {
-		init: function(settings)
+		init: function(settings, topWindow)
 		{
 			var self = this;
 			this.settings = settings;
+			this.topWindow = topWindow || window.top;
+			var api = function(name) { return function(rec) { self.top(function(chat) { chat[name](rec); }); }; };
 			window.ShefAiChat = {
-				open: function(rec) { self.top(function(chat) { chat.open(rec); }); },
-				close: function() { self.top(function(chat) { chat.close(); }); },
-				toggle: function(rec) { self.top(function(chat) { chat.toggle(rec); }); },
+				open: api('open'),
+				close: api('close'),
+				toggle: api('toggle'),
 				isOpen: function() { var t = self.topChat(); return !!t && t.isOpen(); }
 			};
 			BX.addCustomEvent('ShefAiChat:open', function(rec) { window.ShefAiChat.open(rec); });
+			this.installStub();
 			var bind = function()
 			{
 				var button = document.getElementById(settings.button);
@@ -793,31 +810,58 @@
 			};
 			bind();
 			BX.ready(bind);
-			// Сразу завести чат в верхнем окне: тогда window.top.ShefAiChat есть и у
-			// вложенных страниц без BX (справка shef.toolsai в слайдере)
-			BX.ready(function() { self.top(function() {}); });
 		},
 
+		/** Заглушка в верхнем окне — если там ещё нет ни чата, ни заглушки. */
+		installStub: function()
+		{
+			var self = this;
+			var top = this.topWindow;
+			try
+			{
+				if(top.ShefAiChat) { return; }
+				var call = function(name) { return function(rec) { self.top(function(chat) { chat[name](rec); }); }; };
+				top.ShefAiChat = {stub: true, open: call('open'), close: call('close'), toggle: call('toggle'), isOpen: function() { return false; }};
+			}
+			catch(e) {}
+		},
+
+		/** Настоящий чат верхнего окна (не заглушка) или null. */
 		topChat: function()
 		{
-			try { return window.top.ShefAiChat && window.top.ShefAiChat.toggle ? window.top.ShefAiChat : null; } catch(e) { return null; }
+			try
+			{
+				var chat = this.topWindow.ShefAiChat;
+				return chat && !chat.stub && chat.toggle ? chat : null;
+			}
+			catch(e) { return null; }
 		},
 
+		/** Вызвать с чатом верхнего окна; нет — подгрузить расширение один раз. */
 		top: function(callback)
 		{
 			var chat = this.topChat();
 			if(chat) { callback(chat); return; }
+			var top = this.topWindow;
 			var settings = this.settings;
 			var topBX;
-			try { topBX = window.top.BX; } catch(e) { return; }
+			try { topBX = top.BX; } catch(e) { return; }
 			if(!topBX || !topBX.load || !settings.assets) { return; }
 			var self = this;
+			if(top.__shefAiChatQueue)
+			{
+				top.__shefAiChatQueue.push(callback);
+				return;
+			}
+			top.__shefAiChatQueue = [callback];
 			topBX.load(settings.assets, function()
 			{
 				var ns = topBX.Shef && topBX.Shef.ToolsAiAssistant;
-				if(ns && ns.Chat) { ns.Chat.init(settings); }
+				if(ns && ns.Chat) { ns.Chat.init(Object.assign({}, settings, {fromFrame: true})); }
+				var queue = top.__shefAiChatQueue || [];
+				top.__shefAiChatQueue = null;
 				var ready = self.topChat();
-				if(ready) { callback(ready); }
+				if(ready) { queue.forEach(function(cb) { cb(ready); }); }
 			});
 		}
 	};
@@ -826,6 +870,8 @@
 		init: function(settings) { Chat.init(settings); },
 		/** Для тестов и отладки: ключ чата — как на сервере. */
 		chatKey: chatKey,
+		/** Для тестов: посредник фрейма (Frame.init(settings, topWindow)). */
+		Frame: Frame,
 		/** Для тестов: что откроет window.ShefAiChat.open() (запись CRM или справка). */
 		normalizeRecord: normalizeRecord
 	};

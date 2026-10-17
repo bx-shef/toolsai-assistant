@@ -22,12 +22,33 @@ use Shef\ToolsAiAssistant\Internals\Integration\Ui\EntitySelector\PlaceProvider;
  */
 final class PlacesOption extends AOption
 {
+	/**
+	 * Сохранённое значение — через тот же разбор, что и у Config: мусор не
+	 * показываем и обратно не сохраняем.
+	 *
+	 * @return list<string>
+	 */
+	public static function savedUrls(string $value): array
+	{
+		return Config::fromValues([Config::OPTION_PATHS => $value])->paths;
+	}
+
+	/**
+	 * Значение скрытого поля — формат PANEL_paths: адреса по одному в строке.
+	 * Тот же формат собирает JS поля (sync()) при выборе мест.
+	 *
+	 * @param list<string> $urls
+	 */
+	public static function hiddenValue(array $urls): string
+	{
+		return implode("\n", $urls);
+	}
+
 	protected function renderValue(string $moduleId): string
 	{
 		Extension::load(['ui.entity-selector']);
 
-		// Сохранённое — через тот же разбор, что и у Config: мусор не показываем
-		$saved = Config::fromValues([Config::OPTION_PATHS => htmlspecialcharsback($this->getInputValue($moduleId))])->paths;
+		$saved = static::savedUrls(htmlspecialcharsback($this->getInputValue($moduleId)));
 		$preselected = array_map(static fn(string $url): array => [PlaceProvider::ENTITY_ID, $url], $saved);
 		$containerId = 'shef-assistant-places-'.$this->getCode();
 
@@ -36,7 +57,7 @@ final class PlacesOption extends AOption
 			'containerId' => $containerId,
 			'entityId' => PlaceProvider::ENTITY_ID,
 			'preselected' => $preselected,
-			'pattern' => '^/(?!/)[\\w\\-./%~]*(\\?[\\w\\-.%=&\\[\\]~+]*)?$',
+			'pattern' => PlaceUrl::PATTERN_BODY,
 			'createLabel' => 'Добавить свой адрес',
 			'customSubtitle' => 'Свой адрес',
 			'badUrl' => 'Адрес — путь своего портала, например /crm/deal/ или /shef/toolsai/view/?type=2',
@@ -44,7 +65,7 @@ final class PlacesOption extends AOption
 
 		ob_start();
 		?>
-<input type="hidden" name="<?= $this->getInputName() ?>" id="<?= $this->getInputId() ?>" value="<?= htmlspecialcharsbx(implode("\n", $saved)) ?>">
+<input type="hidden" name="<?= $this->getInputName() ?>" id="<?= $this->getInputId() ?>" value="<?= htmlspecialcharsbx(static::hiddenValue($saved)) ?>">
 <div id="<?= htmlspecialcharsbx($containerId) ?>"></div>
 <script>
 BX.ready(function() {
