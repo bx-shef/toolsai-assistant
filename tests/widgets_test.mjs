@@ -33,13 +33,13 @@ function node(tag, cls, text) {
   return n;
 }
 const calls = [];
-const ctx = { el: node, prefill: t => calls.push(['prefill', t]), send: t => calls.push(['send', t]), recordUrl: W.recordUrl, safeUrl: () => null };
+const ctx = { el: node, prefill: t => calls.push(['prefill', t]), send: t => calls.push(['send', t]), recordUrl: W.recordUrl, safeUrl: u => (/^\/(?![\/\\])/.test(u) ? u : null), call: (n, b) => calls.push(['call', n, b]) };
 const mount = (type, data) => W.mount(node('div', 'shef-aia-widget'), { type, data: { type, ...data } }, ctx);
 const texts = n => [n.textContent, ...n.children.flatMap(texts)].filter(Boolean);
 const find = (n, tag) => [...(n.tag === tag ? [n] : []), ...n.children.flatMap(c => find(c, tag))];
 
 console.log('\nвстроенные');
-same('типы', W.builtins(), ['kpi', 'table', 'bars', 'record', 'actions']);
+same('типы', W.builtins(), ['kpi', 'table', 'bars', 'record', 'funnel', 'score', 'missedcall', 'actions']);
 const kpi = mount('kpi', { title: 'Итог', items: [{ label: 'Сделок', value: 12, trend: 'up' }, { label: '<img src=x onerror=1>', value: '5' }, 'мусор'] });
 same('kpi: заголовок, значения и подписи текстом, мусор пропущен', texts(kpi), ['Итог', '12', ' ▲', 'Сделок', '5', '<img src=x onerror=1>']);
 const table = mount('table', { columns: ['Сделка', 'Сумма'], rows: [['А', 100, 'лишняя'], ['Б', { x: 1 }]] });
@@ -56,6 +56,25 @@ const actions = mount('actions', { items: [{ label: 'Позвонить', prompt
 const buttons = find(actions, 'button');
 buttons.forEach(b => b.listeners.click());
 same('actions: пустой запрос — без кнопки; send — отправка, иначе в поле', [buttons.length, calls], [2, [['prefill', 'Подготовь к звонку'], ['send', 'Итог']]]);
+
+console.log('\n1.11.0: ссылки в таблице, воронка, оценка, пропущенный звонок');
+const linked = mount('table', { columns: ['Клиент', 'Сделка'], rows: [[{ text: 'ООО «А»', entityTypeId: 4, id: 9 }, { text: 'Отчёт', url: '/crm/deal/list/' }], [{ text: 'Чужой', url: 'https://evil.example/' }, { text: 'Протокол', url: '//evil.example/' }], [{ text: 'Плохой ID', entityTypeId: 2, id: '1;x' }, 'просто']] });
+same('table: запись CRM и путь портала — ссылки слайдера', find(linked, 'a').map(a => [a.textContent, a.attrs.href, a.attrs['data-shef-link']]), [['ООО «А»', '/crm/company/details/9/', '1'], ['Отчёт', '/crm/deal/list/', '1']]);
+same('table: чужой сайт, //хост и мусорный ID — текст без ссылки', find(linked, 'td').map(t => t.children.length ? '[a]' : t.textContent), ['[a]', '[a]', 'Чужой', 'Протокол', 'Плохой ID', 'просто']);
+const fun = mount('funnel', { unit: 'шт', items: [{ label: 'Лиды', value: 200 }, { label: 'КП', value: 80 }, { label: 'Мусор', value: 'x' }, { label: 'Договор', value: 20 }] });
+const cls = (n, c) => [...(String(n.className).split(' ').includes(c) ? [n] : []), ...n.children.flatMap(x => cls(x, c))];
+same('funnel: ширина 40–100% от наибольшей, мусор пропущен', cls(fun, 'shef-aiw-funnel-bar').map(b => b.style.width), ['100%', '64%', '46%']);
+same('funnel: конверсия из предыдущей и от начала, итог', [cls(fun, 'shef-aiw-funnel-step').map(s => s.textContent), cls(fun, 'shef-aiw-funnel-total').map(s => s.textContent), cls(fun, 'shef-aiw-funnel-sum')[0].textContent], [['↓ 40%', '↓ 25%'], [' · от начала 10%'], 'Итоговая конверсия: 10%']);
+same('funnel: предыдущая стадия 0 — прочерк', cls(mount('funnel', { items: [{ label: 'a', value: 0 }, { label: 'b', value: 0 }] }), 'shef-aiw-funnel-step').map(s => s.textContent), ['—']);
+const sc = mount('score', { value: 65, label: 'По скрипту', summary: 'Не выявил потребность', criteria: [{ label: 'Поздоровался', passed: true }, { label: 'Потребность', passed: 'yes', note: 'нет вопросов' }, 'мусор'] });
+same('score: зона по доле, проценты при max 100', [cls(sc, 'shef-aiw-score-value')[0].className, cls(sc, 'shef-aiw-score-value')[0].textContent, cls(sc, 'shef-aiw-score-fill')[0].style.width], ['shef-aiw-score-value --mid', '65%', '65%']);
+same('score: ✓ только при passed === true, мусор пропущен', find(sc, 'li').map(l => l.className), ['--ok', '--fail']);
+same('score: свой максимум и зоны', [cls(mount('score', { value: 9, max: 10 }), 'shef-aiw-score-value')[0].textContent, cls(mount('score', { value: 30 }), 'shef-aiw-score-fill')[0].className, cls(mount('score', { value: 500 }), 'shef-aiw-score-fill')[0].style.width], ['9 / 10', 'shef-aiw-score-fill --bad', '100%']);
+calls.length = 0;
+const mc = mount('missedcall', { phone: '+375 (29) 123-45-67', name: 'Иван', time: '10:42', waiting: '2 ч', entityTypeId: 2, id: 118 });
+find(mc, 'button').forEach(b => b.listeners.click());
+same('missedcall: перезвонить по номеру с привязкой, карточка, подготовка', [find(mc, 'button').map(b => b.textContent), find(mc, 'a')[0].attrs.href, calls], [['Перезвонить', 'Подготовиться к звонку'], '/crm/deal/details/118/', [['call', '+375291234567', { entityTypeId: 2, id: 118 }], ['prefill', 'Подготовь меня к звонку: Иван, +375291234567']]]);
+same('missedcall: негодный номер — без «Перезвонить», без записи — без карточки', [find(mount('missedcall', { phone: '12; alert(1)' }), 'button').map(b => b.textContent), find(mount('missedcall', { phone: '12; alert(1)' }), 'a').length], [['Подготовиться к звонку'], 0]);
 
 console.log('\nмодули и сбои');
 same('свой тип модуля регистрируется', W.register('my.mod:weather', { render: (d, c) => c.el('div', '', d.city) }), true);

@@ -103,6 +103,28 @@
 	}
 
 	/**
+	 * «Перезвонить» из виджета пропущенного звонка (1.11.0): телефония портала
+	 * (BXIM.phoneTo верхнего окна, звонок привязывается к записи CRM), её нет —
+	 * ссылка tel: (софтфон или телефон сотрудника).
+	 */
+	function callPhone(number, binding)
+	{
+		var named = {1: 'LEAD', 2: 'DEAL', 3: 'CONTACT', 4: 'COMPANY'}[binding && binding.entityTypeId];
+		var params = named && binding.id > 0 ? {ENTITY_TYPE_NAME: named, ENTITY_ID: binding.id, AUTO_FOLD: true} : {};
+		try
+		{
+			var top = window.top;
+			if(top && top.BXIM && typeof top.BXIM.phoneTo === 'function')
+			{
+				top.BXIM.phoneTo(number, params);
+				return;
+			}
+		}
+		catch(e) {}
+		window.location.href = 'tel:' + number;
+	}
+
+	/**
 	 * Ключ чата — как Chat\ChatKey на сервере. Чат справки (1.3.0) — свой
 	 * ключ «docs» и в браузере, и на сервере (запомненная роль — своя).
 	 */
@@ -1475,7 +1497,8 @@
 				prefill: function(text) { self.prefill(text); },
 				send: function(text) { self.send(text); },
 				safeUrl: function(url) { return NS.Markdown ? NS.Markdown.safeUrl(url) : null; },
-				recordUrl: NS.Widgets.recordUrl
+				recordUrl: NS.Widgets.recordUrl,
+				call: function(number, binding) { callPhone(number, binding); }
 			};
 			var hosts = body.querySelectorAll('[data-shef-widget]');
 			for(var i = 0; i < hosts.length; i++)

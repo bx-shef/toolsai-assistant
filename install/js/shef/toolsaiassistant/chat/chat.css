@@ -216,6 +216,46 @@ body.shef-aia-push .bx-layout-inner-table { width: calc(100% - var(--shef-aia-pu
 .shef-aiw-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .shef-aiw-action { padding: 6px 12px; border: 1px solid var(--shef-aia-accent); border-radius: 16px; background: transparent; color: var(--shef-aia-accent); cursor: pointer; font: inherit; font-size: 13px; }
 .shef-aiw-action:hover { background: #f3ecfe; }
+.shef-aiw-action.--primary { background: var(--shef-aia-accent); color: #fff; }
+.shef-aiw-action.--primary:hover { opacity: .9; background: var(--shef-aia-accent); }
+a.shef-aiw-action { display: inline-block; text-decoration: none; }
+
+/* 1.11.0: ссылки в таблице, воронка, оценка работы, пропущенный звонок */
+.shef-aiw-link { color: var(--ui-color-link-primary-base, #2066b0); text-decoration: none; }
+.shef-aiw-link:hover { text-decoration: underline; }
+.shef-aiw-funnel { display: flex; flex-direction: column; align-items: center; }
+.shef-aiw-funnel-row { width: 100%; display: flex; justify-content: center; }
+.shef-aiw-funnel-bar { display: flex; justify-content: space-between; gap: 8px; min-width: 0; box-sizing: border-box; padding: 6px 10px; border-radius: 8px; background: linear-gradient(90deg, #ece2fd, #e3f2fd); font-size: 13px; }
+.shef-aiw-funnel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shef-aiw-funnel-value { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shef-aiw-funnel-conv { margin: 2px 0; font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-funnel-step { color: var(--shef-aia-accent); font-weight: 600; }
+.shef-aiw-funnel-sum { align-self: stretch; margin-top: 8px; font-size: 13px; font-weight: 600; }
+.shef-aiw-score-head { display: flex; align-items: center; gap: 12px; }
+.shef-aiw-score-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.shef-aiw-score-value.--good, .shef-aiw-score-mark { color: #2e7d32; }
+.shef-aiw-score-value.--mid { color: #b26a00; }
+.shef-aiw-score-value.--bad { color: #c62828; }
+.shef-aiw-score-side { flex: 1; min-width: 0; }
+.shef-aiw-score-label { font-size: 12px; color: var(--ui-color-base-70, #525c69); margin-bottom: 4px; }
+.shef-aiw-score-meter { display: block; height: 8px; border-radius: 4px; background: var(--ui-color-base-05, #f1f2f4); overflow: hidden; }
+.shef-aiw-score-fill { display: block; height: 100%; }
+.shef-aiw-score-fill.--good { background: #43a047; }
+.shef-aiw-score-fill.--mid { background: #f5a623; }
+.shef-aiw-score-fill.--bad { background: #e53935; }
+.shef-aiw-score-summary { margin-top: 8px; font-size: 13px; }
+.shef-aiw-score-criteria { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.shef-aiw-score-criteria li { padding: 3px 0; }
+.shef-aiw-score-mark { display: inline-block; width: 18px; font-weight: 700; }
+.shef-aiw-score-criteria li.--fail .shef-aiw-score-mark { color: #c62828; }
+.shef-aiw-score-note { margin-left: 18px; font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-missed-head { display: flex; align-items: center; gap: 10px; }
+.shef-aiw-missed-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #fdecec; color: #c62828; font-size: 16px; }
+.shef-aiw-missed-title { font-weight: 600; }
+.shef-aiw-missed-name { font-size: 13px; }
+.shef-aiw-missed-meta { margin: 6px 0 0 42px; font-size: 12px; color: var(--ui-color-base-70, #6a737f); }
+.shef-aiw-missed-note { margin: 4px 0 0 42px; font-size: 13px; }
+.shef-aiw-missed .shef-aiw-actions { margin: 10px 0 0 42px; }
 
 /* Файлы к вопросу (1.8.0): чипы над полем, в своём сообщении — имена */
 .shef-aia-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }

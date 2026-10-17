@@ -15,7 +15,7 @@
  * в своём JS-расширении, а модели о нём сообщает событием
  * shef.toolsaiassistant:OnChatWidgetsCollect (docs/guide/09-widgets.md).
  *
- * ctx: {prefill(text), send(text), el(tag, cls, text), safeUrl(url), recordUrl(entityTypeId, id)}.
+ * ctx: {prefill(text), send(text), el(tag, cls, text), safeUrl(url), recordUrl(entityTypeId, id), call(phone, binding)}.
  * renderer.ownTitle = true — виджет сам показывает data.title (общий заголовок не рисуется).
  * Нет такого типа или виджет упал — подпись «Виджет недоступен», ответ не ломается.
  *
@@ -60,6 +60,55 @@
 		return isFinite(n) && n >= 0 ? n : null;
 	}
 
+	/** Ссылка ячейки таблицы: запись CRM ({entityTypeId, id}) или путь своего портала ({url: "/…"}); иначе ''. */
+	function cellUrl(cell, ctx)
+	{
+		var url = ctx.recordUrl(cell.entityTypeId, cell.id);
+		if(!url && typeof cell.url === 'string' && /^\/(?![\/\\])/.test(cell.url.trim()))
+		{
+			url = (ctx.safeUrl && ctx.safeUrl(cell.url)) || '';
+		}
+		return url;
+	}
+
+	/** Ячейка таблицы: строка, число или {text, entityTypeId, id | url} — ссылка открывается слайдером. */
+	function cellNode(cell, ctx)
+	{
+		var td = ctx.el('td', '');
+		if(cell && typeof cell === 'object' && !Array.isArray(cell))
+		{
+			var text = str(cell.text, 200);
+			var url = cellUrl(cell, ctx);
+			if(url)
+			{
+				var a = ctx.el('a', 'shef-aiw-link', text || url);
+				a.setAttribute('href', url);
+				a.setAttribute('data-shef-link', '1');
+				td.appendChild(a);
+				return td;
+			}
+			td.textContent = text;
+			return td;
+		}
+		td.textContent = str(cell, 200);
+		return td;
+	}
+
+	/** Процент a от b целым; b не больше нуля — null. */
+	function percent(a, b)
+	{
+		return b > 0 ? Math.round(a / b * 100) : null;
+	}
+
+	/** Номер телефона: цифры и ведущий «+», 5–20 цифр; иначе ''. */
+	function phone(value)
+	{
+		var raw = str(value, 40);
+		var digits = raw.replace(/\D+/g, '');
+		if(digits.length < 5 || digits.length > 20) { return ''; }
+		return (raw.charAt(0) === '+' ? '+' : '') + digits;
+	}
+
 	var builtins = {
 		/** Показатели: {items: [{label, value, hint?, trend?: "up"|"down"}]} */
 		kpi: {
@@ -84,7 +133,11 @@
 			}
 		},
 
-		/** Таблица: {columns: [..], rows: [[..], ..]} — до 12 столбцов и 50 строк. */
+		/**
+		 * Таблица: {columns: [..], rows: [[..], ..]} — до 12 столбцов и 50 строк.
+		 * Ячейка-ссылка — {text, entityTypeId, id} (карточка CRM) или {text, url: "/…"}
+		 * (страница своего портала); открывается слайдером обработчиком ссылок чата.
+		 */
 		table: {
 			render: function(data, ctx)
 			{
@@ -103,7 +156,7 @@
 				list(data.rows, LIMIT_ROWS).forEach(function(row)
 				{
 					var tr = ctx.el('tr', '');
-					list(row, columns.length || LIMIT_ITEMS).forEach(function(cell) { tr.appendChild(ctx.el('td', '', str(cell, 200))); });
+					list(row, columns.length || LIMIT_ITEMS).forEach(function(cell) { tr.appendChild(cellNode(cell, ctx)); });
 					tbody.appendChild(tr);
 				});
 				table.appendChild(tbody);
@@ -164,6 +217,140 @@
 					});
 					card.appendChild(dl);
 				}
+				return card;
+			}
+		},
+
+		/**
+		 * Воронка: {items: [{label, value}], unit?} — стадии по порядку; у каждой
+		 * конверсия из предыдущей и из первой. Ширина — 40–100% от наибольшей стадии:
+		 * узкая полоса всё равно вмещает название и число.
+		 */
+		funnel: {
+			render: function(data, ctx)
+			{
+				var items = list(data.items).filter(function(i) { return i && typeof i === 'object' && amount(i.value) !== null; });
+				var max = Math.max.apply(null, items.map(function(i) { return amount(i.value); }).concat([0]));
+				var first = items.length ? amount(items[0].value) : 0;
+				var box = ctx.el('div', 'shef-aiw-funnel');
+				items.forEach(function(item, index)
+				{
+					var value = amount(item.value);
+					var row = ctx.el('div', 'shef-aiw-funnel-row');
+					var bar = ctx.el('div', 'shef-aiw-funnel-bar');
+					bar.style.width = (40 + (max > 0 ? Math.round(value / max * 60) : 0)) + '%';
+					bar.appendChild(ctx.el('span', 'shef-aiw-funnel-label', str(item.label, 60)));
+					bar.appendChild(ctx.el('span', 'shef-aiw-funnel-value', str(item.value, 20) + (data.unit ? ' ' + str(data.unit, 10) : '')));
+					row.appendChild(bar);
+					if(index > 0)
+					{
+						var step = percent(value, amount(items[index - 1].value));
+						var total = percent(value, first);
+						var conv = ctx.el('div', 'shef-aiw-funnel-conv');
+						conv.appendChild(ctx.el('span', 'shef-aiw-funnel-step', step === null ? '—' : '↓ ' + step + '%'));
+						if(total !== null && index > 1) { conv.appendChild(ctx.el('span', 'shef-aiw-funnel-total', ' · от начала ' + total + '%')); }
+						box.appendChild(conv);
+					}
+					box.appendChild(row);
+				});
+				if(items.length > 1 && first > 0)
+				{
+					box.appendChild(ctx.el('div', 'shef-aiw-funnel-sum', 'Итоговая конверсия: ' + percent(amount(items[items.length - 1].value), first) + '%'));
+				}
+				return box;
+			}
+		},
+
+		/**
+		 * Оценка работы: {value, max?, label?, summary?, criteria: [{label, passed, note?}]}
+		 * — балл с цветом зоны (до 50% — плохо, до 80% — средне), критерии ✓/✗.
+		 */
+		score: {
+			render: function(data, ctx)
+			{
+				var box = ctx.el('div', 'shef-aiw-score');
+				var value = amount(data.value);
+				var max = amount(data.max) || 100;
+				var head = ctx.el('div', 'shef-aiw-score-head');
+				if(value !== null)
+				{
+					var share = Math.min(value / max, 1);
+					var zone = share < 0.5 ? 'bad' : (share < 0.8 ? 'mid' : 'good');
+					var badge = ctx.el('div', 'shef-aiw-score-value --' + zone, str(data.value, 10) + (max === 100 ? '%' : ' / ' + str(max, 10)));
+					head.appendChild(badge);
+					var meter = ctx.el('span', 'shef-aiw-score-meter');
+					var fill = ctx.el('span', 'shef-aiw-score-fill --' + zone);
+					fill.style.width = Math.round(share * 100) + '%';
+					meter.appendChild(fill);
+					var side = ctx.el('div', 'shef-aiw-score-side');
+					if(data.label) { side.appendChild(ctx.el('div', 'shef-aiw-score-label', str(data.label, 80))); }
+					side.appendChild(meter);
+					head.appendChild(side);
+				}
+				box.appendChild(head);
+				if(data.summary) { box.appendChild(ctx.el('div', 'shef-aiw-score-summary', str(data.summary, 400))); }
+				var criteria = list(data.criteria, 20);
+				if(criteria.length)
+				{
+					var ul = ctx.el('ul', 'shef-aiw-score-criteria');
+					criteria.forEach(function(c)
+					{
+						if(!c || typeof c !== 'object') { return; }
+						var ok = c.passed === true;
+						var li = ctx.el('li', ok ? '--ok' : '--fail');
+						li.appendChild(ctx.el('span', 'shef-aiw-score-mark', ok ? '✓' : '✗'));
+						li.appendChild(ctx.el('span', '', str(c.label, 120)));
+						if(c.note) { li.appendChild(ctx.el('div', 'shef-aiw-score-note', str(c.note, 200))); }
+						ul.appendChild(li);
+					});
+					box.appendChild(ul);
+				}
+				return box;
+			}
+		},
+
+		/**
+		 * Пропущенный звонок: {phone, name?, time?, waiting?, entityTypeId?, id?, note?}
+		 * — «Перезвонить» звонит телефонией портала (ctx.call), карточка — слайдером,
+		 * «Подготовиться» вставляет запрос в поле.
+		 */
+		missedcall: {
+			ownTitle: true,
+			render: function(data, ctx)
+			{
+				var card = ctx.el('div', 'shef-aiw-missed');
+				var number = phone(data.phone);
+				var head = ctx.el('div', 'shef-aiw-missed-head');
+				head.appendChild(ctx.el('span', 'shef-aiw-missed-icon', '☎'));
+				var who = ctx.el('div', 'shef-aiw-missed-who');
+				who.appendChild(ctx.el('div', 'shef-aiw-missed-title', str(data.title, 80) || 'Пропущенный звонок'));
+				who.appendChild(ctx.el('div', 'shef-aiw-missed-name', [str(data.name, 80), number].filter(Boolean).join(' · ')));
+				head.appendChild(who);
+				card.appendChild(head);
+				var meta = [str(data.time, 40), data.waiting ? 'ждёт ' + str(data.waiting, 40) : ''].filter(Boolean).join(' · ');
+				if(meta) { card.appendChild(ctx.el('div', 'shef-aiw-missed-meta', meta)); }
+				if(data.note) { card.appendChild(ctx.el('div', 'shef-aiw-missed-note', str(data.note, 300))); }
+				var actions = ctx.el('div', 'shef-aiw-actions');
+				if(number && ctx.call)
+				{
+					var call = ctx.el('button', 'shef-aiw-action --primary', 'Перезвонить');
+					call.setAttribute('type', 'button');
+					call.addEventListener('click', function() { ctx.call(number, {entityTypeId: Number(data.entityTypeId) || 0, id: Number(data.id) || 0}); });
+					actions.appendChild(call);
+				}
+				var url = ctx.recordUrl(data.entityTypeId, data.id);
+				if(url)
+				{
+					var open = ctx.el('a', 'shef-aiw-action', 'Открыть карточку');
+					open.setAttribute('href', url);
+					open.setAttribute('data-shef-link', '1');
+					actions.appendChild(open);
+				}
+				var prep = ctx.el('button', 'shef-aiw-action', 'Подготовиться к звонку');
+				prep.setAttribute('type', 'button');
+				prep.addEventListener('click', function() { ctx.prefill('Подготовь меня к звонку: ' + ([str(data.name, 80), number].filter(Boolean).join(', ') || 'пропущенный звонок')); });
+				actions.appendChild(prep);
+				card.appendChild(actions);
 				return card;
 			}
 		},
