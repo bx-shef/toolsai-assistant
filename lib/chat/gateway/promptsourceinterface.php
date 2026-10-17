@@ -3,24 +3,30 @@
 namespace Shef\ToolsAiAssistant\Chat\Gateway;
 
 /**
- * Роли и текст для модели — из реестра промптов shef.toolsai.
+ * Роли и текст для модели — из библиотеки промптов shef.toolsai.
  * Реализация — ToolsAiPromptSource; в тестах — подмена.
+ *
+ * С 1.6.0 доступ к ролям решает библиотека («Кому доступна» у роли,
+ * shef.toolsai 1.54.0): все методы работают для текущего сотрудника.
  */
 interface PromptSourceInterface
 {
 	/**
-	 * Включённые роли реестра, открытые сотруднику, в порядке реестра.
+	 * Роли, открытые текущему сотруднику, без скрытых им, избранные первыми.
 	 *
-	 * @param list<string>|null $allowed коды открытых ролей; null — все
-	 * @return list<array{code: string, title: string, description: string}>
+	 * @return list<array{code: string, title: string, description: string, icon: string, iconUrl: string, group: string, favorite: bool}>
 	 */
-	public function roles(?array $allowed): array;
+	public function roles(): array;
+
+	/** Открыта ли роль текущему сотруднику: есть, включена, «Кому доступна» пускает. */
+	public function isAvailable(string $roleCode): bool;
 
 	/**
-	 * Системный текст роли и готовые вопросы для места и сущности.
+	 * Системный текст роли (+ навык для сущности записи), готовые вопросы и
+	 * шаблон: если навык «с уточнениями» (type = template) — его текст для
+	 * поля ввода, иначе пусто.
 	 *
-	 * @param list<string>|null $allowed
-	 * @return array{system: string, examples: list<string>}
+	 * @return array{system: string, examples: list<string>, template: string}
 	 */
-	public function compose(string $roleCode, ?int $entityTypeId, ?array $allowed): array;
+	public function compose(string $roleCode, ?int $entityTypeId): array;
 }

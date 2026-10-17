@@ -30,7 +30,7 @@
 		"composer/installers": "^1.0 || ^2.0",
 		"bxshef/options": "^3.0",
 		"bxshef/problems": "^2.0",
-		"bxshef/toolsai": "^1.50"
+		"bxshef/toolsai": "^1.54"
 	},
 	"suggest": {
 		"bxshef/toolsai-kb": "Статьи базы знаний в ответах помощника (shef.toolsaikb)"

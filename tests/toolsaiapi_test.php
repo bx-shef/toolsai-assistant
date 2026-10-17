@@ -4,7 +4,7 @@
  * Что модуль берёт у shef.toolsai — существует ли оно.
  *
  * Список — таблица docs/guide/03-dependencies.md: публичный API
- * Shef\\ToolsAi\\Public\\… (1.50.0) и событие реестра промптов. Есть рядом исходники
+ * Shef\\ToolsAi\\Public\\… (1.54.0) и событие реестра промптов. Есть рядом исходники
  * shef.toolsai (переменная TOOLSAI_DIR, ../toolsai или /home/user/toolsai) —
  * сверяем с ними: класс в своём файле и метод в нём. Нет (CI этого
  * репозитория) — сверяем, что список и документация не разошлись: каждый
@@ -28,8 +28,13 @@ const TOOLSAI_API = [
 	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getText(): string'],
 	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getFinishReason(): string'],
 	['lib/public/service/llmresponse.php', 'LlmResponse', 'function getErrorCode(): string'],
-	['lib/public/service/promptservice.php', 'PromptService', 'function roles(?array $allowed = null): array'],
-	['lib/public/service/promptservice.php', 'PromptService', 'function compose(string $roleCode, string $place, int $entityTypeId = 0, ?array $allowed = null): array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function roles(?array $allowed = null, int $userId = self::USER_CURRENT): array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function compose(string $roleCode, string $place, int $entityTypeId = 0, ?array $allowed = null, int $userId = self::USER_CURRENT): array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function isAvailable(string $code, int $userId = self::USER_CURRENT): bool'],
+	['lib/public/service/promptservice.php', 'PromptService', 'function get(string $code): ?array'],
+	['lib/public/service/promptservice.php', 'PromptService', 'USER_CURRENT = -1'],
+	['lib/public/service/promptservice.php', 'PromptService', "'iconUrl' =>"],
+	['lib/public/service/promptservice.php', 'PromptService', "'favorite' =>"],
 	['lib/public/service/promptservice.php', 'PromptService', 'function forget(): void'],
 	['lib/public/service/promptservice.php', 'PromptService', 'PLACE_ASSISTANT'],
 	['lib/public/service/recordservice.php', 'RecordService', 'function get(int $entityTypeId, int $id, int $userId): ?array'],

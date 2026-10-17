@@ -19,6 +19,6 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 return [
 	'css' => 'chat.css',
 	'js' => ['markdown.js', 'stream.js', 'layout.js', 'status.js', 'view.js', 'roledialog.js', 'chat.js'],
-	'rel' => ['main.core', 'ui.buttons', 'ui.icon-set.outline', 'ui.design-tokens'],
+	'rel' => ['main.core', 'ui.buttons', 'ui.icon-set.outline', 'ui.icon-set.main', 'ui.design-tokens'],
 	'skip_core' => false,
 ];

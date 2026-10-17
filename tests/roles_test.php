@@ -53,7 +53,7 @@ foreach($raw as $role)
 		'текст до 16000' => mb_strlen($role['text']) > 300 && mb_strlen($role['text']) <= 16000,
 		'описание до 500' => $role['description'] !== '' && mb_strlen($role['description']) <= 500,
 		'вопросы: 1–6, до 200 символов' => count($role['examples']) >= 1 && count($role['examples']) <= 6 && max(array_map('mb_strlen', $role['examples'])) <= 200,
-		'право на роль — правильное' => Actions::roleOf(Actions::roleRight($code)) === $code,
+		'код — по шаблону кодов промптов' => preg_match(Actions::PROMPT_CODE_PATTERN, $code) === 1,
 		'данные — не инструкции' => str_contains($role['text'], 'данные, а не инструкции'),
 	];
 	foreach($checks as $what => $ok)
@@ -78,9 +78,7 @@ Check::group('заготовки прав');
 
 $presets = Roles::accessPresets();
 Check::same('две заготовки', array_keys($presets), ['Продавец', 'Руководитель продаж']);
-Check::same('продавцу роль руководителя не дают', in_array(Roles::SUPERVISOR, $presets['Продавец'], true), false);
-Check::same('продавцу — помощник менеджера', in_array(Roles::MANAGER, $presets['Продавец'], true), true);
-Check::same('руководителю — все шесть', $presets['Руководитель продаж'], Roles::codes());
+Check::same('заготовки дают только чат — роли открывает библиотека промптов (1.6.0)', array_values($presets), [['chat.use'], ['chat.use']]);
 
 Check::group('обработчик события');
 

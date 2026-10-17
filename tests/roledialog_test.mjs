@@ -55,5 +55,8 @@ same('«е» находит «ё»', codes(M.items(roles, {}, 'all', 'емкий
 same('ничего — текст', M.empty('all', 'xyz'), 'Ничего не нашлось — попробуйте другое слово.');
 same('пустое избранное — подсказка', M.empty('favorite', ''), 'Отметьте роли звёздочкой — они появятся здесь.');
 
+console.log('\nкартинка роли (1.6.0)');
+same('картинка из библиотеки — в пункт диалога', M.items([{ code: 'p', title: 'П', iconUrl: '/upload/p.png' }, { code: 'q', title: 'Q', iconUrl: 'javascript:1' }], {}, 'all', '', '').map((i) => i.iconUrl), ['/upload/p.png', '']);
+
 console.log(`\n${count - errors.length} из ${count}`);
 if (errors.length) { process.exit(1); }

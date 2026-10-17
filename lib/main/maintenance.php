@@ -20,7 +20,12 @@ use Bitrix\Main\EventManager;
  *   - ставит подписки installEvents (registerEventHandler ядра идемпотентен:
  *     INSERT IGNORE по UNIQUE_ID, main/lib/eventmanager.php);
  *   - ставит агент очистки оценок;
- *   - удаляет устаревшие опции (OBSOLETE_OPTIONS).
+ *   - удаляет устаревшие опции (OBSOLETE_OPTIONS);
+ *   - сверяет версию shef.toolsai с NEED_TOOLSAI (1.6.0): старее — шаг
+ *     «toolsai» не удался, версия файлов не пишется и проверка повторится
+ *     на следующем хите, а чат до обновления отвечает отказом
+ *     (Chat\Gateway\ToolsAiPromptSource). Установщик проверяет то же
+ *     (NEED_MODULES_BY_VERSION).
  *
  * Версия файлов, до которой довели, — опция FILES_version. Совпала с версией
  * модуля — ничего не делаем (одно чтение опции из кеша ядра). Не всё
@@ -33,6 +38,9 @@ final class Maintenance
 
 	/** Опции, которые больше не нужны (1.2.0: отметка переноса прав из shef.toolsai). */
 	public const OBSOLETE_OPTIONS = ['LEGACY_migrated'];
+
+	/** Наименьшая версия shef.toolsai: роли и «Кому доступна» в библиотеке промптов (1.54.0). */
+	public const NEED_TOOLSAI = '1.54.0';
 
 	/** Куда installDir может писать: свои подкаталоги, не чужие. */
 	public const ALLOWED_TARGETS = ['/bitrix/js/shef/toolsaiassistant', '/local/components/shef/toolsaiassistant.', '/shef/toolsaiassistant'];
@@ -58,6 +66,12 @@ final class Maintenance
 		catch(\Throwable)
 		{
 		}
+	}
+
+	/** Подходит ли версия shef.toolsai (пусто или старее NEED_TOOLSAI — нет). */
+	public static function toolsaiReady(string $version): bool
+	{
+		return $version !== '' && version_compare($version, self::NEED_TOOLSAI, '>=');
 	}
 
 	/** Нужно ли доводить: сохранённая версия файлов не та, что у модуля. */
@@ -104,6 +118,13 @@ final class Maintenance
 			'agents' => $agents ?? static function(): void
 			{
 				\Shef\ToolsAiAssistant\Feedback\FeedbackStore::installAgent();
+			},
+			'toolsai' => static function(): void
+			{
+				if(!static::toolsaiReady((string)\Bitrix\Main\ModuleManager::getVersion('shef.toolsai')))
+				{
+					throw new \RuntimeException('shef.toolsai старее '.self::NEED_TOOLSAI);
+				}
 			},
 			'options' => static function(): void
 			{

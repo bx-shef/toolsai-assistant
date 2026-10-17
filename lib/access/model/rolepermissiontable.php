@@ -8,7 +8,7 @@ use Bitrix\Main\ORM\Fields\StringField;
 
 /**
  * Право роли доступа: строка — право есть (Access\Actions: chat.use или
- * role:<код промпта>). Код промпта до 80 символов плюс модуль — отсюда 150.
+ * до 1.6.0 — role:<код промпта>, теперь не читаются). Код промпта до 80 символов плюс модуль — отсюда 150.
  */
 class RolePermissionTable extends DataManager
 {

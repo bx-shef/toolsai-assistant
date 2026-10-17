@@ -28,11 +28,39 @@
 		return /^[a-z][a-z0-9-]{1,60}$/.test(icon) ? icon : 'o-copilot';
 	}
 
+	/**
+	 * Картинка роли (1.6.0): iconUrl из библиотеки промптов shef.toolsai —
+	 * путь на портале или https-адрес; кавычки, пробелы, «//хост» и прочие
+	 * схемы — пусто (тогда иконка iconOf). Как Chat\RoleIcon::url().
+	 */
+	function iconUrlOf(role)
+	{
+		var url = role && typeof role.iconUrl === 'string' ? role.iconUrl : '';
+		return /^(\/(?!\/)|https:\/\/)[^\s"'<>\\()]{1,500}$/.test(url) ? url : '';
+	}
+
+	/**
+	 * Первое уточнение «[ … ]» в тексте (1.6.0): {start, end} — для выделения
+	 * в поле ввода, скобки входят; нет — null. Правило то же, что
+	 * Prompt\Definition::placeholders() shef.toolsai: внутри без скобок и
+	 * переводов строки, до 200 знаков.
+	 */
+	function placeholder(text, from)
+	{
+		var re = /\[[^\[\]\r\n]{1,200}\]/g;
+		re.lastIndex = from || 0;
+		var m = re.exec(String(text || ''));
+		while(m && m[0].slice(1, -1).trim() === '') { m = re.exec(String(text || '')); }
+		return m ? {start: m.index, end: m.index + m[0].length} : null;
+	}
+
 	function pad(n) { return (n < 10 ? '0' : '') + n; }
 
 	var View = {
 		escape: escape,
 		iconOf: iconOf,
+		iconUrlOf: iconUrlOf,
+		placeholder: placeholder,
 
 		/** «ЧЧ:ММ» по отметке времени (мс); нет — ''. */
 		time: function(ms, offsetMinutes)
@@ -79,7 +107,7 @@
 			var scope = options.record
 				? 'Отвечаю по истории записи «' + options.record + '»: звонки, письма, чаты, дела' + (options.kb ? ' и статьи базы знаний.' : '.')
 				: (options.docs ? 'Отвечаю по справке.' : 'Общий чат. Чтобы спросить по записи, откройте «✦ Спросить ИИ» в её карточке или строке списка.');
-			return {title: title, text: about, scope: scope, icon: iconOf(role), examples: (options.examples || []).map(String)};
+			return {title: title, text: about, scope: scope, icon: iconOf(role), iconUrl: iconUrlOf(role), examples: (options.examples || []).map(String)};
 		},
 
 		/**
@@ -94,6 +122,7 @@
 				side: mine ? 'right' : 'left',
 				author: mine ? '' : (role ? role.title : 'ИИ-помощник'),
 				icon: mine ? '' : iconOf(role),
+				iconUrl: mine ? '' : iconUrlOf(role),
 				time: this.time(message.time, offsetMinutes),
 				html: mine
 					? escape(message.text).replace(/\n/g, '<br>')

@@ -24,7 +24,8 @@
 	var View = {
 		role: function(roles, code) { return NS.ChatView ? NS.ChatView.role(roles, code) : null; },
 		welcome: function(role, options) { return NS.ChatView.welcome(role, options); },
-		message: function(message, roles) { return NS.ChatView.message(message, roles); }
+		message: function(message, roles) { return NS.ChatView.message(message, roles); },
+		placeholder: function(text, from) { return NS.ChatView ? NS.ChatView.placeholder(text, from) : null; }
 	};
 	var ACTION = 'shef:toolsaiassistant.chat.';
 	var HISTORY_KEEP = 40;
@@ -136,11 +137,23 @@
 		button.setAttribute('aria-label', title);
 	}
 
-	/** Аватар роли: круг с иконкой ui.icon-set (как аватар CoPilot в мессенджере). */
-	function avatar(icon, className)
+	/**
+	 * Аватар роли: круг с иконкой ui.icon-set (как аватар CoPilot в
+	 * мессенджере) или картинкой роли из библиотеки промптов (1.6.0, url —
+	 * уже проверен View.iconUrlOf; ставится свойством src, не HTML).
+	 */
+	function avatar(icon, className, url)
 	{
 		var box = el('span', className);
 		box.setAttribute('aria-hidden', 'true');
+		if(url)
+		{
+			var img = el('img', 'shef-aia-avatar-img');
+			img.alt = '';
+			img.src = url;
+			box.appendChild(img);
+			return box;
+		}
 		box.appendChild(el('span', 'ui-icon-set --' + icon));
 		return box;
 	}
@@ -184,7 +197,7 @@
 			// Подгружены из фрейма (top.BX.load, только свои файлы) — иконки ui.icon-set доберём сами (1.4.0)
 			if(settings.fromFrame && BX.Runtime && BX.Runtime.loadExtension)
 			{
-				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.design-tokens']); } catch(e) {}
+				try { BX.Runtime.loadExtension(['ui.icon-set.outline', 'ui.icon-set.main', 'ui.design-tokens']); } catch(e) {}
 			}
 			this.buildPanel();
 			this.bindButton();
@@ -301,6 +314,11 @@
 			this.input.placeholder = 'Спросите помощника…';
 			this.input.addEventListener('keydown', function(e)
 			{
+				if(e.key === 'Tab' && !e.shiftKey && self.nextPlaceholder())
+				{
+					e.preventDefault();
+					return;
+				}
 				if(e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey)
 				{
 					e.preventDefault();
@@ -474,6 +492,7 @@
 					self.info = response.data;
 					self.render();
 					self.applyDocsRole();
+					self.prefillTemplate();
 				}, function(response)
 				{
 					if(requestId !== self.requestId) { return; }
@@ -551,16 +570,52 @@
 				{
 					self.info.role = response.data.role;
 					self.info.examples = response.data.examples || [];
+					self.info.template = response.data.template || '';
 					// Недавние — как запомнил сервер (RolePrefs::touch)
 					var prefs = self.info.prefs || {recent: [], favorite: []};
 					self.info.prefs = {recent: [response.data.role].concat((prefs.recent || []).filter(function(c) { return c !== response.data.role; })).slice(0, 5), favorite: prefs.favorite || []};
 					self.render();
+					self.prefillTemplate();
 				}, function(response)
 				{
 					self.info.role = previous;
 					self.lastError = errorText(response, 'Не удалось сменить роль');
 					self.render();
 				});
+		},
+
+		/**
+		 * Вставить текст в поле ввода, не отправляя (1.6.0): готовый вопрос
+		 * или промпт «с уточнениями». Первое уточнение «[ … ]» выделяется —
+		 * сотрудник сразу печатает поверх; Tab переходит к следующему.
+		 */
+		prefill: function(text)
+		{
+			var input = this.input;
+			input.value = String(text || '');
+			input.focus();
+			var mark = View.placeholder(input.value);
+			var end = input.value.length;
+			try { input.setSelectionRange(mark ? mark.start : end, mark ? mark.end : end); } catch(e) {}
+		},
+
+		/** Навык роли «с уточнениями» (type = template) — в пустое поле ввода. */
+		prefillTemplate: function()
+		{
+			if(this.info && this.info.template && !String(this.input.value || '').trim() && !this.busy)
+			{
+				this.prefill(this.info.template);
+			}
+		},
+
+		/** Tab в поле ввода: к следующему уточнению «[ … ]»; нет — как обычно. */
+		nextPlaceholder: function()
+		{
+			var input = this.input;
+			var mark = View.placeholder(input.value, input.selectionEnd || 0) || View.placeholder(input.value, 0);
+			if(!mark || (mark.start === input.selectionStart && mark.end === input.selectionEnd)) { return false; }
+			input.setSelectionRange(mark.start, mark.end);
+			return true;
 		},
 
 		send: function(text)
@@ -767,7 +822,7 @@
 		{
 			var button = this.roleButton;
 			BX.cleanNode(button);
-			button.appendChild(avatar(NS.ChatView ? NS.ChatView.iconOf(role) : 'o-copilot', 'shef-aia-avatar --sm'));
+			button.appendChild(avatar(NS.ChatView ? NS.ChatView.iconOf(role) : 'o-copilot', 'shef-aia-avatar --sm', NS.ChatView ? NS.ChatView.iconUrlOf(role) : ''));
 			var text = el('span', 'shef-aia-role-text');
 			text.appendChild(el('span', 'shef-aia-role-name', role ? role.title : 'Роль'));
 			text.appendChild(el('span', 'shef-aia-role-change', 'Изменить роль'));
@@ -857,7 +912,7 @@
 				var pick = el('button', 'shef-aia-roles-pick');
 				pick.type = 'button';
 				pick.setAttribute('aria-pressed', item.selected ? 'true' : 'false');
-				pick.appendChild(avatar(item.icon, 'shef-aia-avatar'));
+				pick.appendChild(avatar(item.icon, 'shef-aia-avatar', item.iconUrl));
 				var text = el('span', 'shef-aia-roles-item-text');
 				text.appendChild(el('span', 'shef-aia-roles-item-title', item.title));
 				if(item.description) { text.appendChild(el('span', 'shef-aia-roles-item-desc', item.description)); }
@@ -930,7 +985,7 @@
 					examples: info.examples || []
 				});
 				var head = el('div', 'shef-aia-welcome-head');
-				head.appendChild(avatar(card.icon, 'shef-aia-avatar --lg'));
+				head.appendChild(avatar(card.icon, 'shef-aia-avatar --lg', card.iconUrl));
 				var titles = el('div', 'shef-aia-welcome-titles');
 				titles.appendChild(el('h2', 'shef-aia-welcome-title', card.title));
 				titles.appendChild(el('p', 'shef-aia-welcome-text', card.text));
@@ -944,7 +999,7 @@
 					{
 						var button = el('button', 'shef-aia-example', question);
 						button.type = 'button';
-						button.addEventListener('click', function() { self.send(question); });
+						button.addEventListener('click', function() { self.prefill(question); });
 						list.appendChild(button);
 					});
 					welcome.appendChild(list);
@@ -966,7 +1021,7 @@
 					return;
 				}
 				var answer = el('div', 'shef-aia-msg shef-aia-msg-assistant');
-				answer.appendChild(avatar(view.icon, 'shef-aia-avatar'));
+				answer.appendChild(avatar(view.icon, 'shef-aia-avatar', view.iconUrl));
 				var column = el('div', 'shef-aia-msg-column');
 				var author = el('div', 'shef-aia-author');
 				author.appendChild(el('span', 'shef-aia-author-name', view.author));

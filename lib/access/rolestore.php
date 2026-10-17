@@ -35,8 +35,8 @@ final class RoleStore
 
 	/**
 	 * Заготовки ролей доступа при первой установке — без участников: кому их
-	 * назначить, решает администратор. Продавцу не открыта роль руководителя
-	 * (Prompt\Roles::sellerRoles()). Роли уже есть — ничего не делает.
+	 * назначить, решает администратор (Prompt\Roles::accessPresets()). Роли
+	 * уже есть — ничего не делает.
 	 */
 	public static function seed(): void
 	{
@@ -51,7 +51,7 @@ final class RoleStore
 				'id' => 0,
 				'title' => $title,
 				'codes' => [],
-				'actions' => Actions::normalize(array_map([Actions::class, 'roleRight'], $codes)),
+				'actions' => Actions::normalize($codes),
 			];
 		}
 		static::save($form);

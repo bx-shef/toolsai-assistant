@@ -2,7 +2,8 @@
 
 /**
  * Сценарий чата на подменах shef.toolsai и shef.toolsaikb: право на чат,
- * право роли на КАЖДОМ ответе, запомненная роль, заглушка и квота, запись
+ * доступ к роли из библиотеки промптов («Кому доступна», 1.6.0) на КАЖДОМ
+ * ответе, запомненная роль, заглушка и квота, запись
  * CRM с правами, статьи базы знаний — мягко.
  */
 
@@ -26,17 +27,25 @@ use Shef\ToolsAiAssistant\Chat\Record;
 use Shef\ToolsAiAssistant\Config;
 use Shef\ToolsAiAssistant\Prompt\Roles;
 
-/** Реестр: все роли модуля, фильтр по открытым — как RegistryService::roles(). */
+/**
+ * Библиотека промптов для текущего сотрудника: $open — коды, открытые ему
+ * «Кому доступна» (null — все); $closed — закрыты в библиотеке уже после
+ * того, как окно получило список (isAvailable() скажет «нет»).
+ */
 final class FakePrompts implements PromptSourceInterface
 {
 	public array $composed = [];
+	public ?array $open = null;
+	public array $closed = [];
+	public array $checked = [];
+	public string $template = '';
 
-	public function roles(?array $allowed): array
+	public function roles(): array
 	{
 		$out = [];
 		foreach(Roles::raw() as $raw)
 		{
-			if($allowed === null || in_array($raw['code'], $allowed, true))
+			if($this->open === null || in_array($raw['code'], $this->open, true))
 			{
 				$out[] = ['code' => $raw['code'], 'title' => $raw['title'], 'description' => $raw['description']];
 			}
@@ -45,11 +54,18 @@ final class FakePrompts implements PromptSourceInterface
 		return $out;
 	}
 
-	public function compose(string $roleCode, ?int $entityTypeId, ?array $allowed): array
+	public function isAvailable(string $roleCode): bool
+	{
+		$this->checked[] = $roleCode;
+
+		return in_array($roleCode, array_column($this->roles(), 'code'), true) && !in_array($roleCode, $this->closed, true);
+	}
+
+	public function compose(string $roleCode, ?int $entityTypeId): array
 	{
 		$this->composed[] = [$roleCode, $entityTypeId];
 
-		return ['system' => 'ТЕКСТ РОЛИ '.$roleCode, 'examples' => ['вопрос '.$roleCode]];
+		return ['system' => 'ТЕКСТ РОЛИ '.$roleCode, 'examples' => ['вопрос '.$roleCode], 'template' => $this->template];
 	}
 }
 
@@ -189,7 +205,10 @@ $rates = new FakeRates();
 $now = 1000;
 $service = new AnswerService($prompts, $records, $kb, $model, $choices, $rates, new Config(kbLimit: 3, rateLimit: 100), static function() use (&$now): int { return $now; });
 
-$seller = Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => array_map(static fn(string $c): string => 'role:'.$c, Roles::sellerRoles())]]);
+// Продавцу библиотека открыла четыре роли, без контроля руководителя и узких мест
+$sellerRoles = [Roles::MANAGER, Roles::DEAL_QUALITY, Roles::COACH, Roles::CUSTOMER];
+$prompts->open = $sellerRoles;
+$seller = Rights::resolve(false, ['U1'], [['codes' => ['U1'], 'actions' => ['chat.use']]]);
 $nobody = Rights::resolve(false, ['U2'], []);
 $chatOnly = Rights::resolve(false, ['U3'], [['codes' => ['U3'], 'actions' => ['chat.use']]]);
 $ask = static fn(string $text, ?array $record = null, string $role = ''): ChatRequest => ChatRequest::parse([['role' => 'user', 'text' => $text]], $record, $role, 10);
@@ -212,9 +231,13 @@ $outcome = static function(callable $call): string
 Check::group('окно: роли и вопросы');
 
 $info = $service->info($seller, 1, null);
-Check::same('продавцу — только его роли', array_column($info['roles'], 'code'), Roles::sellerRoles());
+Check::same('продавцу — только открытые ему библиотекой', array_column($info['roles'], 'code'), $sellerRoles);
 Check::same('роль по умолчанию — помощник менеджера', $info['role'], Roles::MANAGER);
 Check::same('вопросы — выбранной роли', $info['examples'], ['вопрос '.Roles::MANAGER]);
+Check::same('шаблона нет — пусто', $info['template'], '');
+$prompts->template = 'Разбери звонок с [клиент] за [период]';
+Check::same('навык «с уточнениями» — шаблон для поля ввода (1.6.0)', $service->info($seller, 1, null)['template'], 'Разбери звонок с [клиент] за [период]');
+$prompts->template = '';
 Check::same('модель и база знаний', [$info['model'], $info['kb'], $info['chatKey']], ['gpt-test', true, 'general']);
 Check::same('без права на чат — отказ', $outcome(static fn() => $service->info($nobody, 2, null)), ChatException::ACCESS);
 
@@ -237,7 +260,17 @@ Check::group('ответ: права');
 
 $records->visible['2:5'] = ['title' => 'Окна', 'text' => "Сделка #5: Окна\nКасаний пока нет."];
 Check::same('без права на чат — отказ, модель не звали', [$outcome(static fn() => $service->answer($nobody, 2, $ask('Привет'))), count($model->calls)], [ChatException::ACCESS, 0]);
-Check::same('чат есть, ролей нет — отказ', $outcome(static fn() => $service->answer($chatOnly, 3, $ask('Привет'))), ChatException::NO_ROLES);
+$prompts->open = [];
+Check::same('чат есть, библиотека не открыла ни одной роли — отказ', $outcome(static fn() => $service->answer($chatOnly, 3, $ask('Привет'))), ChatException::NO_ROLES);
+$prompts->open = $sellerRoles;
+$prompts->closed = [Roles::MANAGER];
+$model->calls = [];
+Check::same(
+	'роль закрыли в библиотеке после открытия окна — isAvailable на ответе отказывает, модель не звали',
+	[$outcome(static fn() => $service->answer($seller, 1, $ask('Привет', null, Roles::MANAGER))), count($model->calls), end($prompts->checked)],
+	[ChatException::ROLE, 0, Roles::MANAGER]
+);
+$prompts->closed = [];
 Check::same(
 	'роль руководителя в запросе продавца — отказ на ответе, модель не звали',
 	[$outcome(static fn() => $service->answer($seller, 1, $ask('Где теряем клиента?', null, Roles::SUPERVISOR))), count($model->calls)],
@@ -290,7 +323,7 @@ $model->calls = [];
 $limited->answer($seller, 1, $ask('Раз'));
 $limited->answer($seller, 1, $ask('Два'));
 Check::same('третий вопрос за минуту — отказ rate, модель не звали', [$outcome(static fn() => $limited->answer($seller, 1, $ask('Три'))), count($model->calls)], [ChatException::RATE, 2]);
-Check::same('другому сотруднику — можно', $outcome(static fn() => $limited->answer($admin = Rights::resolve(true, [], []), 9, $ask('Раз'))), 'ok');
+Check::same('другому сотруднику — можно', $outcome(static fn() => $limited->answer(Rights::resolve(true, [], []), 9, $ask('Раз'))), 'ok');
 $now += 61;
 Check::same('через минуту — снова можно', $outcome(static fn() => $limited->answer($seller, 1, $ask('Четыре'))), 'ok');
 $model->stub = true;
@@ -304,8 +337,10 @@ Check::group('администратор');
 
 $model->fail = null;
 $admin = Rights::resolve(true, [], []);
+$prompts->open = null;
 Check::same('видит все шесть ролей', count($service->info($admin, 5, null)['roles']), 6);
 Check::same('отвечает ролью руководителя', $service->answer($admin, 5, $ask('Где теряем клиента?', null, Roles::SUPERVISOR))['role'], Roles::SUPERVISOR);
+$prompts->open = $sellerRoles;
 
 Check::group('поток');
 

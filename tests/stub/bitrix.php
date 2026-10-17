@@ -466,6 +466,14 @@ namespace Bitrix\Main
 			{
 				return array_fill_keys(static::$installed, []);
 			}
+
+			/** @var array<string, string> версии модулей (Maintenance: требование к shef.toolsai) */
+			public static array $versions = [];
+
+			public static function getVersion(string $moduleId): string|false
+			{
+				return static::$versions[$moduleId] ?? false;
+			}
 		}
 	}
 }

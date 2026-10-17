@@ -2,7 +2,8 @@
 
 /**
  * Права модуля: словарь, разрешение по ролям доступа, разбор формы страницы
- * прав. Здесь решается, увидит ли продавец роль руководителя.
+ * прав. Роли помощника (1.6.0) здесь не раздаются — их открывает библиотека
+ * промптов shef.toolsai; старые права role:<код> в базе просто не читаются.
  */
 
 $root = dirname(__DIR__);
@@ -19,17 +20,15 @@ const SUPERVISOR = 'shef.toolsaiassistant:supervisor';
 
 Check::group('словарь прав');
 
-Check::same('право на роль', Actions::roleRight('Shef.ToolsAiAssistant:Manager'), 'role:shef.toolsaiassistant:manager');
-Check::same('роль из права', Actions::roleOf('role:'.MANAGER), MANAGER);
-Check::same('мусор вместо кода роли — не право', Actions::roleOf('role:<script>'), null);
-Check::same('без модуля в коде — не право', Actions::roleOf('role:manager'), null);
 Check::same('chat.use известен', Actions::exists(Actions::CHAT_USE), true);
 Check::same('неизвестное право', Actions::exists('chat.admin'), false);
+Check::same('старое право на роль — не право (1.6.0)', Actions::exists('role:'.MANAGER), false);
 Check::same(
-	'роль тянет chat.use, мусор отброшен, порядок — постоянные, потом роли',
-	Actions::normalize(['role:'.SUPERVISOR, 'x', 7, 'role:'.MANAGER, 'role:'.SUPERVISOR]),
-	['chat.use', 'role:'.SUPERVISOR, 'role:'.MANAGER]
+	'старые права ролей и мусор отброшены, feedback.edit тянет feedback.view, порядок — как в словаре',
+	Actions::normalize(['role:'.SUPERVISOR, 'x', 7, 'feedback.edit', 'chat.use', 'chat.use']),
+	['chat.use', 'feedback.view', 'feedback.edit']
 );
+Check::same('раздел прав один — чат', array_keys(Actions::GROUPS), ['chat']);
 
 Check::group('права сотрудника');
 
@@ -40,22 +39,16 @@ $roles = [
 
 $seller = Rights::resolve(false, ['U1', 'DR5', 'D5'], $roles);
 Check::same('продавец: чат открыт', $seller->canUseChat(), true);
-Check::same('продавец: своя роль', $seller->canRole(MANAGER), true);
-Check::same('продавец: роль руководителя закрыта', $seller->canRole(SUPERVISOR), false);
-Check::same('продавец: открытые роли', $seller->allowedRoles(), [MANAGER]);
+Check::same('продавец: старые права ролей не читаются', $seller->getActions(), ['chat.use']);
 
 $boss = Rights::resolve(false, ['U9'], $roles);
-Check::same('руководителю роль даёт и чат', $boss->canUseChat(), true);
-Check::same('руководитель: только его роль', $boss->allowedRoles(), [SUPERVISOR]);
+Check::same('старое право роли больше не открывает чат', $boss->canUseChat(), false);
 
 $stranger = Rights::resolve(false, ['U2', 'DR7'], $roles);
 Check::same('чужой отдел: чата нет', $stranger->canUseChat(), false);
-Check::same('чужой отдел: ролей нет', $stranger->allowedRoles(), []);
 
 $admin = Rights::resolve(true, [], []);
-Check::same('администратор: чат', $admin->canUseChat(), true);
-Check::same('администратор: любая роль', $admin->canRole('shef.toolsai:my.role'), true);
-Check::same('администратор: все роли (null)', $admin->allowedRoles(), null);
+Check::same('администратор: чат и оценки', [$admin->canUseChat(), $admin->canViewFeedback(), $admin->canEditFeedback()], [true, true, true]);
 
 Check::same('нет прав: чата нет', Rights::none()->canUseChat(), false);
 
@@ -63,8 +56,9 @@ Check::group('форма страницы прав');
 
 $form = RoleForm::parse([
 	['id' => '3', 'title' => ' Продавец ', 'accessCodes' => ['DR5' => 'departments', 'U7' => 'users'], 'accessRights' => [
+		['id' => 'chat.use', 'value' => '1'],
 		['id' => 'role:'.MANAGER, 'value' => '1'],
-		['id' => 'role:'.SUPERVISOR, 'value' => '0'],
+		['id' => 'feedback.view', 'value' => '0'],
 		['id' => 'hack', 'value' => '1'],
 	]],
 	['id' => '0', 'title' => 'Новая', 'accessCodes' => [], 'accessRights' => []],
@@ -73,7 +67,7 @@ $form = RoleForm::parse([
 Check::same('ошибок нет', $form['errors'], []);
 Check::same('роль: id и название', [$form['roles'][0]['id'], $form['roles'][0]['title']], [3, 'Продавец']);
 Check::same('роль: коды', $form['roles'][0]['codes'], ['DR5', 'U7']);
-Check::same('роль: права — только включённые и известные, chat.use добавлен', $form['roles'][0]['actions'], ['chat.use', 'role:'.MANAGER]);
+Check::same('роль: права — только включённые и известные, старое право роли отброшено', $form['roles'][0]['actions'], ['chat.use']);
 Check::same('новая роль — id 0', $form['roles'][1]['id'], 0);
 Check::same('удалённые — только целые', $form['deleted'], [4]);
 

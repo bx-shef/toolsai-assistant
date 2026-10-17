@@ -37,7 +37,7 @@ $require = $composer['require'] ?? [];
 Check::same('потолок composer/installers', $require['composer/installers'] ?? null, '^1.0 || ^2.0');
 Check::same('shef.options — своим пакетом', $require['bxshef/options'] ?? null, '^3.0');
 Check::same('shef.problems — своим пакетом', $require['bxshef/problems'] ?? null, '^2.0');
-Check::same('shef.toolsai — своим пакетом, от выпуска с вынесенным чатом', $require['bxshef/toolsai'] ?? null, '^1.50');
+Check::same('shef.toolsai — своим пакетом, от выпуска с ролями в библиотеке промптов', $require['bxshef/toolsai'] ?? null, '^1.54');
 Check::same('shef.toolsaikb — не в require (мягкая зависимость)', array_key_exists('bxshef/toolsai-kb', $require), false);
 Check::same('shef.toolsaikb — в suggest', isset($composer['suggest']['bxshef/toolsai-kb']), true);
 Check::same('shef.uiclear не нужен', array_key_exists('shef/uiclear', $require) || array_key_exists('bxshef/uiclear', $require), false);

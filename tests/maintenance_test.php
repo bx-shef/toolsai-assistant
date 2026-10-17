@@ -57,6 +57,7 @@ namespace
 	$agents = 0;
 	Option::set('shef.toolsaiassistant', 'LEGACY_migrated', 'Y');
 	Option::set('shef.toolsaiassistant', 'CHAT_feedbackdays', '30');
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.54.0';
 	$report = Maintenance::ensure('/srv/portal', $root, static function() use (&$tables): void { $tables++; }, static function() use (&$agents): void { $agents++; });
 	Check::same('файлы — свои каталоги, с заменой', array_map(static fn(array $c): array => [str_replace($root, '', $c[0]), $c[1], $c[2]], $GLOBALS['copied']), [
 		['/install/js/shef/toolsaiassistant', '/srv/portal/bitrix/js/shef/toolsaiassistant', true],
@@ -72,6 +73,16 @@ namespace
 	Option::set('shef.toolsaiassistant', Maintenance::OPTION_VERSION, '1.0.0');
 	$report = Maintenance::ensure('/srv/portal', $root, static function(): void { throw new \RuntimeException('нет базы'); }, static function(): void {});
 	Check::same('сбой таблиц — в отчёте, версия не записана', [$report['tables'], Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, '1.0.0']);
+
+	Check::group('версия shef.toolsai (1.6.0)');
+
+	Check::same('1.54.0 и новее — подходит; старее и пусто — нет', [Maintenance::toolsaiReady('1.54.0'), Maintenance::toolsaiReady('1.60.2'), Maintenance::toolsaiReady('1.53.1'), Maintenance::toolsaiReady('')], [true, true, false, false]);
+	Check::same('требование — то же, что у установщика', Maintenance::NEED_TOOLSAI, preg_match("/'shef\\.toolsai' => '([0-9.]+)'/", (string)file_get_contents($root.'/install/index.php'), $m) === 1 ? $m[1] : null);
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.53.1';
+	Option::set('shef.toolsaiassistant', Maintenance::OPTION_VERSION, '1.0.0');
+	$report = Maintenance::ensure('/srv/portal', $root, static function(): void {}, static function(): void {});
+	Check::same('shef.toolsai старее — шаг не удался, версия не записана (повторим на следующем хите)', [$report['toolsai'], Option::get('shef.toolsaiassistant', Maintenance::OPTION_VERSION)], [false, '1.0.0']);
+	\Bitrix\Main\ModuleManager::$versions['shef.toolsai'] = '1.54.0';
 
 	Check::group('где запускается');
 

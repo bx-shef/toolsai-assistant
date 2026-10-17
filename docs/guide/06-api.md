@@ -127,8 +127,23 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 окна): `o-trashcan` «Очистить диалог», `cross-m` «Закрыть чат», `o-copy` /
 `check-m` «Копировать ответ» / «Скопировано», `o-refresh` «Ответить заново»,
 `o-like` / `o-dislike` — оценка. У каждой кнопки `title` и `aria-label`.
+Иконка роли (1.6.0) — из библиотеки промптов shef.toolsai: `set:<имя>` — иконка
+набора `ui.icon-set.main` (тоже в `rel`), `file:<ID>` — картинка `iconUrl` в круге
+аватара (`<img>` свойством `src`; адрес — только путь портала или https,
+`View.iconUrlOf`). Нет иконки — подбор по коду роли (`Chat\RoleIcon`).
+
 Подтверждение очистки — строкой в самой панели: окно `BX.UI.Dialogs` встало бы над
 панелью и на узком экране закрыло бы её целиком.
+
+## Поле ввода: готовые вопросы и уточнения (1.6.0)
+
+Готовый вопрос по щелчку **встаёт в поле ввода**, а не уходит сразу. Навык роли
+«с уточнениями» (`type = template` в библиотеке промптов) — тоже: его текст
+приходит в `template` ответа `info` / `role` и вставляется в пустое поле (то, что
+сотрудник уже пишет, не затирается). Первое уточнение `[ … ]` выделено — печать
+заменяет его; Tab — к следующему. Правило уточнения — как у shef.toolsai: скобки,
+внутри без скобок и переводов строки, до 200 знаков (`View.placeholder`,
+`tests/chatinput_test.mjs`, `tests/view_test.mjs`).
 
 Ожидание ответа — `status.js` (`BX.Shef.ToolsAiAssistant.ChatStatus`): этапы
 `record` («Читаю историю записи…», если чат по записи), `kb` («Ищу в базе знаний…»,
@@ -143,8 +158,8 @@ if(Loader::includeModule('shef.toolsaiassistant') && ChatPanel::canUse())
 
 | действие | параметры | ответ |
 |---|---|---|
-| `info` | `record: {entityTypeId, id}` или `{}` | `{roles: [{code, title, description, icon, group}], role, examples, model, kb, chatKey, prefs: {recent, favorite}}` — `icon` и `group` с 1.4.0, `prefs` — недавние и избранные роли сотрудника, только открытые |
-| `role` | `role`, `record` | `{role, examples}`; роль не открыта — ошибка `role` |
+| `info` | `record: {entityTypeId, id}` или `{}` | `{roles: [{code, title, description, icon, iconUrl, group, favorite}], role, examples, template, model, kb, chatKey, prefs: {recent, favorite}}` — `icon` и `group` с 1.4.0; `iconUrl`, `favorite` (избранное библиотеки промптов, такие роли первыми) и `template` (текст навыка «с уточнениями» или пусто) — с 1.6.0; `prefs` — недавние и избранные роли сотрудника в окне, только открытые |
+| `role` | `role`, `record` | `{role, examples, template}`; роль не открыта — ошибка `role` |
 | `answer` | `messages: [{role: user\|assistant, text}]`, `record`, `role` | `{text, role, sources: [{title, url}], finishReason}` — одним куском (совместимость с 1.0.0) |
 | `stream` | как у `answer` | поток `text/event-stream` (1.1.0) — см. ниже |
 | `favorite` | `role`, `on: Y\|N` | `{prefs: {recent, favorite}}` — звёздочка роли в диалоге (1.4.0); роль не открыта — ошибка `role` |

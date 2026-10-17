@@ -18,8 +18,9 @@ use Shef\ToolsAiAssistant\Main\Constants;
  * Сценарий чата: что показать в окне, смена роли, ответ (одним куском или
  * потоком — prepare() + stream()), оценка ответа.
  *
- * Порядок ответа: право на чат → роль (проверка права роли на КАЖДОМ ответе,
- * RoleSelector) → заглушка → частота → запись CRM с правами сотрудника → текст
+ * Порядок ответа: право на чат → роль (на КАЖДОМ ответе: роль из открытых
+ * сотруднику — RoleSelector — и ещё раз PromptService::isAvailable: «Кому
+ * доступна» в библиотеке промптов shef.toolsai 1.54.0) → заглушка → частота → запись CRM с правами сотрудника → текст
  * роли из реестра → статьи базы знаний → модель (квота и журнал расхода —
  * внутри LlmService shef.toolsai) →
  * запомнить роль для этого чата.
@@ -50,20 +51,24 @@ final class AnswerService
 	/**
 	 * Что показать в окне: открытые роли, выбранная, готовые вопросы, модель.
 	 *
-	 * @return array{roles: list<array{code: string, title: string, description: string}>, role: ?string, examples: list<string>, model: string, kb: bool, chatKey: string}
+	 * template — текст навыка «с уточнениями» для поля ввода (1.6.0), иначе пусто.
+	 *
+	 * @return array{roles: list<array<string, mixed>>, role: ?string, examples: list<string>, template: string, model: string, kb: bool, chatKey: string}
 	 * @throws ChatException нет права на чат
 	 */
 	public function info(Rights $rights, int $userId, ?Record $record, string $context = ''): array
 	{
 		$this->assertChat($rights);
-		$roles = $this->prompts->roles($rights->allowedRoles());
+		$roles = $this->prompts->roles();
 		$key = ChatKey::of($record, $context);
 		$role = RoleSelector::choose(array_column($roles, 'code'), '', $this->choices->get($userId, $key), Constants::DEFAULT_ROLE);
+		$composed = $role !== null ? $this->prompts->compose($role, $record?->entityTypeId) : ['examples' => [], 'template' => ''];
 
 		return [
 			'roles' => $roles,
 			'role' => $role,
-			'examples' => $role !== null ? $this->prompts->compose($role, $record?->entityTypeId, $rights->allowedRoles())['examples'] : [],
+			'examples' => $composed['examples'],
+			'template' => $composed['template'],
 			'model' => $this->model->modelName(),
 			'kb' => $this->kb->isAvailable(),
 			'chatKey' => $key,
@@ -73,7 +78,7 @@ final class AnswerService
 	/**
 	 * Сменить роль в чате: только открытую сотруднику; запоминается сразу.
 	 *
-	 * @return array{role: string, examples: list<string>}
+	 * @return array{role: string, examples: list<string>, template: string}
 	 * @throws ChatException нет права на чат или на роль
 	 */
 	public function chooseRole(Rights $rights, int $userId, ?Record $record, string $roleCode, string $context = ''): array
@@ -85,10 +90,11 @@ final class AnswerService
 			throw new ChatException('Выберите роль помощника', ChatException::ROLE);
 		}
 		// Прислана роль — RoleSelector вернёт её же или откажет
-		$role = (string)RoleSelector::choose(array_column($this->prompts->roles($rights->allowedRoles()), 'code'), $roleCode, null, Constants::DEFAULT_ROLE);
+		$role = (string)RoleSelector::choose(array_column($this->prompts->roles(), 'code'), $roleCode, null, Constants::DEFAULT_ROLE);
 		$this->choices->save($userId, ChatKey::of($record, $context), $role);
+		$composed = $this->prompts->compose($role, $record?->entityTypeId);
 
-		return ['role' => $role, 'examples' => $this->prompts->compose($role, $record?->entityTypeId, $rights->allowedRoles())['examples']];
+		return ['role' => $role, 'examples' => $composed['examples'], 'template' => $composed['template']];
 	}
 
 	/**
@@ -123,12 +129,16 @@ final class AnswerService
 		{
 			throw new ChatException('Напишите вопрос', ChatException::EMPTY_QUESTION);
 		}
-		$allowed = $rights->allowedRoles();
 		$key = ChatKey::of($request->record, $request->context);
-		$role = RoleSelector::choose(array_column($this->prompts->roles($allowed), 'code'), $request->role, $this->choices->get($userId, $key), Constants::DEFAULT_ROLE);
+		$role = RoleSelector::choose(array_column($this->prompts->roles(), 'code'), $request->role, $this->choices->get($userId, $key), Constants::DEFAULT_ROLE);
 		if($role === null)
 		{
 			throw new ChatException('Вам не открыта ни одна роль помощника — обратитесь к администратору портала', ChatException::NO_ROLES);
+		}
+		// Проверка библиотеки на каждом ответе: «Кому доступна» и «включена» — по самой роли
+		if(!$this->prompts->isAvailable($role))
+		{
+			throw new ChatException('Эта роль помощника вам не открыта — выберите другую или обратитесь к администратору портала', ChatException::ROLE);
 		}
 
 		if($this->model->isStub())
@@ -152,7 +162,7 @@ final class AnswerService
 			$recordText = $record['text'];
 		}
 
-		$composed = $this->prompts->compose($role, $request->record?->entityTypeId, $allowed);
+		$composed = $this->prompts->compose($role, $request->record?->entityTypeId);
 		// Отметка — до вызова модели: сбой модели тоже считается, иначе повторы в цикле обходили бы лимит
 		$this->rates->put($userId, $rate['stamps']);
 		$articles = $this->kb->find($request->question, $this->config->kbLimit);
@@ -204,7 +214,7 @@ final class AnswerService
 		{
 			throw new ChatException('Не удалось сохранить оценку: неверный запрос', ChatException::FEEDBACK);
 		}
-		if(!$rights->canRole($rating['role']))
+		if(!$this->prompts->isAvailable($rating['role']))
 		{
 			throw new ChatException('Эта роль помощника вам не открыта', ChatException::ROLE);
 		}
