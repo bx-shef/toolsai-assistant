@@ -35,8 +35,8 @@ final class PageContext
 	/** Имя сущности для crm-инструментов toolsai-mcp (crmEntity); прочие — числом. */
 	private const ENTITY = [1 => 'lead', 2 => 'deal', 3 => 'contact', 4 => 'company'];
 	private const NOUN = [1 => 'лид', 2 => 'сделка', 3 => 'контакт', 4 => 'компания', 7 => 'предложение'];
-	/** Без стадий: crm_funnel отвечает ошибкой, crm_stages — пусто (toolsai-mcp). */
-	private const NO_STAGES = [3, 4];
+	/** Без стадий в toolsai-mcp: у контакта и компании их нет, стадии предложений (7) stageEntityId() не знает. */
+	private const NO_STAGES = [3, 4, 7];
 
 	public function __construct(
 		public readonly string $kind,

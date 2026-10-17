@@ -49,6 +49,12 @@ Check::same('чужой сайт, //, javascript:, не строка, пусто
 Check::same('слишком длинный путь — нет', $kind('/'.str_repeat('a', PageContext::PATH_MAX)), null);
 Check::same('кавычки и пробелы в пути — нет', [$kind('/a b/'), $kind('/a"b/')], [null, null]);
 
+Check::same('путь ровно PATH_MAX — разбирается', $kind('/'.str_repeat('a', PageContext::PATH_MAX - 2).'/')[0], 'other');
+Check::same('правка задачи', $kind('/company/personal/user/1/tasks/task/edit/42/'), ['task', 0, 42, -1, false]);
+Check::same('неизвестное слово CRM — прочее', [$kind('/crm/foo/details/5/')[0], $kind('/crm/foo/list/')[0]], ['other', 'other']);
+Check::same('пробелы вокруг и якорь', $kind(' /crm/deal/details/5/#tab '), ['crm_record', 2, 5, -1, false]);
+Check::same('пустой page — нет контекста', ChatRequest::parse([], null, '', 10, '', '')->page, null);
+
 Check::group('строка для модели');
 $deal = new Record(2, 5);
 Check::same('карточка с данными сервера', PageContext::line(PageContext::fromPath('/crm/deal/details/5/'), $deal, ['title' => 'Окна', 'noun' => 'Сделка']), 'Открыта карточка CRM: Сделка «Окна» (entityTypeId=2, id=5).');
@@ -61,6 +67,8 @@ Check::same('чат по сделке 5, в слайдере сделка 9 — 
 Check::same('календарь коллеги', PageContext::line(PageContext::fromPath('/company/personal/user/17/calendar/'), null), 'Открыт календарь сотрудника (userId=17).');
 Check::same('прочая страница — без пути в тексте', str_contains((string)PageContext::line(PageContext::fromPath('/x/IGNORE_RULES/'), null), 'IGNORE'), false);
 Check::same('задача', PageContext::line(PageContext::fromPath('/company/personal/user/1/tasks/task/view/42/'), null), 'Открыта задача (id=42).');
+
+Check::same('название записи — до 200 знаков', str_contains((string)PageContext::line(null, $deal, ['title' => str_repeat('я', 300), 'noun' => 'Сделка']), '«'.str_repeat('я', 200).'»'), true);
 
 Check::group('подсказки агенту');
 $all = array_fill_keys(['crm_item_get', 'crm_fields', 'crm_stages', 'crm_activity_list', 'crm_item_list', 'crm_funnel', 'task_get', 'task_comments', 'task_checklist', 'task_list', 'calendar_events'], true);
@@ -77,6 +85,7 @@ Check::same('чат по сделке 5, в слайдере сделка 9 — 
 Check::same('общие подсказки (crm_fields) не повторяются', count(preg_grep('/^- crm_fields/', $other)), 1);
 Check::same('чат по записи, открыта задача — и задача, и запись', [(bool)preg_grep('/task_get \{"id": 42\}/', $t = PageContext::hints(PageContext::fromPath('/company/personal/user/1/tasks/task/view/42/'), $deal, $all)), (bool)preg_grep('/crm_item_get \{"entity": "deal", "id": 5\}/', $t)], [true, true]);
 Check::same('контакт: без воронки и стадий', [(bool)preg_grep('/crm_funnel|crm_stages/', PageContext::hints(PageContext::fromPath('/crm/contact/list/'), null, $all)), (bool)preg_grep('/crm_stages/', PageContext::hints(null, new Record(3, 1), $all))], [false, false]);
+Check::same('предложение: без воронки и стадий', (bool)preg_grep('/crm_funnel|crm_stages/', PageContext::hints(PageContext::fromPath('/crm/quote/kanban/'), null, $all)), false);
 Check::same('календарь коллеги — его ownerId', (bool)preg_grep('/calendar_events \{"from": "ГГГГ-ММ-ДД", "to": "ГГГГ-ММ-ДД", "type": "user", "ownerId": 17\}/', PageContext::hints(PageContext::fromPath('/company/personal/user/17/calendar/'), null, $all)), true);
 Check::same('календарь группы — type group', (bool)preg_grep('/"type": "group", "ownerId": 9\}/', PageContext::hints(PageContext::fromPath('/workgroups/group/9/calendar/'), null, $all)), true);
 Check::same('задачи группы и сотрудника — фильтр', [(bool)preg_grep('/task_list \{"filter": \{"GROUP_ID": 9\}\}/', PageContext::hints(PageContext::fromPath('/workgroups/group/9/tasks/'), null, $all)), (bool)preg_grep('/task_list \{"filter": \{"RESPONSIBLE_ID": 1\}\}/', PageContext::hints(PageContext::fromPath('/company/personal/user/1/tasks/'), null, $all))], [true, true]);
@@ -95,6 +104,13 @@ Check::same('лента: заголовок и свежий хвост целы�
 
 $cut = ContextBuilder::compactRecord("Сделка #5\nстарое\n".str_repeat('a', ContextBuilder::AGENT_RECORD_MAX).'свежее');
 Check::same('свежая строка длиннее предела — её конец, а не пусто', [str_ends_with($cut, 'свежее'), mb_strlen($cut) <= ContextBuilder::AGENT_RECORD_MAX + 200], [true, true]);
+
+$exact = str_repeat('я', ContextBuilder::AGENT_RECORD_MAX);
+Check::same('ровно на пределе — как есть', ContextBuilder::compactRecord($exact), $exact);
+$one = ContextBuilder::compactRecord(str_repeat('я', ContextBuilder::AGENT_RECORD_MAX + 10));
+Check::same('одна длинная строка — заголовок не длиннее предела', mb_strlen(explode("\n", $one)[0]), ContextBuilder::AGENT_RECORD_MAX);
+$tight = ContextBuilder::compactRecord("H\n".str_repeat('a', 10)."\n".str_repeat('b', ContextBuilder::AGENT_RECORD_MAX - 2));
+Check::same('хвост впритык (остаток 0) — сохранён целым', str_ends_with($tight, "\n".str_repeat('b', ContextBuilder::AGENT_RECORD_MAX - 2)), true);
 
 Check::group('в сообщениях модели');
 $records = new FakeRecords();
@@ -147,5 +163,13 @@ Check::same('агент: лента записи короче', str_contains($sy
 $model->calls = [];
 $agent->run($user, 1, ChatRequest::parse([['role' => 'user', 'text' => 'x']], ['entityTypeId' => 2, 'id' => 5], '', 10));
 Check::same('агент без пути (старое окно) — подсказка по записи чата', str_contains($model->calls[0][0]['content'], '"entity": "deal", "id": 5'), true);
+
+Check::group('окно и контроллеры передают page');
+foreach(['lib/controller/chat.php' => 2, 'lib/controller/agent.php' => 1] as $file => $n)
+{
+	$src = (string)file_get_contents($root.'/'.$file);
+	Check::same($file.': действия принимают page и передают в parse', [preg_match_all('/string \$page = \'\'/', $src), preg_match_all('/history, \$context, \$page\)/', $src)], [$n, $n]);
+}
+Check::same('chat.js: page в stream и agent.run', preg_match_all('/page: pageOf\(\)/', (string)file_get_contents($root.'/install/js/shef/toolsaiassistant/chat/chat.js')), 2);
 
 Check::finish();
